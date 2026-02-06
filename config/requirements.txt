@@ -1,0 +1,5 @@
+# FILE: flexx-app/config/requirements.txt  (новое — 2026-02-06)
+# PURPOSE: Python deps for Django app container.
+
+Django>=4.2,<5.0
+psycopg2-binary>=2.9

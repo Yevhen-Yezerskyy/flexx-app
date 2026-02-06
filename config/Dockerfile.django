@@ -1,0 +1,14 @@
+# FILE: flexx-app/config/Dockerfile.django  (новое — 2026-02-06)
+# PURPOSE: Django app image (deps only). Source is bind-mounted from ./web.
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY config/requirements.txt /app/config/requirements.txt
+RUN pip install --no-cache-dir -r /app/config/requirements.txt
+
+EXPOSE 8000
