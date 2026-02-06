@@ -1,0 +1,40 @@
+# FILE: flexx-app/.gitignore  (новое — 2026-02-06)
+# PURPOSE: Ignore Django, Docker, certs, local data.
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.env
+.venv/
+venv/
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+*.log
+
+# VS Code / IDE
+.vscode/
+.idea/
+
+# Docker
+**/__pycache__/
+*.pid
+
+# Postgres data (volume / local leftovers)
+pgdata/
+data/
+volumes/
+
+# Nginx / Certbot sensitive data
+nginx/certbot/letsencrypt/**
+!nginx/certbot/letsencrypt/README.md
+nginx/certbot/www/**
+
+# OS
+.DS_Store
+Thumbs.db
