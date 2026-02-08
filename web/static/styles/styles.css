@@ -1,0 +1,26 @@
+/* FILE: web/static/styles/styles.css  (обновлено — 2026-02-08)
+   PURPOSE: Минимальные глобальные стили: цвета + фиксированный wrapper 1100px. */
+
+:root{
+  --text: #6b6b6b;
+  --accent: #6f8a2b;
+  --bg: #ffffff;
+  --w: 1100px;
+}
+
+html, body{
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body{
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.wrap{
+  width: var(--w);
+  margin: 0 auto;
+}

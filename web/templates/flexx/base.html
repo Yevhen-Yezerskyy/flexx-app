@@ -1,15 +1,40 @@
-<!-- FILE: web/templates/flexx/base.html  (новое — 2026-02-08)
-     PURPOSE: Глобальный базовый шаблон для всех страниц. -->
+{% load static %}
+<!-- FILE: web/templates/flexx/base.html  (обновлено — 2026-02-08)
+     PURPOSE: Корректный layout: wrapper 1100px на всю высоту экрана, футер всегда внизу, отступы — Tailwind. -->
 <!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}Flexx{% endblock %}</title>
+  <meta name="viewport" content="width=1200">
+  <title>Anleiheinhaber von FlexxLager</title>
+
+  <link rel="icon" type="image/svg+xml" href="{% static 'favicon/icon.svg' %}">
+  <link rel="stylesheet" href="{% static 'styles/styles.css' %}">
+
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
 
-{% block content %}
-{% endblock %}
+<div class="wrap flex flex-col min-h-screen">
+
+  <header>
+    <div class="h-[10px] bg-[var(--accent)]"></div>
+    <div class="flex items-center justify-center py-5">
+      <img src="{% static 'img/logo.svg' %}" class="h-14 w-auto block" alt="FlexxLager">
+    </div>
+    <div class="h-[10px] bg-[var(--accent)]"></div>
+  </header>
+
+  <main class="flex-1 py-7">
+    {% block content %}
+    {% endblock %}
+  </main>
+
+  <footer>
+    <div class="h-[10px] bg-[var(--accent)]"></div>
+  </footer>
+
+</div>
 
 </body>
 </html>

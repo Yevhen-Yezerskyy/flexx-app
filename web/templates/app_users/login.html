@@ -1,22 +1,52 @@
-<!-- FILE: web/templates/app_users/login.html  (новое — 2026-02-08)
-     PURPOSE: Визуальная форма логина (username + password), без логики. -->
 {% extends "flexx/base.html" %}
-{% block title %}Login{% endblock %}
+{% load static %}
+<!-- FILE: web/templates/app_users/login.html  (обновлено — 2026-02-08)
+     PURPOSE: Оформление логина: серые границы в цвет текста, лёгкие скругления, hover-эффекты кнопок. -->
 
 {% block content %}
-<h1>Login</h1>
 
-<form>
-  <div>
-    <label>Username</label><br>
-    <input type="text" name="username">
+<div class="flex flex-col items-center">
+
+  <div class="text-2xl mb-20 mt-10">
+    Zugang für Inhaber von FlexxLager-Anleihen
   </div>
 
-  <div>
-    <label>Password</label><br>
-    <input type="password" name="password">
+  <div class="w-[420px] flex flex-col gap-4">
+
+    <input
+      type="text"
+      placeholder="Login"
+      class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
+    >
+
+    <input
+      type="password"
+      placeholder="Passwort"
+      class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
+    >
+
+    <button
+      class="mt-4 rounded-md bg-[var(--accent)] text-white py-2
+             hover:brightness-110 transition"
+    >
+      Login
+    </button>
+
+    <button
+      class="mt-2 rounded-md border border-[var(--text)] py-2
+             hover:bg-[rgba(111,138,43,0.08)] transition"
+    >
+      Registrieren
+    </button>
+
+    <button
+      class="mt-4 text-sm underline hover:text-[var(--accent)] transition"
+    >
+      Login oder Passwort vergessen
+    </button>
+
   </div>
 
-  <button type="submit">Login</button>
-</form>
+</div>
+
 {% endblock %}
