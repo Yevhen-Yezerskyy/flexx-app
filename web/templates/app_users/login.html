@@ -1,0 +1,22 @@
+<!-- FILE: web/templates/app_users/login.html  (новое — 2026-02-08)
+     PURPOSE: Визуальная форма логина (username + password), без логики. -->
+{% extends "flexx/base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<h1>Login</h1>
+
+<form>
+  <div>
+    <label>Username</label><br>
+    <input type="text" name="username">
+  </div>
+
+  <div>
+    <label>Password</label><br>
+    <input type="password" name="password">
+  </div>
+
+  <button type="submit">Login</button>
+</form>
+{% endblock %}

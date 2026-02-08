@@ -1,45 +1,34 @@
-# FILE: flexx-app/docker-compose.yml  (обновлено — 2026-02-06)
-# PURPOSE: Multi-django ready + nginx with multiple conf.d files + certbot webroot. Postgres in named volume.
+# FILE: docker-compose.yml  (обновлено — 2026-02-08)
+# PURPOSE: Postgres + Django(runserver with autoreload) behind nginx + certbot renew (webroot). Без лишних сервисов и без env для БД.
 
 services:
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: flexx
       POSTGRES_USER: flexx
       POSTGRES_PASSWORD: flexx_passwd
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
 
   django_main:
     build:
       context: .
       dockerfile: config/Dockerfile.django
+    restart: unless-stopped
     working_dir: /app/web
     volumes:
       - ./web:/app/web
+    environment:
+      DJANGO_DEBUG: "1" # autoreload на изменения
     command: sh -lc "python manage.py runserver 0.0.0.0:8000"
     depends_on:
       - postgres
-    restart: unless-stopped
-
-  # Вторая Django (шаблон; включишь когда надо)
-  django_aux:
-    build:
-      context: .
-      dockerfile: config/Dockerfile.django
-    working_dir: /app/web
-    volumes:
-      - ./web:/app/web
-    command: sh -lc "python manage.py runserver 0.0.0.0:8001"
-    depends_on:
-      - postgres
-    restart: unless-stopped
-    profiles: ["aux"]   # не стартует по умолчанию
 
   nginx:
     image: nginx:1.25
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -50,15 +39,14 @@ services:
       - ./nginx/certbot/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - django_main
-    restart: unless-stopped
 
   certbot:
     image: certbot/certbot
+    restart: unless-stopped
     volumes:
       - ./nginx/certbot/www:/var/www/certbot
       - ./nginx/certbot/letsencrypt:/etc/letsencrypt
     entrypoint: sh -lc "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h; done"
-    restart: unless-stopped
 
 volumes:
   pgdata:
