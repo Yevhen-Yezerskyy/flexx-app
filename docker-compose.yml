@@ -59,8 +59,9 @@ services:
       - ./logs:/app/logs
     environment:
       DJANGO_DEBUG: "1"
-    # command: sh -lc "python manage.py runserver 0.0.0.0:8000"
-    command: sh -lc "sleep infinity"
+    
+    command: sh -lc "gunicorn admin_site.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
+
     depends_on:
       - postgres
 
@@ -91,6 +92,7 @@ services:
       - media_data:/srv/media:ro
       - letsencrypt:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
+      - ./logs:/app/logs
     depends_on:
       - django_prod
       - django_dev
