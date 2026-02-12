@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "app_users",
 ]
 
+AUTH_USER_MODEL = "app_users.FlexxUser"
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
