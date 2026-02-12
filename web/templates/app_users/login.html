@@ -1,11 +1,11 @@
 {% extends "flexx/base.html" %}
 {% load static %}
 <!-- FILE: web/templates/app_users/login.html  (обновлено — 2026-02-08)
-     PURPOSE: Оформление логина: серые границы в цвет текста, лёгкие скругления, hover-эффекты кнопок. -->
+     PURPOSE: Нижние ссылки реально прижимаются к низу (mt-auto внутри flex-контента main). -->
 
 {% block content %}
 
-<div class="flex flex-col items-center">
+<div class="flex flex-col items-center flex-1">
 
   <div class="text-2xl mb-20 mt-10">
     Zugang für Inhaber von FlexxLager-Anleihen
@@ -26,15 +26,13 @@
     >
 
     <button
-      class="mt-1 rounded-md bg-[var(--accent)] text-white py-2
-             hover:brightness-110 transition"
+      class="mt-1 rounded-md bg-[var(--accent)] text-white py-2 hover:brightness-110 transition"
     >
       Login
     </button>
 
     <button
-      class="mt-20 rounded-md border border-[var(--text)] py-2
-             hover:bg-[rgba(111,138,43,0.08)] transition"
+      class="mt-20 rounded-md border border-[var(--text)] py-2 hover:bg-[rgba(111,138,43,0.08)] transition"
     >
       Registrieren
     </button>
@@ -45,6 +43,11 @@
       Login oder Passwort vergessen
     </button>
 
+  </div>
+
+  <div class="mt-auto mb-6 flex gap-6 text-sm underline">
+    <a href="#" class="hover:text-[var(--accent)] transition">Tippgeber</a>
+    <a href="#" class="hover:text-[var(--accent)] transition">Management</a>
   </div>
 
 </div>

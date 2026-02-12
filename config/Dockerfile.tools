@@ -1,0 +1,20 @@
+# FILE: config/Dockerfile.tools  (обновлено — 2026-02-12)
+# PURPOSE: Tools/updater контейнер: git + ssh + rsync + nano + полноценный bash.
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    openssh-client \
+    rsync \
+    nano \
+    bash \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+
+CMD ["bash"]

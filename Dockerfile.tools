@@ -1,0 +1,21 @@
+# FILE: config/Dockerfile.tools  (новое — 2026-02-12)
+# PURPOSE: Tools/updater контейнер: git+ssh+python для обновления кода в named volumes.
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    openssh-client \
+    ca-certificates \
+    rsync \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+
+COPY config/requirements-tools.txt /work/requirements-tools.txt
+RUN pip install --no-cache-dir -r /work/requirements-tools.txt
+
+CMD ["sh", "-lc", "sleep infinity"]

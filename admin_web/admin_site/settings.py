@@ -1,21 +1,19 @@
-# FILE: web/flexx/settings.py  (обновлено — 2026-02-12)
-# PURPOSE: Настройки для основного проекта (vertrag + dev-vertrag): Postgres hardcode, static/media в общие volume, trusted hosts/origins, file-logging в /app/logs.
+# FILE: admin_web/admin_site/settings.py  (новое — 2026-02-12)
+# PURPOSE: Настройки отдельного admin-проекта (admin-vertrag): Postgres hardcode, static/media в общие volume, trusted hosts/origins, file-logging в /app/logs.
 
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "dev-only-change-me"
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = [
-    "vertrag.flexxlager.de",
-    "dev-vertrag.flexxlager.de",
+    "admin-vertrag.flexxlager.de",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://vertrag.flexxlager.de",
-    "https://dev-vertrag.flexxlager.de",
+    "https://admin-vertrag.flexxlager.de",
 ]
 
 INSTALLED_APPS = [
@@ -25,7 +23,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "app_users",
 ]
 
 MIDDLEWARE = [
@@ -38,14 +35,12 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "flexx.urls"
+ROOT_URLCONF = "admin_site.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR / "templates",
-        ],
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -58,7 +53,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "flexx.wsgi.application"
+WSGI_APPLICATION = "admin_site.wsgi.application"
 
 DATABASES = {
     "default": {
@@ -85,9 +80,6 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = "/app/static"
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = "/app/media"
@@ -100,7 +92,7 @@ LOGGING = {
     "handlers": {
         "file": {
             "class": "logging.FileHandler",
-            "filename": "/app/logs/web.log",
+            "filename": "/app/logs/admin.log",
             "level": "INFO",
         }
     },

@@ -1,5 +1,5 @@
-# FILE: docker-compose.yml  (обновлено — 2026-02-08)
-# PURPOSE: Postgres + Django(runserver with autoreload) behind nginx + certbot renew (webroot). Без лишних сервисов и без env для БД.
+# FILE: docker-compose.yml  (обновлено — 2026-02-12)
+# PURPOSE: prod/admin временно не запускают Django; вместо этого sleep infinity для отладки инфраструктуры.
 
 services:
   postgres:
@@ -12,19 +12,71 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  django_main:
+  django_prod:
     build:
       context: .
       dockerfile: config/Dockerfile.django
     restart: unless-stopped
     working_dir: /app/web
     volumes:
-      - ./web:/app/web
+      - web_prod_code:/app/web
+      - static_data:/app/static
+      - media_data:/app/media
+      - ./logs:/app/logs
     environment:
-      DJANGO_DEBUG: "1" # autoreload на изменения
-    command: sh -lc "python manage.py runserver 0.0.0.0:8000"
+      DJANGO_DEBUG: "0"
+    
+    command: sh -lc "gunicorn flexx.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
     depends_on:
       - postgres
+
+  django_dev:
+    image: python:3.12-slim
+    restart: unless-stopped
+    working_dir: /app/web
+    volumes:
+      - ./web:/app/web
+      - static_data:/app/static
+      - media_data:/app/media
+      - ./logs:/app/logs
+    environment:
+      DJANGO_DEBUG: "1"
+    
+    command: sh -lc "./.venv/bin/python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      - postgres
+
+  django_admin:
+    build:
+      context: .
+      dockerfile: config/Dockerfile.django
+    restart: unless-stopped
+    working_dir: /app/admin_web
+    volumes:
+      - admin_code:/app/admin_web
+      - static_data:/app/static
+      - media_data:/app/media
+      - ./logs:/app/logs
+    environment:
+      DJANGO_DEBUG: "1"
+    # command: sh -lc "python manage.py runserver 0.0.0.0:8000"
+    command: sh -lc "sleep infinity"
+    depends_on:
+      - postgres
+
+  tools:
+    build:
+      context: .
+      dockerfile: config/Dockerfile.tools
+    restart: unless-stopped
+    working_dir: /work
+    volumes:
+      - web_prod_code:/vol/web_prod
+      - admin_code:/vol/admin_web
+      - static_data:/vol/static
+      - media_data:/vol/media
+      - ./logs:/work/logs
+    command: sh -lc "sleep infinity"
 
   nginx:
     image: nginx:1.25
@@ -35,18 +87,28 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certbot/www:/var/www/certbot:ro
-      - ./nginx/certbot/letsencrypt:/etc/letsencrypt:ro
+      - static_data:/srv/static:ro
+      - media_data:/srv/media:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
-      - django_main
+      - django_prod
+      - django_dev
+      - django_admin
 
   certbot:
     image: certbot/certbot
     restart: unless-stopped
     volumes:
-      - ./nginx/certbot/www:/var/www/certbot
-      - ./nginx/certbot/letsencrypt:/etc/letsencrypt
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
     entrypoint: sh -lc "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h; done"
 
 volumes:
   pgdata:
+  web_prod_code:
+  admin_code:
+  static_data:
+  media_data:
+  letsencrypt:
+  certbot_www:

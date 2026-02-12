@@ -1,6 +1,6 @@
 {% load static %}
 <!-- FILE: web/templates/flexx/base.html  (обновлено — 2026-02-08)
-     PURPOSE: Светло-серый фон вокруг, центральный блок 1100px с лёгкой тенью слева/справа. -->
+     PURPOSE: main стал flex-контейнером на всю оставшуюся высоту, чтобы нижние элементы страниц могли прижиматься вниз. -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -18,20 +18,20 @@
 <div class="wrap flex flex-col min-h-screen shadow-lg bg-white">
 
   <header>
-    <div class="h-[3px] bg-[var(--accent)]"></div>
+    <div class="h-[5px] bg-[var(--accent)]"></div>
     <div class="flex items-center justify-center py-8">
       <img src="{% static 'img/logo.svg' %}" class="h-12 w-auto block" alt="FlexxLager">
     </div>
-    <div class="h-[3px] bg-[var(--accent)]"></div>
+    <div class="h-[5px] bg-[var(--accent)]"></div>
   </header>
 
-  <main class="flex-1 py-7">
+  <main class="flex-1 flex flex-col py-7">
     {% block content %}
     {% endblock %}
   </main>
 
   <footer>
-    <div class="h-[8px] bg-[var(--accent)]"></div>
+    <div class="h-[5px] bg-[var(--accent)]"></div>
   </footer>
 
 </div>
