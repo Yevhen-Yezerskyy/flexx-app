@@ -1,25 +1,49 @@
 # FILE: web/flexx/settings.py  (обновлено — 2026-02-12)
-# PURPOSE: Настройки для основного проекта (vertrag + dev-vertrag): Postgres hardcode, static/media в общие volume, trusted hosts/origins, file-logging в /app/logs.
+# PURPOSE: Settings для web-проекта: DEBUG берётся из env DJANGO_DEBUG (docker-compose), остальное оставлено как было (в т.ч. DB hardcode).
 
+from __future__ import annotations
+
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "dev-only-change-me"
-DEBUG = False
 
-ALLOWED_HOSTS = [
-    "vertrag.flexxlager.de",
-    "dev-vertrag.flexxlager.de",
-]
+def _env_bool(name: str, default: bool = False) -> bool:
+    v = os.getenv(name)
+    if v is None:
+        return default
+    v = v.strip().lower()
+    return v in ("1", "true", "yes", "y", "on")
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://vertrag.flexxlager.de",
-    "https://dev-vertrag.flexxlager.de",
-]
+
+def _env_csv(name: str, default: list[str]) -> list[str]:
+    v = os.getenv(name)
+    if not v:
+        return default
+    return [x.strip() for x in v.split(",") if x.strip()]
+
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
+DEBUG = _env_bool("DJANGO_DEBUG", default=False)
+
+ALLOWED_HOSTS = _env_csv(
+    "DJANGO_ALLOWED_HOSTS",
+    default=[
+        "vertrag.flexxlager.de",
+        "dev-vertrag.flexxlager.de",
+    ],
+)
+
+CSRF_TRUSTED_ORIGINS = _env_csv(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    default=[
+        "https://vertrag.flexxlager.de",
+        "https://dev-vertrag.flexxlager.de",
+    ],
+)
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -43,9 +67,7 @@ ROOT_URLCONF = "flexx.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR / "templates",
-        ],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -55,7 +77,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
             ],
         },
-    },
+    }
 ]
 
 WSGI_APPLICATION = "flexx.wsgi.application"
@@ -85,9 +107,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = "/app/static"
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = "/app/media"

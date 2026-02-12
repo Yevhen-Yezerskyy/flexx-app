@@ -26,7 +26,7 @@ services:
     environment:
       DJANGO_DEBUG: "0"
     
-    command: sh -lc "gunicorn flexx.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
+    command: sh -lc "python manage.py collectstatic --noinput && gunicorn flexx.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
     depends_on:
       - postgres
 
@@ -53,17 +53,14 @@ services:
     restart: unless-stopped
     working_dir: /app/admin_web
     volumes:
-      - admin_code:/app/admin_web
+      - ./admin_web:/app/admin_web
+      - ./web:/app/web
       - static_data:/app/static
       - media_data:/app/media
       - ./logs:/app/logs
     environment:
-      DJANGO_DEBUG: "1"
-    
-    command: sh -lc "gunicorn admin_site.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
-
-    depends_on:
-      - postgres
+      PYTHONPATH: "/app/web"
+    command: sh -lc "python manage.py collectstatic --noinput && gunicorn admin_site.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
 
   tools:
     build:

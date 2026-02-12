@@ -1,9 +1,17 @@
 # FILE: admin_web/admin_site/settings.py  (новое — 2026-02-12)
-# PURPOSE: Настройки отдельного admin-проекта (admin-vertrag): Postgres hardcode, static/media в общие volume, trusted hosts/origins, file-logging в /app/logs.
+# PURPOSE: Настройки отдельного admin-проекта (admin-vertrag): свои settings/auth, но импортирует apps/модели из /app/web (без дублирования кода).
 
+from __future__ import annotations
+
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# дать админке доступ к коду основного сайта
+WEB_DIR = Path("/app/web")
+if str(WEB_DIR) not in sys.path:
+    sys.path.insert(0, str(WEB_DIR))
 
 SECRET_KEY = "dev-only-change-me"
 DEBUG = True
@@ -23,6 +31,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # apps из основного сайта (web)
+    "app_users",
 ]
 
 MIDDLEWARE = [
