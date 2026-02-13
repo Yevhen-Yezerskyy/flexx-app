@@ -1,6 +1,6 @@
 {% load static %}
-<!-- FILE: web/templates/flexx/base.html  (обновлено — 2026-02-08)
-     PURPOSE: main стал flex-контейнером на всю оставшуюся высоту, чтобы нижние элементы страниц могли прижиматься вниз. -->
+<!-- FILE: web/templates/flexx/base.html  (обновлено — 2026-02-13)
+     PURPOSE: Логотип сделан ссылкой на главную страницу ("/"). -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -20,7 +20,9 @@
   <header>
     <div class="h-[5px] bg-[var(--accent)]"></div>
     <div class="flex items-center justify-center py-8">
-      <img src="{% static 'img/logo.svg' %}" class="h-12 w-auto block" alt="FlexxLager">
+      <a href="/" class="block">
+        <img src="{% static 'img/logo.svg' %}" class="h-12 w-auto block" alt="FlexxLager">
+      </a>
     </div>
     <div class="h-[5px] bg-[var(--accent)]"></div>
   </header>

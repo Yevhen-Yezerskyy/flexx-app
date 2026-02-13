@@ -1,8 +1,9 @@
-# FILE: docker-compose.yml  (обновлено — 2026-02-12)
-# PURPOSE: prod/admin временно не запускают Django; вместо этого sleep infinity для отладки инфраструктуры.
+# FILE: docker-compose.yml  (обновлено — 2026-02-13)
+# PURPOSE: Зафиксировать имена контейнеров (container_name) чтобы Docker Compose не переименовывал их автоматически.
 
 services:
   postgres:
+    container_name: postgres
     image: postgres:16
     restart: unless-stopped
     environment:
@@ -13,6 +14,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   django_prod:
+    container_name: django-prod
     build:
       context: .
       dockerfile: config/Dockerfile.django
@@ -25,12 +27,12 @@ services:
       - ./logs:/app/logs
     environment:
       DJANGO_DEBUG: "0"
-    
     command: sh -lc "python manage.py collectstatic --noinput && gunicorn flexx.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
     depends_on:
       - postgres
 
   django_dev:
+    container_name: django-dev
     image: python:3.12-slim
     restart: unless-stopped
     working_dir: /app/web
@@ -41,12 +43,12 @@ services:
       - ./logs:/app/logs
     environment:
       DJANGO_DEBUG: "1"
-    
     command: sh -lc "./.venv/bin/python manage.py runserver 0.0.0.0:8000"
     depends_on:
       - postgres
 
   django_admin:
+    container_name: django-admin
     build:
       context: .
       dockerfile: config/Dockerfile.django
@@ -63,6 +65,7 @@ services:
     command: sh -lc "python manage.py collectstatic --noinput && gunicorn admin_site.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
 
   tools:
+    container_name: tools
     build:
       context: .
       dockerfile: config/Dockerfile.tools
@@ -77,6 +80,7 @@ services:
     command: sh -lc "sleep infinity"
 
   nginx:
+    container_name: nginx
     image: nginx:1.25
     restart: unless-stopped
     ports:
@@ -96,6 +100,7 @@ services:
       - django_admin
 
   certbot:
+    container_name: certbot
     image: certbot/certbot
     restart: unless-stopped
     volumes:

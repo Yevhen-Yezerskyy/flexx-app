@@ -1,5 +1,5 @@
 # FILE: web/flexx/settings.py  (обновлено — 2026-02-13)
-# PURPOSE: Исправить CSRF для https за nginx (trusted origins + proxy ssl header) и включить немецкую локаль Django.
+# PURPOSE: Нормальный DB-конфиг через env (дефолты под compose), логирование через root + WatchedFileHandler, reset-link TTL = 7 дней.
 
 from __future__ import annotations
 
@@ -45,7 +45,6 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
     ],
 )
 
-# за nginx/прокси: чтобы Django корректно понимал https
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 CSRF_COOKIE_SECURE = True
@@ -96,11 +95,11 @@ WSGI_APPLICATION = "flexx.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "flexx",
-        "USER": "flexx",
-        "PASSWORD": "flexx_passwd",
-        "HOST": "postgres",
-        "PORT": "5432",
+        "NAME": os.getenv("POSTGRES_DB", "flexx"),
+        "USER": os.getenv("POSTGRES_USER", "flexx"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "flexx_passwd"),
+        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -125,33 +124,35 @@ MEDIA_ROOT = "/app/media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# reset/set password links: 7 days
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 7
+
+# ---------------- LOGGING ----------------
+
+LOG_DIR = Path(os.getenv("FLEXX_LOG_DIR", "/app/logs"))
+LOG_LEVEL = os.getenv("FLEXX_LOG_LEVEL", "INFO").upper()
+
+try:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
+WEB_LOG_FILE = str(LOG_DIR / os.getenv("FLEXX_WEB_LOG_FILE", "web.log"))
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "std": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+        "std": {"format": "%(asctime)s %(levelname)s %(process)d %(name)s %(message)s"},
     },
     "handlers": {
+        "console": {"class": "logging.StreamHandler", "level": LOG_LEVEL, "formatter": "std"},
         "file": {
-            "class": "logging.FileHandler",
-            "filename": "/app/logs/web.log",
-            "level": "INFO",
-            "formatter": "std",
-        },
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "INFO",
+            "class": "logging.handlers.WatchedFileHandler",
+            "filename": WEB_LOG_FILE,
+            "level": LOG_LEVEL,
             "formatter": "std",
         },
     },
-    "root": {"handlers": ["file", "console"], "level": "INFO"},
-    "loggers": {
-        # гарантируем, что наши модули пишут в файл
-        "flexx": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
-        "flexx.emailer": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
-        "app_users": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
-        # django request/errors тоже в файл
-        "django.request": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
-        "django.security": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
-    },
+    "root": {"handlers": ["console", "file"], "level": LOG_LEVEL},
 }

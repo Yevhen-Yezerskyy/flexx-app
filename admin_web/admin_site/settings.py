@@ -1,14 +1,14 @@
-# FILE: admin_web/admin_site/settings.py  (новое — 2026-02-12)
-# PURPOSE: Настройки отдельного admin-проекта (admin-vertrag): свои settings/auth, но импортирует apps/модели из /app/web (без дублирования кода).
+# FILE: admin_web/admin_site/settings.py  (обновлено — 2026-02-13)
+# PURPOSE: Админ-проект + единый root logging (console+file), без кастомных логгеров.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# дать админке доступ к коду основного сайта
 WEB_DIR = Path("/app/web")
 if str(WEB_DIR) not in sys.path:
     sys.path.insert(0, str(WEB_DIR))
@@ -31,8 +31,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    # apps из основного сайта (web)
     "app_users",
 ]
 
@@ -51,7 +49,7 @@ ROOT_URLCONF = "admin_site.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -69,11 +67,11 @@ WSGI_APPLICATION = "admin_site.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "flexx",
-        "USER": "flexx",
-        "PASSWORD": "flexx_passwd",
-        "HOST": "postgres",
-        "PORT": "5432",
+        "NAME": os.getenv("POSTGRES_DB", "flexx"),
+        "USER": os.getenv("POSTGRES_USER", "flexx"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "flexx_passwd"),
+        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -84,28 +82,53 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "de"
 TIME_ZONE = "Europe/Berlin"
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = "/app/static"
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = "/app/media"
+STATIC_ROOT = "/app/admin_static"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "app_users.FlexxUser"
+
+# ---------------- LOGGING ----------------
+
+LOG_DIR = Path(os.getenv("FLEXX_LOG_DIR", "/app/logs"))
+LOG_LEVEL = os.getenv("FLEXX_LOG_LEVEL", "INFO").upper()
+
+try:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
+ADMIN_LOG_FILE = str(LOG_DIR / os.getenv("FLEXX_ADMIN_LOG_FILE", "admin.log"))
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": "/app/logs/admin.log",
-            "level": "INFO",
-        }
+    "formatters": {
+        "std": {
+            "format": "%(asctime)s %(levelname)s %(process)d %(name)s %(message)s"
+        },
     },
-    "root": {"handlers": ["file"], "level": "INFO"},
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": LOG_LEVEL,
+            "formatter": "std",
+        },
+        "file": {
+            "class": "logging.handlers.WatchedFileHandler",
+            "filename": ADMIN_LOG_FILE,
+            "level": LOG_LEVEL,
+            "formatter": "std",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": LOG_LEVEL,
+    },
 }
