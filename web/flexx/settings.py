@@ -57,6 +57,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "app_users",
+    "app_panel_client",
+    "app_panel_admin",
+    "app_panel_tippgeber",
 ]
 
 AUTH_USER_MODEL = "app_users.FlexxUser"

@@ -1,5 +1,7 @@
 # FILE: admin_web/admin_site/settings.py  (обновлено — 2026-02-13)
-# PURPOSE: Админ-проект + единый root logging (console+file), без кастомных логгеров.
+# PURPOSE: Admin-web работает на СТАНДАРТНОЙ Django авторизации (auth.User, таблица auth_user),
+#          использует ту же БД, но НЕ использует app_users.FlexxUser как AUTH_USER_MODEL.
+#          Добавлены app_panel_* в INSTALLED_APPS + разведены имена cookie, чтобы сессии web/admin не мешались.
 
 from __future__ import annotations
 
@@ -9,29 +11,41 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Даем админ-проекту возможность импортировать приложения из /app/web (одна кодовая база в контейнере)
 WEB_DIR = Path("/app/web")
 if str(WEB_DIR) not in sys.path:
     sys.path.insert(0, str(WEB_DIR))
 
-SECRET_KEY = "dev-only-change-me"
-DEBUG = True
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
+DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 
 ALLOWED_HOSTS = [
     "admin-vertrag.flexxlager.de",
+    "admin-vertrag.flexxlager.de.",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://admin-vertrag.flexxlager.de",
 ]
 
+# Важно: отдельные имена cookie, чтобы логины web/admin не пересекались.
+SESSION_COOKIE_NAME = "flexx_admin_sessionid"
+CSRF_COOKIE_NAME = "flexx_admin_csrftoken"
+
+ROOT_URLCONF = "admin_site.urls"
+WSGI_APPLICATION = "admin_site.wsgi.application"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
-    "django.contrib.auth",
+    "django.contrib.auth",  # стандартный auth.User
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "app_users",
+    "app_panel_client",
+    "app_panel_admin",
+    "app_panel_tippgeber",
 ]
 
 MIDDLEWARE = [
@@ -43,8 +57,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-
-ROOT_URLCONF = "admin_site.urls"
 
 TEMPLATES = [
     {
@@ -62,8 +74,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "admin_site.wsgi.application"
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -72,6 +82,7 @@ DATABASES = {
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", "flexx_passwd"),
         "HOST": os.getenv("POSTGRES_HOST", "postgres"),
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
     }
 }
 
@@ -82,7 +93,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "de"
+LANGUAGE_CODE = "en"
 TIME_ZONE = "Europe/Berlin"
 USE_I18N = True
 USE_TZ = True
@@ -92,7 +103,8 @@ STATIC_ROOT = "/app/admin_static"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-AUTH_USER_MODEL = "app_users.FlexxUser"
+# ВАЖНО: AUTH_USER_MODEL НЕ задаём — остаётся стандартный auth.User (auth_user).
+# AUTH_USER_MODEL = "auth.User"  # не нужно, это дефолт
 
 # ---------------- LOGGING ----------------
 
@@ -110,9 +122,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "std": {
-            "format": "%(asctime)s %(levelname)s %(process)d %(name)s %(message)s"
-        },
+        "std": {"format": "%(asctime)s %(levelname)s %(process)d %(name)s %(message)s"},
     },
     "handlers": {
         "console": {

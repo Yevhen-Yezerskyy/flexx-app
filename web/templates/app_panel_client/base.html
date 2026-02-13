@@ -1,0 +1,13 @@
+{% extends "flexx/base.html" %}
+<!-- FILE: web/templates/app_panel_client/base.html  (новое — 2026-02-13)
+     PURPOSE: Базовый шаблон панели Client. -->
+{% block content %}
+
+<div class="flex flex-col flex-1">
+  <div class="mt-10 text-2xl">Client Panel</div>
+  <div class="mt-6">
+    {% block panel_content %}{% endblock %}
+  </div>
+</div>
+
+{% endblock %}

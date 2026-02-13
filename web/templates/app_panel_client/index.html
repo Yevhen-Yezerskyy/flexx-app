@@ -1,0 +1,10 @@
+{% extends "app_panel_client/base.html" %}
+<!-- FILE: web/templates/app_panel_client/index.html  (новое — 2026-02-13)
+     PURPOSE: Главная страница панели Client. -->
+{% block panel_content %}
+
+<div class="text-base">
+  Willkommen, {{ request.user.first_name }} {{ request.user.last_name }}
+</div>
+
+{% endblock %}

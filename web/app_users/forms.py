@@ -1,5 +1,5 @@
 # FILE: web/app_users/forms.py  (обновлено — 2026-02-13)
-# PURPOSE: Добавлены формы: ForgotPasswordForm (email) и ResetPasswordForm (password1/password2).
+# PURPOSE: Добавлена LoginForm (email+password) для логина.
 
 from __future__ import annotations
 
@@ -7,6 +7,14 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import FlexxUser
+
+
+class LoginForm(forms.Form):
+    email = forms.EmailField(label="E-Mail", max_length=254)
+    password = forms.CharField(label="Passwort", widget=forms.PasswordInput)
+
+    def clean_email(self):
+        return (self.cleaned_data.get("email") or "").strip().lower()
 
 
 class _BaseRegistrationForm(forms.Form):
@@ -67,7 +75,7 @@ class ForgotPasswordForm(forms.Form):
 
 
 class ResetPasswordForm(forms.Form):
-    password1 = forms.CharField(label="Neues Passwort", widget=forms.PasswordInput)
+    password1 = forms.CharField(label="Passwort", widget=forms.PasswordInput)
     password2 = forms.CharField(label="Passwort bestätigen", widget=forms.PasswordInput)
 
     def clean(self):

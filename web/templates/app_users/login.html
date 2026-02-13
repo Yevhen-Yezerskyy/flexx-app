@@ -1,7 +1,7 @@
 {% extends "flexx/base.html" %}
 {% load static %}
 <!-- FILE: web/templates/app_users/login.html  (обновлено — 2026-02-13)
-     PURPOSE: Ссылка на регистрацию Tippgeber ведёт на /reg/tippgeber/. -->
+     PURPOSE: Реальная форма логина (POST) + вывод ошибок + корректные name/values. -->
 
 {% block content %}
 
@@ -11,21 +11,32 @@
     Zugang zu den FleXXLager Anleihen
   </div>
 
-  <div class="w-[420px] flex flex-col gap-4">
+  <form method="post" class="w-[420px] flex flex-col gap-4">
+    {% csrf_token %}
+
+    {% if error %}
+      <div class="text-sm text-red-600">{{ error }}</div>
+    {% endif %}
 
     <input
-      type="text"
-      placeholder="Login"
+      type="email"
+      name="email"
+      value="{{ form.email.value|default:'' }}"
+      placeholder="E-Mail"
       class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
     >
+    {% if form.email.errors %}<div class="text-sm text-red-600">{{ form.email.errors|join:", " }}</div>{% endif %}
 
     <input
       type="password"
+      name="password"
       placeholder="Passwort"
       class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
     >
+    {% if form.password.errors %}<div class="text-sm text-red-600">{{ form.password.errors|join:", " }}</div>{% endif %}
 
     <button
+      type="submit"
       class="mt-1 rounded-md bg-[var(--accent)] text-white py-2 hover:brightness-110 transition"
     >
       Login
@@ -38,17 +49,16 @@
       Registrieren
     </a>
 
+    <div class="mt-4 text-center">
+      <a
+        href="{% url 'password_forgot' %}"
+        class="text-sm underline hover:text-[var(--accent)] transition"
+      >
+        Passwort vergessen
+      </a>
+    </div>
 
-<div class="mt-4 text-center">
-  <a
-    href="{% url 'password_forgot' %}"
-    class="text-sm underline hover:text-[var(--accent)] transition"
-  >
-    Passwort vergessen
-  </a>
-</div>
-
-  </div>
+  </form>
 
   <div class="mt-auto mb-6 flex gap-6 text-sm underline">
     <a href="/reg/tippgeber/" class="hover:text-[var(--accent)] transition">Tippgeber</a>

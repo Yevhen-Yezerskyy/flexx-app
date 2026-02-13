@@ -1,0 +1,13 @@
+{% extends "flexx/base.html" %}
+<!-- FILE: web/templates/app_panel_tippgeber/base.html  (новое — 2026-02-13)
+     PURPOSE: Базовый шаблон панели Tippgeber (agent). -->
+{% block content %}
+
+<div class="flex flex-col flex-1">
+  <div class="mt-10 text-2xl">Tippgeber</div>
+  <div class="mt-6">
+    {% block panel_content %}{% endblock %}
+  </div>
+</div>
+
+{% endblock %}
