@@ -1,5 +1,5 @@
-# FILE: web/flexx/settings.py  (обновлено — 2026-02-12)
-# PURPOSE: Settings для web-проекта: DEBUG берётся из env DJANGO_DEBUG (docker-compose), остальное оставлено как было (в т.ч. DB hardcode).
+# FILE: web/flexx/settings.py  (обновлено — 2026-02-13)
+# PURPOSE: Исправить CSRF для https за nginx (trusted origins + proxy ssl header) и включить немецкую локаль Django.
 
 from __future__ import annotations
 
@@ -40,8 +40,16 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
     default=[
         "https://vertrag.flexxlager.de",
         "https://dev-vertrag.flexxlager.de",
+        "http://vertrag.flexxlager.de",
+        "http://dev-vertrag.flexxlager.de",
     ],
 )
+
+# за nginx/прокси: чтобы Django корректно понимал https
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -57,6 +65,7 @@ AUTH_USER_MODEL = "app_users.FlexxUser"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -102,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "de"
 TIME_ZONE = "Europe/Berlin"
 USE_I18N = True
 USE_TZ = True

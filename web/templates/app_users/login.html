@@ -1,7 +1,7 @@
 {% extends "flexx/base.html" %}
 {% load static %}
-<!-- FILE: web/templates/app_users/login.html  (обновлено — 2026-02-08)
-     PURPOSE: Нижние ссылки реально прижимаются к низу (mt-auto внутри flex-контента main). -->
+<!-- FILE: web/templates/app_users/login.html  (обновлено — 2026-02-13)
+     PURPOSE: Ссылка на регистрацию Tippgeber ведёт на /reg/tippgeber/. -->
 
 {% block content %}
 
@@ -31,11 +31,12 @@
       Login
     </button>
 
-    <button
-      class="mt-20 rounded-md border border-[var(--text)] py-2 hover:bg-[rgba(111,138,43,0.08)] transition"
+    <a
+      href="/reg/client/"
+      class="text-center mt-20 rounded-md border border-[var(--text)] py-2 hover:bg-[rgba(111,138,43,0.08)] transition"
     >
       Registrieren
-    </button>
+    </a>
 
     <button
       class="mt-4 text-sm underline hover:text-[var(--accent)] transition"
@@ -46,7 +47,7 @@
   </div>
 
   <div class="mt-auto mb-6 flex gap-6 text-sm underline">
-    <a href="#" class="hover:text-[var(--accent)] transition">Tippgeber</a>
+    <a href="/reg/tippgeber/" class="hover:text-[var(--accent)] transition">Tippgeber</a>
   </div>
 
 </div>

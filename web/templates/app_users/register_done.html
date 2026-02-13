@@ -1,0 +1,19 @@
+{% extends "flexx/base.html" %}
+<!-- FILE: web/templates/app_users/register_done.html  (новое — 2026-02-12)
+     PURPOSE: Экран успеха: аккаунт создан, ожидает активации. -->
+{% block content %}
+
+<div class="flex flex-col items-center flex-1">
+  <div class="text-2xl mb-6 mt-16">Registrierung erhalten</div>
+
+  <div class="w-[560px] text-center leading-7">
+    Ihr Konto wurde erstellt und wartet auf Freischaltung.
+    Bitte warten Sie auf die Autorisierung.
+  </div>
+
+  <a href="/" class="mt-10 rounded-md border border-[var(--text)] px-6 py-2 hover:bg-[rgba(111,138,43,0.08)] transition">
+    Zum Login
+  </a>
+</div>
+
+{% endblock %}
