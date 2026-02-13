@@ -128,12 +128,30 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "std": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
     "handlers": {
         "file": {
             "class": "logging.FileHandler",
             "filename": "/app/logs/web.log",
             "level": "INFO",
-        }
+            "formatter": "std",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "formatter": "std",
+        },
     },
-    "root": {"handlers": ["file"], "level": "INFO"},
+    "root": {"handlers": ["file", "console"], "level": "INFO"},
+    "loggers": {
+        # гарантируем, что наши модули пишут в файл
+        "flexx": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
+        "flexx.emailer": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
+        "app_users": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
+        # django request/errors тоже в файл
+        "django.request": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
+        "django.security": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
+    },
 }

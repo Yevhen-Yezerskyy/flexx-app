@@ -1,5 +1,5 @@
 # FILE: web/app_users/forms.py  (обновлено — 2026-02-13)
-# PURPOSE: Порядок полей: email → password1 → password2 → consent → last_name → first_name.
+# PURPOSE: Добавлены формы: ForgotPasswordForm (email) и ResetPasswordForm (password1/password2).
 
 from __future__ import annotations
 
@@ -57,3 +57,23 @@ class ClientRegistrationForm(_BaseRegistrationForm):
 
 class AgentRegistrationForm(_BaseRegistrationForm):
     role_value = FlexxUser.Role.AGENT
+
+
+class ForgotPasswordForm(forms.Form):
+    email = forms.EmailField(label="E-Mail", max_length=254)
+
+    def clean_email(self):
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+
+class ResetPasswordForm(forms.Form):
+    password1 = forms.CharField(label="Neues Passwort", widget=forms.PasswordInput)
+    password2 = forms.CharField(label="Passwort bestätigen", widget=forms.PasswordInput)
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get("password1") or ""
+        p2 = cleaned.get("password2") or ""
+        if p1 != p2:
+            self.add_error("password2", "Passwörter stimmen nicht überein.")
+        return cleaned

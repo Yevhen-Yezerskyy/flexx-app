@@ -38,11 +38,15 @@
       Registrieren
     </a>
 
-    <button
-      class="mt-4 text-sm underline hover:text-[var(--accent)] transition"
-    >
-      Login oder Passwort vergessen
-    </button>
+
+<div class="mt-4 text-center">
+  <a
+    href="{% url 'password_forgot' %}"
+    class="text-sm underline hover:text-[var(--accent)] transition"
+  >
+    Passwort vergessen
+  </a>
+</div>
 
   </div>
 
