@@ -1,5 +1,5 @@
 # FILE: web/flexx/settings.py  (обновлено — 2026-02-13)
-# PURPOSE: Нормальный DB-конфиг через env (дефолты под compose), логирование через root + WatchedFileHandler, reset-link TTL = 7 дней.
+# PURPOSE: Web settings: хардкод SECRET_KEY/DB/hosts/logging; единственный env — DJANGO_DEBUG для dev.
 
 from __future__ import annotations
 
@@ -17,33 +17,22 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return v in ("1", "true", "yes", "y", "on")
 
 
-def _env_csv(name: str, default: list[str]) -> list[str]:
-    v = os.getenv(name)
-    if not v:
-        return default
-    return [x.strip() for x in v.split(",") if x.strip()]
+# ---- POLICY: NO ENVS (except DJANGO_DEBUG) ----
 
+SECRET_KEY = "django-insecure-9m9y9z@%1a6v3q+u7c#r2xw!k8h0$e4p^t1b-5s*o(2n)j6l"
+DEBUG = _env_bool("DJANGO_DEBUG", default=False)  # единственный env
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
-DEBUG = _env_bool("DJANGO_DEBUG", default=False)
+ALLOWED_HOSTS = [
+    "vertrag.flexxlager.de",
+    "dev-vertrag.flexxlager.de",
+]
 
-ALLOWED_HOSTS = _env_csv(
-    "DJANGO_ALLOWED_HOSTS",
-    default=[
-        "vertrag.flexxlager.de",
-        "dev-vertrag.flexxlager.de",
-    ],
-)
-
-CSRF_TRUSTED_ORIGINS = _env_csv(
-    "DJANGO_CSRF_TRUSTED_ORIGINS",
-    default=[
-        "https://vertrag.flexxlager.de",
-        "https://dev-vertrag.flexxlager.de",
-        "http://vertrag.flexxlager.de",
-        "http://dev-vertrag.flexxlager.de",
-    ],
-)
+CSRF_TRUSTED_ORIGINS = [
+    "https://vertrag.flexxlager.de",
+    "https://dev-vertrag.flexxlager.de",
+    "http://vertrag.flexxlager.de",
+    "http://dev-vertrag.flexxlager.de",
+]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
@@ -98,11 +87,11 @@ WSGI_APPLICATION = "flexx.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "flexx"),
-        "USER": os.getenv("POSTGRES_USER", "flexx"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "flexx_passwd"),
-        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "NAME": "flexx",
+        "USER": "flexx",
+        "PASSWORD": "flexx_passwd",
+        "HOST": "postgres",
+        "PORT": "5432",
     }
 }
 
@@ -130,17 +119,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # reset/set password links: 7 days
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 7
 
-# ---------------- LOGGING ----------------
+# ---------------- LOGGING (hard-coded) ----------------
 
-LOG_DIR = Path(os.getenv("FLEXX_LOG_DIR", "/app/logs"))
-LOG_LEVEL = os.getenv("FLEXX_LOG_LEVEL", "INFO").upper()
+LOG_DIR = Path("/app/logs")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-try:
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-except Exception:
-    pass
-
-WEB_LOG_FILE = str(LOG_DIR / os.getenv("FLEXX_WEB_LOG_FILE", "web.log"))
+LOG_LEVEL = "INFO"
+WEB_LOG_FILE = str(LOG_DIR / "web.log")
 
 LOGGING = {
     "version": 1,
