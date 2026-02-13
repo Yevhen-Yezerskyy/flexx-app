@@ -1,5 +1,5 @@
 # FILE: web/app_users/views.py  (обновлено — 2026-02-13)
-# PURPOSE: Реальный логин (POST) + проверка is_active с сообщением "ждём активации" + редирект по роли в /panel/*.
+# PURPOSE: Фикс reset_password: всегда отдаём контекст с `valid` (вместо `invalid`), чтобы ссылка не считалась “невалидной” из-за несовпадения имён в шаблоне; после успешной смены пароля показываем done=True.
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from flexx.emailer import (
     send_registration_pending_email,
     send_set_password_email,
 )
+
 from .forms import (
     AgentRegistrationForm,
     ClientRegistrationForm,
@@ -165,7 +166,6 @@ def forgot_password(request: HttpRequest) -> HttpResponse:
 
     return render(request, "app_users/password_forgot.html", {"form": form, "msg": msg, "sent": sent})
 
-    
 
 def reset_password(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:
     user = None
@@ -177,16 +177,24 @@ def reset_password(request: HttpRequest, uidb64: str, token: str) -> HttpRespons
 
     if not user or not default_token_generator.check_token(user, token):
         logger.info("RESET_PASSWORD invalid uidb64=%s", uidb64)
-        return render(request, "app_users/password_reset.html", {"invalid": True})
+        return render(request, "app_users/password_reset.html", {"valid": False, "email": "", "done": False})
 
     form = ResetPasswordForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user.set_password(form.cleaned_data["password1"])
         user.save(update_fields=["password"])
         logger.info("RESET_PASSWORD done email=%s", user.email)
-        return redirect("/")
+        return render(
+            request,
+            "app_users/password_reset.html",
+            {"valid": True, "email": user.email, "form": form, "done": True},
+        )
 
-    return render(request, "app_users/password_reset.html", {"form": form, "invalid": False})
+    return render(
+        request,
+        "app_users/password_reset.html",
+        {"valid": True, "email": user.email, "form": form, "done": False},
+    )
 
 
 def set_password(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:
