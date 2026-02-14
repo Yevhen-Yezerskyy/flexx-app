@@ -8,6 +8,13 @@
   --w: 1100px;
 }
 
+input:-webkit-autofill,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:hover {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: #1f2937 !important;
+}
+
 html, body{
   margin: 0;
   padding: 0;

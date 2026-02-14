@@ -40,12 +40,13 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
-    "flexx",
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "flexx",
     "app_users",
     "app_panel_client",
     "app_panel_admin",
@@ -108,6 +109,9 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "de"
 TIME_ZONE = "Europe/Berlin"
 USE_I18N = True
+LANGUAGES = [
+    ("de", "Deutsch"),
+]
 USE_TZ = True
 
 STATIC_URL = "/static/"
