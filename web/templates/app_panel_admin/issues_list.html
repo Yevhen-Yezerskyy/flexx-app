@@ -1,6 +1,6 @@
 {% extends "app_panel_admin/base.html" %}
-<!-- FILE: web/templates/app_panel_admin/issues_list.html  (новое — 2026-02-14)
-     PURPOSE: Таблица Platzierungen (BondIssue) + Ändern/Löschen(confirm)/Kopieren. -->
+<!-- FILE: web/templates/app_panel_admin/issues_list.html  (обновлено — 2026-02-14)
+     PURPOSE: Список эмиссий: колонки (Название / Показатели / Стоимость / Файлы / [actions]), действия через <br>, кнопка “+ Neu” как “Speichern”. -->
 {% block panel_where %}Platzierungen{% endblock %}
 {% block nav_issues_class %}text-[var(--accent)] font-semibold{% endblock %}
 
@@ -9,8 +9,9 @@
 <div class="flex items-center mb-10 mt-2">
   <div class="text-2xl">Platzierungen</div>
   <div class="flex-1"></div>
+
   <a href="{% url 'panel_admin_issues_create' %}"
-     class="rounded-md bg-[var(--accent)] text-white py-2 px-4 hover:brightness-110 transition font-semibold">
+     class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center flex items-center justify-center">
     + Neu
   </a>
 </div>
@@ -19,51 +20,64 @@
   <table class="w-full text-sm">
     <thead class="bg-gray-50">
       <tr class="text-left">
-        <th class="px-4 py-3">Name</th>
-        <th class="px-4 py-3">Datum</th>
-        <th class="px-4 py-3">%</th>
-        <th class="px-4 py-3">Volumen</th>
-        <th class="px-4 py-3">Laufzeit (Monate)</th>
-        <th class="px-4 py-3">Aktionen</th>
+        <th class="px-4 py-3 w-[30%]">Titel</th>
+        <th class="px-4 py-3 w-[30%]">Kennzahlen</th>
+        <th class="px-4 py-3 w-[30%]">Wert</th>
+        <th class="px-4 py-3">&nbsp;</th>
+        <th class="px-4 py-3">&nbsp;</th>
       </tr>
     </thead>
+
     <tbody>
       {% for it in issues %}
-        <tr class="border-t border-gray-200">
+        <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
             <div class="font-semibold">{{ it.title }}</div>
             {% if not it.active %}<div class="text-xs text-gray-500">inaktiv</div>{% endif %}
           </td>
-          <td class="px-4 py-3">{{ it.issue_date|date:"d.m.Y" }}</td>
-          <td class="px-4 py-3">{{ it.interest_rate }}</td>
-          <td class="px-4 py-3">{{ it.issue_volume }}</td>
-          <td class="px-4 py-3">{{ it.term_months }}</td>
+
           <td class="px-4 py-3">
-            <div class="flex items-center gap-4">
-              <a class="underline hover:text-[var(--accent)] transition"
-                 href="{% url 'panel_admin_issues_edit' it.id %}">
-                Ändern
-              </a>
-
-              <a class="underline hover:text-[var(--accent)] transition"
-                 href="{% url 'panel_admin_issues_create' %}?copy={{ it.id }}">
-                Kopieren
-              </a>
-
-              <form method="post"
-                    action="{% url 'panel_admin_issues_delete' it.id %}"
-                    onsubmit="return confirm('Wirklich löschen?');">
-                {% csrf_token %}
-                <button type="submit" class="underline hover:text-red-600 transition">
-                  Löschen
-                </button>
-              </form>
+            <div class="grid grid-cols-2 gap-1">
+                <div>Ausgabedatum:</div>
+                <div>{{ it.issue_date|date:"d.m.Y" }}</div>
+                <div>Zinssatz:</div>
+                <div>{{ it.interest_rate }}%</div> 
+                <div>Laufzeit:</div>
+                <div> {{ it.term_months }} Monate</div>
             </div>
           </td>
+
+          <td class="px-4 py-3">
+            <div class="grid grid-cols-2 gap-1">
+              <div>Preis pro Anleihe:</div>
+              <div>€ {{ it.bond_price }}</div>
+              <div>Emissionsvolumen:</div> 
+              <div>€ {{ it.issue_volume_fmt }}</div>
+            </div>
+          </td>
+          <td class="px-4 py-3">
+              <a class="underline hover:text-[var(--accent)] transition"
+                   href="{% url 'panel_admin_issues_create' %}?copy={{ it.id }}">Kopieren</a><br>
+          </td>
+
+          <td class="px-4 py-3 whitespace-nowrap">
+            <a class="underline hover:text-[var(--accent)] transition"
+               href="{% url 'panel_admin_issues_edit' it.id %}">Ändern</a><br>
+
+            <form method="post"
+                  action="{% url 'panel_admin_issues_delete' it.id %}"
+                  onsubmit="return confirm('Wirklich löschen?');">
+              {% csrf_token %}
+              <button type="submit" class="underline hover:text-red-600 transition mt-1">
+                Löschen
+              </button>
+            </form>
+          </td>
         </tr>
+
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="6">Noch keine Platzierungen.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="5">Noch keine Platzierungen.</td>
         </tr>
       {% endfor %}
     </tbody>

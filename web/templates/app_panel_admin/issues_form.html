@@ -1,7 +1,6 @@
 {% extends "app_panel_admin/base.html" %}
 <!-- FILE: web/templates/app_panel_admin/issues_form.html  (обновлено — 2026-02-14)
-     PURPOSE: Create/Edit BondIssue + contract textarea + файлы (N шт. + описание); правильный серый bg как в base.html (bg-gray-50);
-              имя файла без пути (берём из attachments[].filename). -->
+     PURPOSE: Fix “+ Datei”: добавлен контейнер id="new-files" и выровнены закрывающие </div> в секции Dateien (без изменений “верхушки”). -->
 {% block panel_where %}Platzierungen{% endblock %}
 {% block nav_issues_class %}text-[var(--accent)] font-semibold{% endblock %}
 
@@ -12,14 +11,13 @@
     {% if mode == "edit" %}Platzierung ändern{% else %}Neue Platzierung{% endif %}
   </div>
   <div class="flex-1"></div>
-  <a href="{% url 'panel_admin_issues_list' %}" class="underline hover:text-[var(--accent)] transition">
+   <a href="{% url 'panel_admin_issues_list' %}" class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
     Zurück
   </a>
 </div>
 
 <form method="post" enctype="multipart/form-data" class="flex flex-col gap-6">
   {% csrf_token %}
-
   <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-4">
     <div>{{ form.active }}&nbsp;&nbsp;{{ form.active.label }}</div>
 
@@ -28,16 +26,16 @@
       <input name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}"
              type="text" placeholder="{{ form.title.label }}"
              class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
-      {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
+          {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
     </div>
 
     <div class="grid grid-cols-5 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm mb-1 px-4">{{ form.issue_date.label }}:</label>
-        <input name="{{ form.issue_date.name }}" value="{{ form.instance.issue_date|date:'Y-m-d' }}"
+        <input name="{{ form.issue_date.name }}" value="{{ form.issue_date.value|date:'Y-m-d' }}"
                type="date" placeholder="{{ form.issue_date.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
-        {% if form.issue_date.errors %}<div class="text-sm text-red-600">{{ form.issue_date.errors|join:", " }}</div>{% endif %}
+            {% if form.issue_date.errors %}<div class="text-sm text-red-600">{{ form.issue_date.errors|join:", " }}</div>{% endif %}
       </div>
 
       <div class="flex flex-col gap-1">
@@ -45,7 +43,7 @@
         <input name="{{ form.interest_rate.name }}" value="{{ form.interest_rate.value|default:'' }}"
                type="text" placeholder="{{ form.interest_rate.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
-        {% if form.interest_rate.errors %}<div class="text-sm text-red-600">{{ form.interest_rate.errors|join:", " }}</div>{% endif %}
+              {% if form.interest_rate.errors %}<div class="text-sm text-red-600">{{ form.interest_rate.errors|join:", " }}</div>{% endif %}
       </div>
 
       <div class="flex flex-col gap-1">
@@ -53,7 +51,7 @@
         <input name="{{ form.bond_price.name }}" value="{{ form.bond_price.value|default:'' }}"
                type="text" placeholder="{{ form.bond_price.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
-        {% if form.bond_price.errors %}<div class="text-sm text-red-600">{{ form.bond_price.errors|join:", " }}</div>{% endif %}
+              {% if form.bond_price.errors %}<div class="text-sm text-red-600">{{ form.bond_price.errors|join:", " }}</div>{% endif %}
       </div>
 
       <div class="flex flex-col gap-1">
@@ -61,7 +59,7 @@
         <input name="{{ form.issue_volume.name }}" value="{{ form.issue_volume.value|default:'' }}"
                type="text" placeholder="{{ form.issue_volume.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
-        {% if form.issue_volume.errors %}<div class="text-sm text-red-600">{{ form.issue_volume.errors|join:", " }}</div>{% endif %}
+            {% if form.issue_volume.errors %}<div class="text-sm text-red-600">{{ form.issue_volume.errors|join:", " }}</div>{% endif %}
       </div>
 
       <div class="flex flex-col gap-1">
@@ -74,7 +72,7 @@
     </div>
   </div>
 
-  <div class="bg-white border border-[var(--text)] rounded-md p-6">
+  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5">
     <div class="text-xl mb-4">Dateien</div>
 
     {% if attachments %}
@@ -82,7 +80,7 @@
         <div class="divide-y-4 divide-white">
           {% for a in attachments %}
             <div class="grid grid-cols-12 items-center px-4 py-3 gap-4">
-              <div class="col-span-4">
+              <div class="col-span-5">
                 <a class="underline hover:text-[var(--accent)] transition"
                    href="{{ a.att.file.url }}" target="_blank">
                   {{ a.filename }}
@@ -99,7 +97,7 @@
                 >
               </div>
 
-              <div class="col-span-2 flex items-center justify-end">
+              <div class="col-span-1 flex items-center justify-end">
                 <label class="text-sm flex items-center gap-2">
                   <input type="checkbox" name="att_del_{{ a.att.id }}" value="1">
                   Löschen
@@ -111,9 +109,10 @@
       </div>
     {% endif %}
 
-    <div class="bg-gray-50 border-2 border-white rounded-md overflow-hidden">
+    <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 overflow-hidden">
+      <div id="new-files" class="divide-y-4 divide-white">
         <div class="grid grid-cols-12 items-center px-4 py-3 gap-4">
-          <div class="col-span-4">
+          <div class="col-span-5">
             <input
               type="file"
               name="new_file"
@@ -130,7 +129,7 @@
             >
           </div>
 
-          <div class="col-span-2 flex items-center justify-end">
+          <div class="col-span-1 flex items-center justify-end">
             <button
               type="button"
               class="underline hover:text-[var(--accent)] transition"
@@ -150,7 +149,7 @@
       const row = document.createElement("div");
       row.className = "grid grid-cols-12 items-center px-4 py-3 gap-4";
       row.innerHTML = `
-        <div class="col-span-4">
+        <div class="col-span-5">
           <input type="file" name="new_file"
             class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white">
         </div>
@@ -160,7 +159,7 @@
             class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white">
         </div>
 
-        <div class="col-span-2 flex items-center justify-end">
+        <div class="col-span-1 flex items-center justify-end">
           <button type="button"
             class="underline hover:text-red-600 transition"
             onclick="this.closest('.grid').remove()">
@@ -179,7 +178,7 @@
       {% for field in form %}
         {% if field.name|slice:":10" == "contract__" %}
           <div class="flex flex-col gap-1">
-            <div class="text-sm text-gray-600">{{ field.label }}</div>
+            <label class="text-sm mb-1 px-4">{{ field.label }}:</label>
             <textarea name="{{ field.name }}"
                       class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
                       rows="{{ field.field.widget.attrs.rows|default:4 }}">{{ field.value|default:'' }}</textarea>

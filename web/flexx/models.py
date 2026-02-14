@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from django.db import models
+import os
 
 
 def bond_issue_attachment_upload_to(instance: "BondIssueAttachment", filename: str) -> str:
@@ -35,14 +36,18 @@ class BondIssue(models.Model):
 
 
 class BondIssueAttachment(models.Model):
-    issue = models.ForeignKey(BondIssue, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to=bond_issue_attachment_upload_to)
-    description = models.CharField(max_length=255, blank=True, default="")
-    created_at = models.DateTimeField(auto_now_add=True)
+    issue = models.ForeignKey(
+        BondIssue,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to="bond_issues/")
+    description = models.CharField(max_length=255, blank=True)
 
     class Meta:
         db_table = "bond_issue_attachments"
-        ordering = ["id"]
 
-    def __str__(self) -> str:
-        return f"Attachment #{self.id} for issue_id={self.issue_id}"
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name)

@@ -1,7 +1,8 @@
 # FILE: web/app_panel_admin/views/issues.py  (обновлено — 2026-02-14)
 # PURPOSE: 1) Файлы: прокидываем request.FILES в BondIssueForm (create/edit);
 #          2) Вывод: сортировка вложений по description (лейблу);
-#          3) Имя файла: отдаём в шаблон уже "basename" (после последнего /).
+#          3) Имя файла: отдаём в шаблон уже "basename" (после последнего /);
+#          4) Copy: правильно заполняем contract__* через initial (и базовые поля тоже).
 
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from app_panel_admin.forms import BondIssueForm
+from flexx.contract_fields import CONTRACT_FIELDS
 from flexx.models import BondIssue, BondIssueAttachment
 
 from .common import admin_only
@@ -20,6 +22,7 @@ def _apply_attachments_post(issue: BondIssue, request: HttpRequest) -> None:
         if request.POST.get(f"att_del_{att.id}") == "1":
             att.delete()
             continue
+
         new_desc = request.POST.get(f"att_desc_{att.id}")
         if new_desc is not None and new_desc != att.description:
             att.description = new_desc[:255]
@@ -38,12 +41,28 @@ def _apply_attachments_post(issue: BondIssue, request: HttpRequest) -> None:
 
 @login_required
 def issues_list(request: HttpRequest) -> HttpResponse:
-    denied = admin_only(request)
-    if denied:
-        return denied
+    issues = (
+        BondIssue.objects.prefetch_related("attachments")
+        .all()
+        .order_by("-issue_date", "-id")
+    )
 
-    issues = BondIssue.objects.all().order_by("-issue_date", "-id")
-    return render(request, "app_panel_admin/issues_list.html", {"issues": issues})
+    for it in issues:
+        try:
+            if it.issue_volume is not None:
+                it.issue_volume_fmt = f"{int(it.issue_volume):,}".replace(",", " ")
+            else:
+                it.issue_volume_fmt = ""
+        except Exception:
+            it.issue_volume_fmt = str(it.issue_volume or "")
+
+    return render(
+        request,
+        "app_panel_admin/issues_list.html",
+        {
+            "issues": issues,
+        },
+    )
 
 
 @login_required
@@ -53,7 +72,7 @@ def issues_create(request: HttpRequest) -> HttpResponse:
         return denied
 
     if request.method == "POST":
-        form = BondIssueForm(request.POST, request.FILES)  # <-- FIX
+        form = BondIssueForm(request.POST, request.FILES)
         if form.is_valid():
             issue = form.save()
             _apply_attachments_post(issue, request)
@@ -62,18 +81,22 @@ def issues_create(request: HttpRequest) -> HttpResponse:
         copy_id = request.GET.get("copy")
         if copy_id:
             src = get_object_or_404(BondIssue, id=copy_id)
-            form = BondIssueForm(
-                initial={
-                    "active": src.active,
-                    "title": src.title,
-                    "issue_date": src.issue_date,
-                    "interest_rate": src.interest_rate,
-                    "bond_price": src.bond_price,
-                    "issue_volume": src.issue_volume,
-                    "term_months": src.term_months,
-                }
-            )
-            form.instance.contract = src.contract or {}
+            src_contract = src.contract if isinstance(src.contract, dict) else {}
+
+            initial = {
+                "active": src.active,
+                "title": src.title,
+                "issue_date": src.issue_date,
+                "interest_rate": src.interest_rate,
+                "bond_price": src.bond_price,
+                "issue_volume": src.issue_volume,
+                "term_months": src.term_months,
+            }
+            for f in CONTRACT_FIELDS:
+                key = f["key"]
+                initial[f"contract__{key}"] = src_contract.get(key, "")
+
+            form = BondIssueForm(initial=initial)
         else:
             form = BondIssueForm()
 
@@ -93,7 +116,7 @@ def issues_edit(request: HttpRequest, issue_id: int) -> HttpResponse:
     issue = get_object_or_404(BondIssue, id=issue_id)
 
     if request.method == "POST":
-        form = BondIssueForm(request.POST, request.FILES, instance=issue)  # <-- FIX
+        form = BondIssueForm(request.POST, request.FILES, instance=issue)
         if form.is_valid():
             issue = form.save()
             _apply_attachments_post(issue, request)
