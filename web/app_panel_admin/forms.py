@@ -32,8 +32,8 @@ class BondIssueForm(forms.ModelForm):
         self.fields["title"].label = "Name der Emission"
         self.fields["issue_date"].label = "Emissionsdatum"
         self.fields["interest_rate"].label = "Zinssatz (%)"
-        self.fields["bond_price"].label = "Preis je Anleihe"
-        self.fields["issue_volume"].label = "Emissionsvolumen"
+        self.fields["bond_price"].label = "Preis je Anleihe (€)"
+        self.fields["issue_volume"].label = "Emissionsvolumen (€)"
         self.fields["term_months"].label = "Laufzeit (Monate)"
 
         contract: Dict[str, str] = {}

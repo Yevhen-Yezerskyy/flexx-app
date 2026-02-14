@@ -1,5 +1,7 @@
-# FILE: web/app_panel_admin/views/issues.py  (новое — 2026-02-14)
-# PURPOSE: CRUD Platzierungen (BondIssue) + файлы (N шт. + описание) + copy через ?copy=<id>.
+# FILE: web/app_panel_admin/views/issues.py  (обновлено — 2026-02-14)
+# PURPOSE: 1) Файлы: прокидываем request.FILES в BondIssueForm (create/edit);
+#          2) Вывод: сортировка вложений по description (лейблу);
+#          3) Имя файла: отдаём в шаблон уже "basename" (после последнего /).
 
 from __future__ import annotations
 
@@ -14,7 +16,6 @@ from .common import admin_only
 
 
 def _apply_attachments_post(issue: BondIssue, request: HttpRequest) -> None:
-    # update existing descriptions + delete marked
     for att in issue.attachments.all():
         if request.POST.get(f"att_del_{att.id}") == "1":
             att.delete()
@@ -24,10 +25,8 @@ def _apply_attachments_post(issue: BondIssue, request: HttpRequest) -> None:
             att.description = new_desc[:255]
             att.save(update_fields=["description"])
 
-    # add new pairs (same-name inputs => getlist)
     new_files = request.FILES.getlist("new_file")
     new_descs = request.POST.getlist("new_desc")
-    # keep alignment by index
     for i, f in enumerate(new_files):
         desc = new_descs[i] if i < len(new_descs) else ""
         BondIssueAttachment.objects.create(
@@ -54,7 +53,7 @@ def issues_create(request: HttpRequest) -> HttpResponse:
         return denied
 
     if request.method == "POST":
-        form = BondIssueForm(request.POST)
+        form = BondIssueForm(request.POST, request.FILES)  # <-- FIX
         if form.is_valid():
             issue = form.save()
             _apply_attachments_post(issue, request)
@@ -94,7 +93,7 @@ def issues_edit(request: HttpRequest, issue_id: int) -> HttpResponse:
     issue = get_object_or_404(BondIssue, id=issue_id)
 
     if request.method == "POST":
-        form = BondIssueForm(request.POST, instance=issue)
+        form = BondIssueForm(request.POST, request.FILES, instance=issue)  # <-- FIX
         if form.is_valid():
             issue = form.save()
             _apply_attachments_post(issue, request)
@@ -102,10 +101,13 @@ def issues_edit(request: HttpRequest, issue_id: int) -> HttpResponse:
     else:
         form = BondIssueForm(instance=issue)
 
+    atts = issue.attachments.order_by("description", "id")
+    attachments = [{"att": a, "filename": (a.file.name or "").rsplit("/", 1)[-1]} for a in atts]
+
     return render(
         request,
         "app_panel_admin/issues_form.html",
-        {"form": form, "mode": "edit", "issue": issue, "attachments": list(issue.attachments.all())},
+        {"form": form, "mode": "edit", "issue": issue, "attachments": attachments},
     )
 
 
