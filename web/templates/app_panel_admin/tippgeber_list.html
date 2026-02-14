@@ -1,0 +1,65 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/tippgeber_list.html  (новое — 2026-02-14)
+     PURPOSE: Admin: Tippgeber список (email/имя/статус) + activate/deactivate (активация отправляет email). -->
+{% block panel_where %}Tippgeber{% endblock %}
+{% block nav_tippgebers_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">Tippgeber</div>
+</div>
+
+<div class="border border-gray-200 rounded-md overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50">
+      <tr class="text-left">
+        <th class="px-4 py-3 w-[35%]">E-Mail</th>
+        <th class="px-4 py-3 w-[35%]">Name</th>
+        <th class="px-4 py-3 w-[15%]">Status</th>
+        <th class="px-4 py-3 w-[15%]">&nbsp;</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for u in tippgebers %}
+        <tr class="border-t border-gray-200 align-top">
+          <td class="px-4 py-3">{{ u.email }}</td>
+          <td class="px-4 py-3">{{ u.first_name }} {{ u.last_name }}</td>
+          <td class="px-4 py-3">
+            {% if u.is_active %}
+              <span class="font-semibold">aktiv</span>
+            {% else %}
+              <span class="text-gray-500">inaktiv</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if u.is_active %}
+              <form method="post" action="{% url 'panel_admin_tippgeber_deactivate' u.id %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 transition">
+                  Deaktivieren
+                </button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'panel_admin_tippgeber_activate' u.id %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full rounded-md bg-[var(--accent)] text-white px-3 py-2 hover:brightness-110 transition font-semibold">
+                  Aktivieren
+                </button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="border-t border-gray-200">
+          <td class="px-4 py-6 text-gray-500" colspan="4">Keine Tippgeber gefunden.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
