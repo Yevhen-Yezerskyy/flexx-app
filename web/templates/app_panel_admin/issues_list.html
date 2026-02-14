@@ -1,0 +1,73 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/issues_list.html  (новое — 2026-02-14)
+     PURPOSE: Таблица Platzierungen (BondIssue) + Ändern/Löschen(confirm)/Kopieren. -->
+{% block panel_where %}Platzierungen{% endblock %}
+{% block nav_issues_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">Platzierungen</div>
+  <div class="flex-1"></div>
+  <a href="{% url 'panel_admin_issues_create' %}"
+     class="rounded-md bg-[var(--accent)] text-white py-2 px-4 hover:brightness-110 transition font-semibold">
+    + Neu
+  </a>
+</div>
+
+<div class="bg-white border border-[var(--text)] rounded-md overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50">
+      <tr class="text-left">
+        <th class="px-4 py-3">Name</th>
+        <th class="px-4 py-3">Datum</th>
+        <th class="px-4 py-3">%</th>
+        <th class="px-4 py-3">Volumen</th>
+        <th class="px-4 py-3">Laufzeit (Monate)</th>
+        <th class="px-4 py-3">Aktionen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in issues %}
+        <tr class="border-t border-gray-200">
+          <td class="px-4 py-3">
+            <div class="font-semibold">{{ it.title }}</div>
+            {% if not it.active %}<div class="text-xs text-gray-500">inaktiv</div>{% endif %}
+          </td>
+          <td class="px-4 py-3">{{ it.issue_date|date:"d.m.Y" }}</td>
+          <td class="px-4 py-3">{{ it.interest_rate }}</td>
+          <td class="px-4 py-3">{{ it.issue_volume }}</td>
+          <td class="px-4 py-3">{{ it.term_months }}</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-4">
+              <a class="underline hover:text-[var(--accent)] transition"
+                 href="{% url 'panel_admin_issues_edit' it.id %}">
+                Ändern
+              </a>
+
+              <a class="underline hover:text-[var(--accent)] transition"
+                 href="{% url 'panel_admin_issues_create' %}?copy={{ it.id }}">
+                Kopieren
+              </a>
+
+              <form method="post"
+                    action="{% url 'panel_admin_issues_delete' it.id %}"
+                    onsubmit="return confirm('Wirklich löschen?');">
+                {% csrf_token %}
+                <button type="submit" class="underline hover:text-red-600 transition">
+                  Löschen
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td class="px-4 py-10 text-gray-500" colspan="6">Noch keine Platzierungen.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

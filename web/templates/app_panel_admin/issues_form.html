@@ -1,0 +1,161 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/issues_form.html  (новое — 2026-02-14)
+     PURPOSE: Create/Edit BondIssue + contract textarea + управление файлами (N шт. + описание) в стиле регистрации. -->
+{% block panel_where %}Platzierungen{% endblock %}
+{% block nav_issues_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">
+    {% if mode == "edit" %}Platzierung ändern{% else %}Neue Platzierung{% endif %}
+  </div>
+  <div class="flex-1"></div>
+  <a href="{% url 'panel_admin_issues_list' %}" class="underline hover:text-[var(--accent)] transition">
+    Zurück
+  </a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="w-[980px] flex flex-col gap-6">
+  {% csrf_token %}
+
+  <div class="bg-white border border-[var(--text)] rounded-md p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div class="col-span-2 flex items-center gap-2">
+        <div>{{ form.active }}</div>
+        <div class="text-sm">{{ form.active.label }}</div>
+        {% if form.active.errors %}<div class="text-sm text-red-600">{{ form.active.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="col-span-2 flex flex-col gap-1">
+        <input name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}"
+               type="text" placeholder="{{ form.title.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <input name="{{ form.issue_date.name }}" value="{{ form.issue_date.value|default:'' }}"
+               type="date" placeholder="{{ form.issue_date.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.issue_date.errors %}<div class="text-sm text-red-600">{{ form.issue_date.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <input name="{{ form.interest_rate.name }}" value="{{ form.interest_rate.value|default:'' }}"
+               type="text" placeholder="{{ form.interest_rate.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.interest_rate.errors %}<div class="text-sm text-red-600">{{ form.interest_rate.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <input name="{{ form.bond_price.name }}" value="{{ form.bond_price.value|default:'' }}"
+               type="text" placeholder="{{ form.bond_price.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bond_price.errors %}<div class="text-sm text-red-600">{{ form.bond_price.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <input name="{{ form.issue_volume.name }}" value="{{ form.issue_volume.value|default:'' }}"
+               type="text" placeholder="{{ form.issue_volume.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.issue_volume.errors %}<div class="text-sm text-red-600">{{ form.issue_volume.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <input name="{{ form.term_months.name }}" value="{{ form.term_months.value|default:'' }}"
+               type="number" min="0" step="1" placeholder="{{ form.term_months.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.term_months.errors %}<div class="text-sm text-red-600">{{ form.term_months.errors|join:", " }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border border-[var(--text)] rounded-md p-6">
+    <div class="text-xl mb-4">Vertrag (Texte)</div>
+
+    <div class="flex flex-col gap-4">
+      {% for field in form %}
+        {% if field.name|slice:":10" == "contract__" %}
+          <div class="flex flex-col gap-1">
+            <div class="text-sm text-gray-600">{{ field.label }}</div>
+            <textarea name="{{ field.name }}"
+                      class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
+                      rows="{{ field.field.widget.attrs.rows|default:4 }}">{{ field.value|default:'' }}</textarea>
+            {% if field.errors %}<div class="text-sm text-red-600">{{ field.errors|join:", " }}</div>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="bg-white border border-[var(--text)] rounded-md p-6">
+    <div class="text-xl mb-4">Dateien</div>
+
+    {% if attachments %}
+      <div class="flex flex-col gap-3 mb-6">
+        {% for a in attachments %}
+          <div class="flex items-center gap-3">
+            <a class="underline hover:text-[var(--accent)] transition"
+               href="{{ a.file.url }}" target="_blank">{{ a.file.name }}</a>
+
+            <input name="att_desc_{{ a.id }}" value="{{ a.description|default:'' }}"
+                   type="text" placeholder="Beschreibung"
+                   class="flex-1 border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+
+            <label class="text-sm flex items-center gap-2">
+              <input type="checkbox" name="att_del_{{ a.id }}" value="1">
+              Löschen
+            </label>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div id="new-files" class="flex flex-col gap-3">
+      <div class="flex items-center gap-3">
+        <input type="file" name="new_file"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none w-[420px]">
+        <input type="text" name="new_desc" placeholder="Beschreibung"
+               class="flex-1 border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        <button type="button"
+                class="underline hover:text-[var(--accent)] transition"
+                onclick="addNewFileRow()">
+          + Datei
+        </button>
+      </div>
+    </div>
+
+    <script>
+      function addNewFileRow() {
+        const wrap = document.getElementById("new-files");
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-3";
+        row.innerHTML = `
+          <input type="file" name="new_file"
+                 class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none w-[420px]">
+          <input type="text" name="new_desc" placeholder="Beschreibung"
+                 class="flex-1 border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+          <button type="button"
+                  class="underline hover:text-red-600 transition"
+                  onclick="this.parentElement.remove()">
+            Entfernen
+          </button>
+        `;
+        wrap.appendChild(row);
+      }
+    </script>
+  </div>
+
+  <div class="flex items-center gap-6">
+    <button type="submit"
+            class="rounded-md bg-[var(--accent)] text-white py-2 px-6 hover:brightness-110 transition font-semibold">
+      Speichern
+    </button>
+    <a href="{% url 'panel_admin_issues_list' %}" class="underline hover:text-[var(--accent)] transition">
+      Abbrechen
+    </a>
+  </div>
+</form>
+
+{% endblock %}

@@ -39,22 +39,17 @@
 
         <a href="/panel/admin/clients/"
            class="underline {% block nav_clients_class %}hover:text-[var(--accent)]{% endblock %}">
-          Клиенты
+          Anleihekäufer
         </a>
 
-        <a href="/panel/admin/tippgebers/"
+        <a href="/panel/admin/tippgeber/"
            class="underline {% block nav_tippgebers_class %}hover:text-[var(--accent)]{% endblock %}">
-          Tippgeberы
+          Tippgeber
         </a>
 
         <a href="/panel/admin/issues/"
            class="underline {% block nav_issues_class %}hover:text-[var(--accent)]{% endblock %}">
-          Эмиссии
-        </a>
-
-        <a href="/panel/admin/contract_texts/"
-           class="underline {% block nav_contract_texts_class %}hover:text-[var(--accent)]{% endblock %}">
-          Тексты договоров
+          Platzierungen
         </a>
 
         <div class="h-5 w-px bg-gray-300"></div>
@@ -62,7 +57,7 @@
         <form method="post" action="{% url 'logout' %}">
           {% csrf_token %}
           <button type="submit"
-                  class="font-semibold underline hover:text-[var(--accent)] transition">
+                  class="underline hover:text-[var(--accent)] transition">
             Abmelden
           </button>
         </form>
