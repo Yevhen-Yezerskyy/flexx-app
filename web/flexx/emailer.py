@@ -1,5 +1,5 @@
 # FILE: web/flexx/emailer.py  (обновлено — 2026-02-15)
-# PURPOSE: Добавлены письма: Tippgeber übermittelt Interessent; Konflikt при попытке привязки существующего клиента.
+# PURPOSE: Вернуть отсутствующие функции, которые импортит админка (send_account_activated_email и др.), не ломая текущие; все отправки по-прежнему RAIS’ятся при ошибке.
 
 from __future__ import annotations
 
@@ -12,11 +12,17 @@ logger = logging.getLogger(__name__)
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.ionos.de")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_USER = os.getenv("SMTP_USER", "service@flexxlager.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "FlexxLagerService")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "1").strip().lower() in ("1", "true", "yes", "y", "on")
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "0").strip().lower() in ("1", "true", "yes", "y", "on")
 
-FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USER or "noreply@flexxlager.de")
+FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "FlexxLager Team <service@flexxlager.com>")
+NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "service@flexxlager.com")
+
+
+class EmailSendError(RuntimeError):
+    pass
 
 
 def _conn():
@@ -26,20 +32,33 @@ def _conn():
         username=SMTP_USER,
         password=SMTP_PASSWORD,
         use_tls=SMTP_USE_TLS,
+        use_ssl=SMTP_USE_SSL,
         fail_silently=False,
     )
 
 
 def _send_text(*, to_email: str, subject: str, body: str) -> bool:
     try:
-        msg = EmailMultiAlternatives(subject=subject, body=body, from_email=FROM_EMAIL, to=[to_email], connection=_conn())
-        msg.send(fail_silently=False)
-        logger.info("EMAIL OK to=%s subject=%s", to_email, subject)
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=FROM_EMAIL,
+            to=[to_email],
+            connection=_conn(),
+        )
+        sent_count = msg.send()
+        ok = sent_count == 1
+        if not ok:
+            logger.error("EMAIL_FAIL to=%s subject=%s sent_count=%s", to_email, subject, sent_count)
+            raise EmailSendError(f"Email not sent: to={to_email} subject={subject} sent_count={sent_count}")
+        logger.info("EMAIL_OK to=%s subject=%s", to_email, subject)
         return True
-    except Exception:
-        logger.exception("EMAIL ERROR to=%s subject=%s", to_email, subject)
-        return False
+    except Exception as e:
+        logger.exception("EMAIL_ERROR to=%s subject=%s", to_email, subject)
+        raise EmailSendError(f"Email send error: to={to_email} subject={subject}") from e
 
+
+# ---- registration / admin activation ----
 
 def send_registration_pending_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:
     subject = "Registrierung erhalten – Konto wartet auf Freischaltung"
@@ -56,51 +75,66 @@ def send_registration_pending_email(*, to_email: str, role: str, first_name: str
 def send_registration_notify_email(*, role: str, user_email: str, first_name: str, last_name: str) -> bool:
     subject = "Neue Registrierung"
     body = (
-        "Neue Registrierung:\n\n"
-        f"Rolle: {role}\n"
-        f"E-Mail: {user_email}\n"
+        "Neue Registrierung im System.\n\n"
         f"Name: {first_name} {last_name}\n"
+        f"E-Mail: {user_email}\n"
+        f"Rolle: {role}\n"
     )
-    return _send_text(to_email=FROM_EMAIL, subject=subject, body=body)
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
 
 
-def send_password_reset_email(*, to_email: str, reset_link: str, expires_in_days: int) -> bool:
-    subject = "Passwort zurücksetzen"
-    body = (
-        "Hallo,\n\n"
-        "Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts gestellt.\n\n"
-        f"Link: {reset_link}\n"
-        f"Gültig: {expires_in_days} Tage\n\n"
-        "Wenn Sie diese Anfrage nicht gestellt haben, ignorieren Sie diese E-Mail.\n\n"
-        "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
-    )
-    return _send_text(to_email=to_email, subject=subject, body=body)
-
-
-def send_set_password_email(*, to_email: str, set_password_link: str, expires_in_days: int) -> bool:
-    subject = "Passwort festlegen"
-    body = (
-        "Hallo,\n\n"
-        "Bitte legen Sie Ihr Passwort fest.\n\n"
-        f"Link: {set_password_link}\n"
-        f"Gültig: {expires_in_days} Tage\n\n"
-        "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
-    )
-    return _send_text(to_email=to_email, subject=subject, body=body)
-
-
-def send_account_activated_email(*, to_email: str, first_name: str, last_name: str) -> bool:
-    subject = "Ihr Konto wurde aktiviert"
+def send_account_activated_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:
+    subject = "Konto freigeschaltet"
     body = (
         f"Hallo {first_name} {last_name},\n\n"
-        "Ihr Konto wurde aktiviert. Sie können sich jetzt anmelden.\n\n"
+        f"Ihr Konto ({role}) wurde freigeschaltet.\n\n"
         "Mit freundlichen Grüßen\n"
         "FlexxLager Team\n"
     )
     return _send_text(to_email=to_email, subject=subject, body=body)
 
+
+def send_account_deactivated_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:
+    subject = "Konto deaktiviert"
+    body = (
+        f"Hallo {first_name} {last_name},\n\n"
+        f"Ihr Konto ({role}) wurde deaktiviert.\n"
+        "Bitte kontaktieren Sie uns bei Fragen.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FlexxLager Team\n"
+    )
+    return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+# ---- password flows ----
+
+def send_password_reset_email(*, to_email: str, first_name: str, last_name: str, reset_url: str) -> bool:
+    subject = "Passwort zurücksetzen"
+    body = (
+        f"Hallo {first_name} {last_name},\n\n"
+        "Sie haben eine Passwort-Zurücksetzung angefordert.\n"
+        f"Link: {reset_url}\n\n"
+        "Wenn Sie das nicht waren, ignorieren Sie diese E-Mail.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FlexxLager Team\n"
+    )
+    return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+def send_set_password_email(*, to_email: str, first_name: str, last_name: str, set_url: str) -> bool:
+    subject = "Passwort festlegen"
+    body = (
+        f"Hallo {first_name} {last_name},\n\n"
+        "Bitte legen Sie Ihr Passwort fest.\n"
+        f"Link: {set_url}\n\n"
+        "Dieser Link ist nur einmal nutzbar.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FlexxLager Team\n"
+    )
+    return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+# ---- Tippgeber flows ----
 
 def send_tippgeber_added_interessent_email(
     *,
@@ -117,7 +151,7 @@ def send_tippgeber_added_interessent_email(
         f"Tippgeber: {tippgeber_first_name} {tippgeber_last_name} <{tippgeber_email}>\n"
         f"Interessent: {client_first_name} {client_last_name} <{client_email}>\n"
     )
-    return _send_text(to_email=FROM_EMAIL, subject=subject, body=body)
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
 
 
 def send_tippgeber_link_conflict_email(
@@ -135,4 +169,4 @@ def send_tippgeber_link_conflict_email(
         f"Tippgeber: {tippgeber_first_name} {tippgeber_last_name} <{tippgeber_email}>\n"
         f"Kunde: {client_first_name} {client_last_name} <{client_email}>\n"
     )
-    return _send_text(to_email=FROM_EMAIL, subject=subject, body=body)
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)

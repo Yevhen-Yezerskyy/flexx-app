@@ -1,6 +1,6 @@
 {% extends "app_panel_tippgeber/base.html" %}
 <!-- FILE: web/templates/app_panel_tippgeber/send_client.html  (обновлено — 2026-02-15)
-     PURPOSE: Исправление пустых полей после submit: все input name берутся из form.*.html_name (prefix tipp/client/conf), значения сохраняются. -->
+     PURPOSE: Взято 1:1 из архива; добавлено: верхняя кнопка "Zurück" и нижняя серая "Abbrechen" (как в эмиссиях). -->
 {% block panel_where %}
 Formular für Tippgeber
 {% endblock %}
@@ -10,7 +10,15 @@ text-[var(--accent)] font-semibold
 
 {% block panel_content %}
 
-<div class="text-2xl mt-2 mb-8">Formular für Tippgeber</div>
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">Formular für Tippgeber</div>
+  <div class="flex-1"></div>
+
+  <a href="{% url 'panel_tippgeber_my_clients' %}"
+     class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+    Zurück
+  </a>
+</div>
 
 {% if state.ok %}
   <div class="mb-6 bg-white border border-[var(--accent)] rounded-md px-7 py-4">
@@ -63,8 +71,7 @@ text-[var(--accent)] font-semibold
 
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Geburtsdatum*</label>
-        <input name="{{ tipp_form.birth_date.html_name }}" value="{{ tipp_form.birth_date.value|default:'' }}" type="date"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+                {{ tipp_form.birth_date }}
         {% if tipp_form.birth_date.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.birth_date.errors|join:", " }}</div>
         {% endif %}
@@ -247,8 +254,7 @@ text-[var(--accent)] font-semibold
 
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Geburtsdatum</label>
-        <input name="{{ client_form.birth_date.html_name }}" value="{{ client_form.birth_date.value|default:'' }}" type="date"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+          {{ client_form.birth_date }}
         {% if client_form.birth_date.errors %}
           <div class="text-sm text-red-600">{{ client_form.birth_date.errors|join:", " }}</div>
         {% endif %}
@@ -342,8 +348,7 @@ text-[var(--accent)] font-semibold
         <input name="{{ client_form.contact_person.html_name }}" value="{{ client_form.contact_person.value|default:'' }}" type="text"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
         {% if client_form.contact_person.errors %}
-          <div class="text-sm text-red-600">{{ client_form.contact_person.errors|join:", " }}</div>
-        {% endif %}
+          <div class="text-sm text-red-600">{{ client_form.contact_person.errors|join:", " }}</div>{% endif %}
       </div>
     </div>
   </div>
@@ -368,24 +373,16 @@ text-[var(--accent)] font-semibold
     <div class="text-sm text-gray-600 mt-2">{{ today|date:"d.m.Y" }}</div>
   </div>
 
-  {% if state.client_is_other and not state.conflict_notified %}
-    <div class="bg-white border border-red-400 rounded-md px-7 py-5">
-      <div class="font-semibold text-red-700 mb-2">Dieser Kunde ist bereits bei uns registriert.</div>
-      <div class="text-[var(--text)]">Möchten Sie in diesem Fall eine Nachricht an FleXXLager senden?</div>
-
-      <input type="hidden" name="action" value="notify_conflict">
-      <input type="hidden" name="existing_client_email" value="{{ state.existing_client_email }}">
-      <input type="hidden" name="existing_client_first_name" value="{{ state.existing_client_first_name }}">
-      <input type="hidden" name="existing_client_last_name" value="{{ state.existing_client_last_name }}">
-    </div>
-  {% endif %}
-
   <div class="flex justify-end gap-6">
     <button type="submit"
             class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center">
-      {% if state.client_is_other and not state.conflict_notified %}Nachricht senden{% else %}Senden{% endif %}
+      Senden
     </button>
 
+    <a href="{% url 'panel_tippgeber_my_clients' %}"
+       class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+      Abbrechen
+    </a>
   </div>
 
 </form>

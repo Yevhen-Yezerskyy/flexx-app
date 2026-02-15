@@ -1,11 +1,20 @@
-# FILE: web/app_panel_tippgeber/forms.py  (новое — 2026-02-15)
-# PURPOSE: Формы страницы "Formular für Tippgeber": профиль Tippgeber (с банком) + создание Interessent (без банка) + 2 чекбокса.
+# FILE: web/app_panel_tippgeber/forms.py  (обновлено — 2026-02-15)
+# PURPOSE: Даты рождения не “слетают” при ошибках формы: рендерим date-поля через widget (он держит bound-значение), и задаём ему нужные attrs (type=date + class).
 
 from __future__ import annotations
 
 from django import forms
 
 from app_users.models import FlexxUser
+
+
+_DATE_WIDGET = forms.DateInput(
+    format="%Y-%m-%d",
+    attrs={
+        "type": "date",
+        "class": "border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none",
+    },
+)
 
 
 class TippgeberProfileForm(forms.ModelForm):
@@ -30,6 +39,7 @@ class TippgeberProfileForm(forms.ModelForm):
             "bank_name",
             "bank_bic",
         ]
+        widgets = {"birth_date": _DATE_WIDGET}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,6 +56,9 @@ class TippgeberProfileForm(forms.ModelForm):
         self.fields["contact_person"].required = False
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
+
+        if "birth_date" in self.fields:
+            self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
@@ -82,6 +95,7 @@ class ClientCreateForm(forms.ModelForm):
             "handelsregister_number",
             "contact_person",
         ]
+        widgets = {"birth_date": _DATE_WIDGET}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -96,8 +110,14 @@ class ClientCreateForm(forms.ModelForm):
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
 
+        if "birth_date" in self.fields:
+            self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def validate_unique(self):
+        return
 
     def clean(self):
         cleaned = super().clean()

@@ -1,17 +1,32 @@
 # FILE: web/app_panel_tippgeber/views/send_client.py  (обновлено — 2026-02-15)
-# PURPOSE: Исправление пустых полей после submit: формы Tippgeber/Client/Confirmations теперь с prefix (tipp/client/conf), чтобы POST-ключи не конфликтовали.
+# PURPOSE: Tippgeber send-client flow: форма (tipp+client+consents) → статус (created/exists). При notify_conflict письмо в админку и редирект на "Meine Kunden". Статус показывает данные из формы (cleaned_data), не из БД.
 
 from __future__ import annotations
 
+from datetime import date
+
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from app_users.models import FlexxUser, TippgeberClient
-from flexx.emailer import send_tippgeber_added_interessent_email, send_tippgeber_link_conflict_email
+from flexx.emailer import (
+    send_tippgeber_added_interessent_email,
+    send_tippgeber_link_conflict_email,
+)
 from .common import agent_only
-from ..forms import TippgeberProfileForm, ClientCreateForm, ConfirmationsForm
+from ..forms import ClientCreateForm, ConfirmationsForm, TippgeberProfileForm
+
+
+def _parse_iso_date(v: str) -> date | None:
+    v = (v or "").strip()
+    if not v:
+        return None
+    try:
+        return date.fromisoformat(v)
+    except Exception:
+        return None
 
 
 @login_required
@@ -22,17 +37,6 @@ def send_client(request: HttpRequest) -> HttpResponse:
 
     today = timezone.localdate()
 
-    state = {
-        "ok": "",
-        "err": "",
-        "client_is_mine": False,
-        "client_is_other": False,
-        "conflict_notified": False,
-        "existing_client_email": "",
-        "existing_client_first_name": "",
-        "existing_client_last_name": "",
-    }
-
     tipp_form = TippgeberProfileForm(prefix="tipp", instance=request.user)
     client_form = ClientCreateForm(prefix="client")
     conf_form = ConfirmationsForm(prefix="conf")
@@ -40,82 +44,108 @@ def send_client(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         action = (request.POST.get("action") or "send").strip()
 
-        tipp_form = TippgeberProfileForm(request.POST, prefix="tipp", instance=request.user)
-        client_form = ClientCreateForm(request.POST, prefix="client")
-        conf_form = ConfirmationsForm(request.POST, prefix="conf")
-
+        # ---- conflict notify ----
         if action == "notify_conflict":
-            ex_email = (request.POST.get("existing_client_email") or "").strip().lower()
-            ex_fn = (request.POST.get("existing_client_first_name") or "").strip()
-            ex_ln = (request.POST.get("existing_client_last_name") or "").strip()
+            ex_email = (request.POST.get("client_email") or "").strip().lower()
 
+            # важное: email отправка должна падать райзом внутри emailer.py
             send_tippgeber_link_conflict_email(
                 tippgeber_email=getattr(request.user, "email", ""),
                 tippgeber_first_name=getattr(request.user, "first_name", ""),
                 tippgeber_last_name=getattr(request.user, "last_name", ""),
                 client_email=ex_email,
-                client_first_name=ex_fn,
-                client_last_name=ex_ln,
+                client_first_name=(request.POST.get("client_first_name") or "").strip(),
+                client_last_name=(request.POST.get("client_last_name") or "").strip(),
             )
 
-            state["ok"] = "Nachricht wurde gesendet."
-            state["client_is_other"] = True
-            state["conflict_notified"] = True
-            state["existing_client_email"] = ex_email
-            state["existing_client_first_name"] = ex_fn
-            state["existing_client_last_name"] = ex_ln
+            return redirect("panel_tippgeber_my_clients")
 
+        # ---- main submit ----
+        tipp_form = TippgeberProfileForm(request.POST, prefix="tipp", instance=request.user)
+        client_form = ClientCreateForm(request.POST, prefix="client")
+        conf_form = ConfirmationsForm(request.POST, prefix="conf")
+
+        if not (tipp_form.is_valid() and client_form.is_valid() and conf_form.is_valid()):
             return render(
                 request,
                 "app_panel_tippgeber/send_client.html",
-                {"tipp_form": tipp_form, "client_form": client_form, "conf_form": conf_form, "today": today, "state": state},
+                {
+                    "tipp_form": tipp_form,
+                    "client_form": client_form,
+                    "conf_form": conf_form,
+                    "today": today,
+                    "state": {"err": "Bitte prüfen Sie die markierten Felder."},
+                },
             )
 
-        valid = tipp_form.is_valid() and client_form.is_valid() and conf_form.is_valid()
-        if not valid:
-            state["err"] = "Bitte prüfen Sie die markierten Felder."
-        else:
-            tipp_form.save()
+        # сохраняем данные типпбергера (как было)
+        tipp_form.save()
 
-            email = (client_form.cleaned_data.get("email") or "").strip().lower()
-            existing = FlexxUser.objects.filter(email=email).first()
+        cd = client_form.cleaned_data
+        email = (cd.get("email") or "").strip().lower()
 
-            if existing:
-                state["existing_client_email"] = existing.email
-                state["existing_client_first_name"] = existing.first_name or ""
-                state["existing_client_last_name"] = existing.last_name or ""
+        existing = FlexxUser.objects.filter(email=email).first()
+        if existing:
+            link = TippgeberClient.objects.filter(client=existing).first()
+            client_is_mine = bool(link and link.tippgeber_id == request.user.id)
 
-                link = TippgeberClient.objects.filter(client=existing).first()
-                if link and link.tippgeber_id == request.user.id:
-                    state["client_is_mine"] = True
-                    state["ok"] = "Dieser Kunde ist bereits bei Ihnen registriert."
-                else:
-                    state["client_is_other"] = True
-                    state["err"] = "Dieser Kunde ist bereits bei uns registriert."
-            else:
-                new_client: FlexxUser = client_form.save(commit=False)
-                new_client.role = FlexxUser.Role.CLIENT
-                new_client.is_active = False
-                new_client.set_unusable_password()
-                new_client.save()
+            state = {
+                "mode": "exists",
+                "ok": "",
+                "err": "",
+                "conflict_notified": False,
+                "client_is_mine": client_is_mine,
+                # показываем именно то, что ввели в форме
+                "client_email": email,
+                "client_first_name": (cd.get("first_name") or "").strip(),
+                "client_last_name": (cd.get("last_name") or "").strip(),
+                "client_company": (cd.get("company") or "").strip(),
+                "client_birth_date": cd.get("birth_date"),
+                "client_street": (cd.get("street") or "").strip(),
+                "client_zip_code": (cd.get("zip_code") or "").strip(),
+                "client_city": (cd.get("city") or "").strip(),
+                "client_phone": (cd.get("phone") or "").strip(),
+            }
+            return render(request, "app_panel_tippgeber/client_status.html", {"today": today, "state": state})
 
-                TippgeberClient.objects.create(tippgeber=request.user, client=new_client)
+        new_client: FlexxUser = client_form.save(commit=False)
+        new_client.role = FlexxUser.Role.CLIENT
+        new_client.is_active = False
+        new_client.set_unusable_password()
+        new_client.save()
 
-                send_tippgeber_added_interessent_email(
-                    tippgeber_email=getattr(request.user, "email", ""),
-                    tippgeber_first_name=getattr(request.user, "first_name", ""),
-                    tippgeber_last_name=getattr(request.user, "last_name", ""),
-                    client_email=new_client.email,
-                    client_first_name=new_client.first_name or "",
-                    client_last_name=new_client.last_name or "",
-                )
+        TippgeberClient.objects.create(tippgeber=request.user, client=new_client)
 
-                state["ok"] = "Der Interessent wurde übermittelt."
-                client_form = ClientCreateForm(prefix="client")
-                conf_form = ConfirmationsForm(prefix="conf")
+        # важное: email отправка должна падать райзом внутри emailer.py
+        send_tippgeber_added_interessent_email(
+            tippgeber_email=getattr(request.user, "email", ""),
+            tippgeber_first_name=getattr(request.user, "first_name", ""),
+            tippgeber_last_name=getattr(request.user, "last_name", ""),
+            client_email=new_client.email,
+            client_first_name=new_client.first_name or "",
+            client_last_name=new_client.last_name or "",
+        )
+
+        state = {
+            "mode": "created",
+            "ok": "",
+            "err": "",
+            "conflict_notified": False,
+            "client_is_mine": False,
+            "client_email": email,
+            "client_first_name": (cd.get("first_name") or "").strip(),
+            "client_last_name": (cd.get("last_name") or "").strip(),
+            "client_company": (cd.get("company") or "").strip(),
+            "client_birth_date": cd.get("birth_date"),
+            "client_street": (cd.get("street") or "").strip(),
+            "client_zip_code": (cd.get("zip_code") or "").strip(),
+            "client_city": (cd.get("city") or "").strip(),
+            "client_phone": (cd.get("phone") or "").strip(),
+        }
+        return render(request, "app_panel_tippgeber/client_status.html", {"today": today, "state": state})
 
     return render(
         request,
         "app_panel_tippgeber/send_client.html",
-        {"tipp_form": tipp_form, "client_form": client_form, "conf_form": conf_form, "today": today, "state": state},
+        {"tipp_form": tipp_form, "client_form": client_form, "conf_form": conf_form, "today": today, "state": {}},
     )

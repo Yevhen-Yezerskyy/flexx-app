@@ -1,11 +1,12 @@
-# FILE: web/app_panel_tippgeber/urls.py  (новое — 2026-02-14)
-# PURPOSE: URLs панели Tippgeber: "/" = Kunden senden, + Meine Kunden.
+# FILE: web/app_panel_tippgeber/urls.py  (обновлено — 2026-02-15)
+# PURPOSE: Tippgeber: "/" = Meine Kunden (по умолчанию), "/add-client/" = форма добавления клиента.
 
 from django.urls import path
-from .views.send_client import send_client
+
 from .views.my_clients import my_clients
+from .views.send_client import send_client
 
 urlpatterns = [
-    path("", send_client, name="panel_tippgeber_send_client"),
-    path("my-clients/", my_clients, name="panel_tippgeber_my_clients"),
+    path("", my_clients, name="panel_tippgeber_my_clients"),
+    path("add-client/", send_client, name="panel_tippgeber_send_client"),
 ]
