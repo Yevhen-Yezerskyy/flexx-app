@@ -1,5 +1,5 @@
 # FILE: web/app_panel_tippgeber/views/send_client.py  (обновлено — 2026-02-15)
-# PURPOSE: Реализация страницы "Formular für Tippgeber": сохранение профиля + создание Interessent + проверки/конфликт + письмо.
+# PURPOSE: Исправление пустых полей после submit: формы Tippgeber/Client/Confirmations теперь с prefix (tipp/client/conf), чтобы POST-ключи не конфликтовали.
 
 from __future__ import annotations
 
@@ -33,16 +33,16 @@ def send_client(request: HttpRequest) -> HttpResponse:
         "existing_client_last_name": "",
     }
 
-    tipp_form = TippgeberProfileForm(instance=request.user)
-    client_form = ClientCreateForm()
-    conf_form = ConfirmationsForm()
+    tipp_form = TippgeberProfileForm(prefix="tipp", instance=request.user)
+    client_form = ClientCreateForm(prefix="client")
+    conf_form = ConfirmationsForm(prefix="conf")
 
     if request.method == "POST":
         action = (request.POST.get("action") or "send").strip()
 
-        tipp_form = TippgeberProfileForm(request.POST, instance=request.user)
-        client_form = ClientCreateForm(request.POST)
-        conf_form = ConfirmationsForm(request.POST)
+        tipp_form = TippgeberProfileForm(request.POST, prefix="tipp", instance=request.user)
+        client_form = ClientCreateForm(request.POST, prefix="client")
+        conf_form = ConfirmationsForm(request.POST, prefix="conf")
 
         if action == "notify_conflict":
             ex_email = (request.POST.get("existing_client_email") or "").strip().lower()
@@ -111,8 +111,8 @@ def send_client(request: HttpRequest) -> HttpResponse:
                 )
 
                 state["ok"] = "Der Interessent wurde übermittelt."
-                client_form = ClientCreateForm()
-                conf_form = ConfirmationsForm()
+                client_form = ClientCreateForm(prefix="client")
+                conf_form = ConfirmationsForm(prefix="conf")
 
     return render(
         request,
