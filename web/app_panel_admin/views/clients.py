@@ -1,5 +1,5 @@
-# FILE: web/app_panel_admin/views/index.py  (новое — 2026-02-14)
-# PURPOSE: Главная страница панели Admin + role-guard.
+# FILE: web/app_panel_admin/views/clients.py  (новое — 2026-02-15)
+# PURPOSE: Admin-Panel: Kunden (заглушка) + role-guard.
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from .common import admin_only
 
 
 @login_required
-def index(request: HttpRequest) -> HttpResponse:
+def clients_list(request: HttpRequest) -> HttpResponse:
     denied = admin_only(request)
     if denied:
         return denied
-    return render(request, "app_panel_admin/index.html")
+    return render(request, "app_panel_admin/clients_list.html")

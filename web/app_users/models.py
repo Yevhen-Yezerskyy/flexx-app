@@ -1,10 +1,10 @@
 # FILE: web/app_users/models.py  (обновлено — 2026-02-15)
-# PURPOSE: Добавлены 4 банковских поля в FlexxUser + добавлена информативная таблица связи Tippgeber↔Client (SET_NULL, created_at).
+# PURPOSE: Добавлены depot-реквизиты в FlexxUser: bank_depo_* (4 поля) по аналогии с bank_*.
 
 from __future__ import annotations
 
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
 
 
@@ -46,10 +46,17 @@ class FlexxUser(AbstractBaseUser, PermissionsMixin):
     handelsregister_number = models.CharField(max_length=100, blank=True)
     contact_person = models.CharField(max_length=255, blank=True)
 
+    # ---- Bank (Geldkonto) ----
     bank_account_holder = models.CharField(max_length=255, blank=True)
     bank_iban = models.CharField(max_length=34, blank=True)
     bank_name = models.CharField(max_length=255, blank=True)
     bank_bic = models.CharField(max_length=11, blank=True)
+
+    # ---- Depot (Wertpapierdepot) ----
+    bank_depo_account_holder = models.CharField(max_length=255, blank=True)
+    bank_depo_iban = models.CharField(max_length=34, blank=True)
+    bank_depo_name = models.CharField(max_length=255, blank=True)
+    bank_depo_bic = models.CharField(max_length=11, blank=True)
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
 

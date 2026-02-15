@@ -1,14 +1,15 @@
-# FILE: web/app_panel_admin/urls.py  (обновлено — 2026-02-14)
-# PURPOSE: Добавлены URLs Tippgeber list + activate/deactivate.
+# FILE: web/app_panel_admin/urls.py  (обновлено — 2026-02-15)
+# PURPOSE: Корень админ-панели = Kunden (без index); Tippgeber/Emissionen URL’ы сохранены.
 
 from django.urls import path
 
-from .views.index import index
+from .views.clients import clients_list
 from .views.issues import issues_list, issues_create, issues_edit, issues_delete
 from .views.tippgeber import tippgeber_list, tippgeber_activate, tippgeber_deactivate
 
 urlpatterns = [
-    path("", index, name="panel_admin_index"),
+    path("", clients_list, name="panel_admin_clients"),
+    path("clients/", clients_list, name="panel_admin_clients_alias"),
 
     path("tippgeber/", tippgeber_list, name="panel_admin_tippgeber_list"),
     path("tippgeber/<int:user_id>/activate/", tippgeber_activate, name="panel_admin_tippgeber_activate"),

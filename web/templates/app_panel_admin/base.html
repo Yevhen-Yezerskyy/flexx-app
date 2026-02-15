@@ -1,6 +1,6 @@
 {% load static %}
-<!-- FILE: web/templates/app_panel_admin/base.html  (обновлено — 2026-02-14)
-     PURPOSE: Base панели Admin: корректный футер (first_name + last_name, fallback email), без лишнего. -->
+<!-- FILE: web/templates/app_panel_admin/base.html  (обновлено — 2026-02-15)
+     PURPOSE: Admin-base: меню Kunden/Tippgeber/Emissionen; root = Kunden; активность через blocks. -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -21,7 +21,7 @@
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
     <div class="flex items-center gap-6 px-8 py-2">
-      <a href="{% url 'panel_admin_index' %}" class="block">
+      <a href="{% url 'panel_admin_clients' %}" class="block">
         <img src="{% static 'img/logo.svg' %}" class="h-5 w-auto block" alt="FlexxLager">
       </a>
 
@@ -37,14 +37,19 @@
 
       <nav class="flex items-center gap-6 text-[var(--text)]">
 
-        <a href="{% url 'panel_admin_issues_list' %}"
-           class="underline {% block nav_issues_class %}hover:text-[var(--accent)]{% endblock %}">
-          Emissionen
+        <a href="{% url 'panel_admin_clients' %}"
+           class="underline {% block nav_clients_class %}hover:text-[var(--accent)]{% endblock %}">
+          Kunden
         </a>
 
         <a href="{% url 'panel_admin_tippgeber_list' %}"
            class="underline {% block nav_tippgebers_class %}hover:text-[var(--accent)]{% endblock %}">
           Tippgeber
+        </a>
+
+        <a href="{% url 'panel_admin_issues_list' %}"
+           class="underline {% block nav_issues_class %}hover:text-[var(--accent)]{% endblock %}">
+          Emissionen
         </a>
 
         <div class="h-5 w-px bg-gray-300"></div>
