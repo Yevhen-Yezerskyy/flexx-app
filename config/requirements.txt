@@ -1,7 +1,9 @@
-# FILE: config/requirements.txt  (обновлено — 2026-02-12)
+# FILE: config/requirements.txt  (обновлено — 2026-02-15)
 # PURPOSE: Python-зависимости для прод/админ Django-образа.
 
 Django>=4.2,<5.0
 gunicorn>=21.2,<22.0
 psycopg2-binary>=2.9,<3.0
 reportlab>=4.0,<5.0
+holidays>=0.40,<1.0
+Pillow>=10.0,<12.0

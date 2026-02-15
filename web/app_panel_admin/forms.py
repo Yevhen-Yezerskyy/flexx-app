@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/forms.py  (обновлено — 2026-02-15)
-# PURPOSE: Добавлен AdminTippgeberForm для редактирования Tippgeber в админке.
+# PURPOSE: Единый ввод: 1) дата принимает YYYY-MM-DD и DD.MM.YYYY; 2) decimal-поля эмиссии принимают "7,50" и "5000000,00" (нормализация данных ДО валидации).
 
 from __future__ import annotations
 
@@ -11,6 +11,25 @@ from flexx.contract_fields import CONTRACT_FIELDS
 from flexx.models import BondIssue
 
 from app_users.models import FlexxUser, TippgeberClient
+
+
+def _normalize_decimal_like(v) -> str:
+    s = "" if v is None else str(v).strip()
+    if not s:
+        return s
+    return s.replace(" ", "").replace(",", ".")
+
+
+def _normalize_date_like(v) -> str:
+    s = "" if v is None else str(v).strip()
+    if not s:
+        return s
+    # allow DD.MM.YYYY -> YYYY-MM-DD (only if it matches exactly)
+    if len(s) == 10 and s[2] == "." and s[5] == ".":
+        dd, mm, yyyy = s[0:2], s[3:5], s[6:10]
+        if dd.isdigit() and mm.isdigit() and yyyy.isdigit():
+            return f"{yyyy}-{mm}-{dd}"
+    return s
 
 
 class BondIssueForm(forms.ModelForm):
@@ -30,6 +49,15 @@ class BondIssueForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # --- normalize bound POST data BEFORE field validation ---
+        if self.is_bound:
+            d = self.data.copy()
+            d["issue_date"] = _normalize_date_like(d.get("issue_date"))
+            d["interest_rate"] = _normalize_decimal_like(d.get("interest_rate"))
+            d["bond_price"] = _normalize_decimal_like(d.get("bond_price"))
+            d["issue_volume"] = _normalize_decimal_like(d.get("issue_volume"))
+            self.data = d
+
         self.fields["active"].label = "Aktiv"
         self.fields["title"].label = "Name der Emission"
         self.fields["issue_date"].label = "Emissionsdatum"
@@ -37,6 +65,9 @@ class BondIssueForm(forms.ModelForm):
         self.fields["bond_price"].label = "Preis je Anleihe (€)"
         self.fields["issue_volume"].label = "Emissionsvolumen (€)"
         self.fields["term_months"].label = "Laufzeit (Monate)"
+
+        # accept both ISO and DE, but we always render as ISO in templates
+        self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
         contract: Dict[str, str] = {}
         if self.instance and isinstance(self.instance.contract, dict):
@@ -116,6 +147,12 @@ class AdminClientForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # normalize bound POST date BEFORE validation
+        if self.is_bound:
+            d = self.data.copy()
+            d["birth_date"] = _normalize_date_like(d.get("birth_date"))
+            self.data = d
+
         self.fields["is_active"].label = "Aktiv"
 
         for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):
@@ -180,7 +217,6 @@ class AdminClientForm(forms.ModelForm):
                 self.add_error("email", "Diese E-Mail ist bereits vergeben.")
 
         return cleaned
-
 
 class AdminTippgeberForm(forms.ModelForm):
     """Admin edit Tippgeber (FlexxUser role=agent)."""

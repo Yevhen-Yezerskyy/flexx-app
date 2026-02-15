@@ -1,6 +1,6 @@
 {% extends "app_panel_tippgeber/base.html" %}
 <!-- FILE: web/templates/app_panel_tippgeber/client_status.html  (обновлено — 2026-02-15)
-     PURPOSE: Кнопки справа рядом: "Nachricht senden" + "Meine Kunden"; hidden birth_date отдаём как Y-m-d. -->
+     PURPOSE: Status-страница после добавления клиента: показывает данные клиента; при конфликте — кнопка отправить сообщение админу; date не фильтруем, чтобы не терялась (передаём как есть). -->
 {% block panel_where %}
 Meine Kunden
 {% endblock %}
@@ -47,7 +47,7 @@ text-[var(--accent)] font-semibold
 
       <div class="col-span-3 font-semibold">Geburtsdatum</div>
       <div class="col-span-9">
-        {% if state.client_birth_date %}{{ state.client_birth_date|date:"d.m.Y" }}{% else %}&mdash;{% endif %}
+        {% if state.client_birth_date %}{{ state.client_birth_date }}{% else %}&mdash;{% endif %}
       </div>
 
       <div class="col-span-3 font-semibold">Adresse</div>
@@ -70,7 +70,7 @@ text-[var(--accent)] font-semibold
         <input type="hidden" name="client_first_name" value="{{ state.client_first_name }}">
         <input type="hidden" name="client_last_name" value="{{ state.client_last_name }}">
         <input type="hidden" name="client_company" value="{{ state.client_company }}">
-        <input type="hidden" name="client_birth_date" value="{% if state.client_birth_date %}{{ state.client_birth_date|date:'Y-m-d' }}{% endif %}">
+        <input type="hidden" name="client_birth_date" value="{{ state.client_birth_date|default:'' }}">
         <input type="hidden" name="client_street" value="{{ state.client_street }}">
         <input type="hidden" name="client_zip_code" value="{{ state.client_zip_code }}">
         <input type="hidden" name="client_city" value="{{ state.client_city }}">
