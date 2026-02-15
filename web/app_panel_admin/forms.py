@@ -1,5 +1,5 @@
-# FILE: web/app_panel_admin/forms.py  (новое — 2026-02-14)
-# PURPOSE: Form для BondIssue + редактирование contract JSON по справочнику flexx/contract_fields.py.
+# FILE: web/app_panel_admin/forms.py  (обновлено — 2026-02-15)
+# PURPOSE: 1) BondIssueForm + редактирование contract JSON; 2) AdminClientForm: create/edit клиента + выбор Tippgeber.
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from django import forms
 
 from flexx.contract_fields import CONTRACT_FIELDS
 from flexx.models import BondIssue
+
+from app_users.models import FlexxUser, TippgeberClient
 
 
 class BondIssueForm(forms.ModelForm):
@@ -65,3 +67,120 @@ class BondIssueForm(forms.ModelForm):
         if commit:
             obj.save()
         return obj
+
+
+_DATE_WIDGET_ADMIN = forms.DateInput(
+    format="%Y-%m-%d",
+    attrs={
+        "type": "date",
+        "class": "border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none",
+    },
+)
+
+
+class AdminClientForm(forms.ModelForm):
+    """Admin create/edit Client (FlexxUser role=client) + link to Tippgeber via TippgeberClient."""
+
+    tippgeber_id = forms.ChoiceField(required=False)
+
+    class Meta:
+        model = FlexxUser
+        fields = [
+            # base
+            "email",
+            "last_name",
+            "first_name",
+            "birth_date",
+            "company",
+            "street",
+            "zip_code",
+            "city",
+            "phone",
+            "fax",
+            "handelsregister",
+            "handelsregister_number",
+            "contact_person",
+            # depot
+            "bank_depo_account_holder",
+            "bank_depo_iban",
+            "bank_depo_name",
+            "bank_depo_bic",
+            # client bank
+            "bank_account_holder",
+            "bank_iban",
+            "bank_name",
+            "bank_bic",
+            # active
+            "is_active",
+        ]
+        widgets = {
+            "birth_date": _DATE_WIDGET_ADMIN,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["is_active"].label = "Aktiv"
+
+        for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):
+            self.fields[f].required = True
+
+        for f in (
+            "bank_depo_account_holder",
+            "bank_depo_iban",
+            "bank_depo_name",
+            "bank_depo_bic",
+            "bank_account_holder",
+            "bank_iban",
+            "bank_name",
+            "bank_bic",
+        ):
+            self.fields[f].required = False
+
+        self.fields["birth_date"].required = False
+        self.fields["fax"].required = False
+        self.fields["company"].required = False
+        self.fields["contact_person"].required = False
+        self.fields["handelsregister"].required = False
+        self.fields["handelsregister_number"].required = False
+
+        if "birth_date" in self.fields:
+            self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+
+        tips = FlexxUser.objects.filter(role=FlexxUser.Role.AGENT).order_by("email")
+        choices = [("", "—")]
+        for u in tips:
+            label = f"{u.email} — {u.first_name} {u.last_name}".strip()
+            choices.append((str(u.id), label))
+        self.fields["tippgeber_id"].choices = choices
+        self.fields["tippgeber_id"].label = "Tippgeber"
+
+        if self.instance and self.instance.pk:
+            link = TippgeberClient.objects.filter(client=self.instance).select_related("tippgeber").first()
+            if link and link.tippgeber_id:
+                self.initial["tippgeber_id"] = str(link.tippgeber_id)
+
+    def clean_email(self):
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean(self):
+        cleaned = super().clean()
+
+        company = (cleaned.get("company") or "").strip()
+        hr = (cleaned.get("handelsregister") or "").strip()
+        hrn = (cleaned.get("handelsregister_number") or "").strip()
+        if company:
+            if not hr:
+                self.add_error("handelsregister", "Pflichtfeld, wenn Firma gesetzt ist.")
+            if not hrn:
+                self.add_error("handelsregister_number", "Pflichtfeld, wenn Firma gesetzt ist.")
+
+        email = (cleaned.get("email") or "").strip().lower()
+        if email:
+            qs = FlexxUser.objects.filter(email=email)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error("email", "Diese E-Mail ist bereits vergeben.")
+
+        return cleaned

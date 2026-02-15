@@ -1,0 +1,286 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/clients_form.html  (обновлено — 2026-02-15)
+     PURPOSE: Admin: Kunden create/edit: Tippgeber-select, Aktiv-Checkbox сверху, Depot-Bank над Bank клиента, кнопки справа (Speichern/Abbrechen). -->
+{% block panel_where %}Kunden{% endblock %}
+{% block nav_clients_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">
+    {% if mode == 'edit' %}Kunde bearbeiten{% else %}Neuen Kunden hinzufügen{% endif %}
+  </div>
+  <div class="flex-1"></div>
+
+  <a href="{% url 'panel_admin_clients' %}"
+     class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+    Zurück
+  </a>
+</div>
+
+<form method="post" class="flex flex-col gap-6">
+  {% csrf_token %}
+
+  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-3">
+    <div class="text-xl mb-2">Angaben zum Kunden</div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">Tippgeber</label>
+        <select name="{{ form.tippgeber_id.html_name }}"
+                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white">
+          {% for val, label in form.fields.tippgeber_id.choices %}
+            <option value="{{ val }}" {% if form.tippgeber_id.value|stringformat:'s' == val|stringformat:'s' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% if form.tippgeber_id.errors %}
+          <div class="text-sm text-red-600">{{ form.tippgeber_id.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center px-2 mt-7 ml-10">
+          <input name="{{ form.is_active.html_name }}" type="checkbox" value="1"
+                 class="h-4 w-4"
+                 {% if form.is_active.value %}checked{% endif %}>&nbsp;&nbsp;&nbsp;Aktiv
+        </div>
+        {% if form.is_active.errors %}
+          <div class="text-sm text-red-600">{{ form.is_active.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">E-Mail*</label>
+        <input name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" type="email"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.email.errors %}
+          <div class="text-sm text-red-600">{{ form.email.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div>&nbsp;</div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Nachname*</label>
+        <input name="{{ form.last_name.html_name }}" value="{{ form.last_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.last_name.errors %}
+          <div class="text-sm text-red-600">{{ form.last_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Vorname*</label>
+        <input name="{{ form.first_name.html_name }}" value="{{ form.first_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.first_name.errors %}
+          <div class="text-sm text-red-600">{{ form.first_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Geburtsdatum</label>
+        {{ form.birth_date }}
+        {% if form.birth_date.errors %}
+          <div class="text-sm text-red-600">{{ form.birth_date.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-8 mt-8">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">Firma</label>
+        <input name="{{ form.company.html_name }}" value="{{ form.company.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.company.errors %}
+          <div class="text-sm text-red-600">{{ form.company.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div>&nbsp;</div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">Straße, Hausnummer*</label>
+        <input name="{{ form.street.html_name }}" value="{{ form.street.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.street.errors %}
+          <div class="text-sm text-red-600">{{ form.street.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm px-4">PLZ*</label>
+        <input name="{{ form.zip_code.html_name }}" value="{{ form.zip_code.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.zip_code.errors %}
+          <div class="text-sm text-red-600">{{ form.zip_code.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm px-4">Ort*</label>
+        <input name="{{ form.city.html_name }}" value="{{ form.city.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.city.errors %}
+          <div class="text-sm text-red-600">{{ form.city.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Telefon*</label>
+        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.phone.errors %}
+          <div class="text-sm text-red-600">{{ form.phone.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Fax</label>
+        <input name="{{ form.fax.html_name }}" value="{{ form.fax.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.fax.errors %}
+          <div class="text-sm text-red-600">{{ form.fax.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div>&nbsp;</div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-8 mt-8">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Handelsregister</label>
+        <input name="{{ form.handelsregister.html_name }}" value="{{ form.handelsregister.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.handelsregister.errors %}
+          <div class="text-sm text-red-600">{{ form.handelsregister.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Handelsregister-Nummer</label>
+        <input name="{{ form.handelsregister_number.html_name }}" value="{{ form.handelsregister_number.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.handelsregister_number.errors %}
+          <div class="text-sm text-red-600">{{ form.handelsregister_number.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Ansprechpartner</label>
+        <input name="{{ form.contact_person.html_name }}" value="{{ form.contact_person.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.contact_person.errors %}
+          <div class="text-sm text-red-600">{{ form.contact_person.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="text-lg">Depotverbindung</div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Kontoinhaber (Depot)</label>
+        <input name="{{ form.bank_depo_account_holder.html_name }}" value="{{ form.bank_depo_account_holder.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_depo_account_holder.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_depo_account_holder.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div>&nbsp;</div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">IBAN (Depot)</label>
+        <input name="{{ form.bank_depo_iban.html_name }}" value="{{ form.bank_depo_iban.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_depo_iban.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_depo_iban.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm px-4">Bank (Depot)</label>
+        <input name="{{ form.bank_depo_name.html_name }}" value="{{ form.bank_depo_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_depo_name.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_depo_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm px-4">BIC (Depot)</label>
+        <input name="{{ form.bank_depo_bic.html_name }}" value="{{ form.bank_depo_bic.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_depo_bic.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_depo_bic.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="text-lg mt-6">Bankverbindung</div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Kontoinhaber</label>
+        <input name="{{ form.bank_account_holder.html_name }}" value="{{ form.bank_account_holder.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_account_holder.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_account_holder.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div>&nbsp;</div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">IBAN</label>
+        <input name="{{ form.bank_iban.html_name }}" value="{{ form.bank_iban.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_iban.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_iban.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm px-4">Bank</label>
+        <input name="{{ form.bank_name.html_name }}" value="{{ form.bank_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_name.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm px-4">BIC</label>
+        <input name="{{ form.bank_bic.html_name }}" value="{{ form.bank_bic.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.bank_bic.errors %}
+          <div class="text-sm text-red-600">{{ form.bank_bic.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end items-center gap-4 mt-4">
+    <a href="{% url 'panel_admin_clients' %}"
+       class="w-56 rounded-md bg-gray-50 border border-gray-300 text-[var(--text)] py-3 hover:bg-gray-100 transition font-semibold text-center flex items-center justify-center">
+      Abbrechen
+    </a>
+
+    <button type="submit"
+            class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold">
+      Speichern
+    </button>
+  </div>
+
+</form>
+
+{% endblock %}
