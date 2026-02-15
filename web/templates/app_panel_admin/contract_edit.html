@@ -1,0 +1,49 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/contract_edit.html  (новое — 2026-02-15)
+     PURPOSE: Admin: заглушка страницы редактирования контракта (позже добавим поля/генерацию PDF). -->
+{% block panel_where %}Vertrag bearbeiten{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-8 mt-2">
+  <div class="text-2xl">Vertrag #{{ contract.id }}</div>
+  <div class="flex-1"></div>
+  <a href="{% url 'panel_admin_clients' %}" class="underline hover:text-[var(--accent)] transition">Zurück</a>
+</div>
+
+<div class="bg-white border border-[var(--text)] rounded-md px-7 py-5 flex flex-col gap-4">
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <div class="text-sm text-gray-600">Kunde</div>
+      <div class="font-semibold">{{ contract.client.first_name }} {{ contract.client.last_name }}</div>
+      <div class="text-sm text-gray-600">{{ contract.client.email }}</div>
+    </div>
+
+    <div>
+      <div class="text-sm text-gray-600">Emission</div>
+      <div class="font-semibold">{{ contract.issue.title }}</div>
+      <div class="text-sm text-gray-600">{{ contract.issue.issue_date }}</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-4 pt-2">
+    <div>
+      <div class="text-sm text-gray-600">Vertragsdatum</div>
+      <div class="font-semibold">{{ contract.contract_date }}</div>
+    </div>
+    <div>
+      <div class="text-sm text-gray-600">Unterschrieben erhalten</div>
+      <div class="font-semibold">{% if contract.signed_received_at %}{{ contract.signed_received_at }}{% else %}-{% endif %}</div>
+    </div>
+    <div>
+      <div class="text-sm text-gray-600">Bezahlt</div>
+      <div class="font-semibold">{% if contract.paid_at %}{{ contract.paid_at }}{% else %}-{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="text-gray-600 pt-2">
+    (Дальше сюда добавим редактирование/генерацию PDF.)
+  </div>
+</div>
+
+{% endblock %}

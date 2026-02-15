@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/views/clients.py  (обновлено — 2026-02-15)
-# PURPOSE: Admin-Panel Kunden: toggle актив с confirm+email при активации; добавлен delete (чистит TippgeberClient по client).
+# PURPOSE: Admin-Panel Kunden: список клиентов + contract_ready (ссылка “Vertrag erstellen” только если заполнены обязательные поля); toggle актив с confirm+email; delete (чистит TippgeberClient по client).
 
 from __future__ import annotations
 
@@ -14,6 +14,36 @@ from flexx.emailer import send_client_activated_email
 from .common import admin_only
 
 
+def _is_contract_ready(u: FlexxUser) -> bool:
+    required_str_fields = [
+        "email",
+        "first_name",
+        "last_name",
+        "street",
+        "zip_code",
+        "city",
+        "phone",
+        "bank_account_holder",
+        "bank_iban",
+        "bank_name",
+        "bank_depo_account_holder",
+        "bank_depo_iban",
+        "bank_depo_name",
+    ]
+
+    for f in required_str_fields:
+        v = getattr(u, f, None)
+        if v is None:
+            return False
+        if not str(v).strip():
+            return False
+
+    if getattr(u, "birth_date", None) is None:
+        return False
+
+    return True
+
+
 @login_required
 def clients_list(request: HttpRequest) -> HttpResponse:
     denied = admin_only(request)
@@ -24,7 +54,14 @@ def clients_list(request: HttpRequest) -> HttpResponse:
     links = TippgeberClient.objects.filter(client__in=clients).select_related("client", "tippgeber").all()
     tip_by_client_id = {l.client_id: l.tippgeber for l in links if l.client_id}
 
-    rows = [{"u": c, "tippgeber": tip_by_client_id.get(c.id)} for c in clients]
+    rows = [
+        {
+            "u": c,
+            "tippgeber": tip_by_client_id.get(c.id),
+            "contract_ready": _is_contract_ready(c),
+        }
+        for c in clients
+    ]
     return render(request, "app_panel_admin/clients_list.html", {"rows": rows})
 
 

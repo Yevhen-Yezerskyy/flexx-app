@@ -54,7 +54,7 @@ function flexxClientActivateConfirm(formEl) {
           </td>
           <td class="px-4 py-3">
             {% if r.contract_ready %}
-              <a class="underline hover:text-[var(--accent)] transition" href="#">Vertrag erstellen</a>
+              <a class="underline hover:text-[var(--accent)] transition" href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
             {% else %}
               <span class="text-gray-500">Nicht ausgefüllt</span>
             {% endif %}

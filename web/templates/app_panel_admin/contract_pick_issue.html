@@ -1,0 +1,62 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/contract_pick_issue.html  (новое — 2026-02-15)
+     PURPOSE: Admin: выбрать эмиссию для клиента (radio) и создать контракт. -->
+{% block panel_where %}Vertrag erstellen{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-8 mt-2">
+  <div class="text-2xl">Vertrag erstellen</div>
+  <div class="flex-1"></div>
+  <a href="{% url 'panel_admin_clients' %}" class="underline hover:text-[var(--accent)] transition">Zurück</a>
+</div>
+
+<div class="bg-white border border-[var(--text)] rounded-md px-7 py-5 flex flex-col gap-4">
+  <div class="text-lg">
+    Kunde: <span class="font-semibold">{{ client.first_name }} {{ client.last_name }}</span>
+    <span class="text-gray-600">({{ client.email }})</span>
+  </div>
+
+  <form method="post" class="flex flex-col gap-4">
+    {% csrf_token %}
+
+    <div class="bg-gray-50 border border-gray-200 rounded-md p-4">
+      <div class="font-semibold mb-3">Emission wählen</div>
+
+      {% if issues %}
+        <div class="flex flex-col gap-2">
+          {% for it in issues %}
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input type="radio"
+                     name="issue_id"
+                     value="{{ it.id }}"
+                     class="mt-1"
+                     {% if selected_issue_id == it.id %}checked{% endif %}>
+              <div>
+                <div class="font-semibold">{{ it.title }}</div>
+                <div class="text-sm text-gray-600">{{ it.issue_date }}</div>
+              </div>
+            </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-gray-600">Keine Emissionen vorhanden.</div>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-4 justify-end">
+      <a href="{% url 'panel_admin_clients' %}"
+         class="w-44 rounded-md border border-[var(--text)] py-3 hover:bg-gray-50 transition font-semibold text-center">
+        Abbrechen
+      </a>
+
+      <button type="submit"
+              class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold"
+              {% if not issues %}disabled{% endif %}>
+        Vertrag erstellen
+      </button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
