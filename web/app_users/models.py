@@ -1,14 +1,10 @@
-# FILE: web/app_users/models.py  (обновлено — 2026-02-12)
-# PURPOSE: Переименование модели User → FlexxUser (кастомный пользователь web, username=email, роли client/admin/agent).
+# FILE: web/app_users/models.py  (обновлено — 2026-02-15)
+# PURPOSE: Добавлены 4 банковских поля в FlexxUser + добавлена информативная таблица связи Tippgeber↔Client (SET_NULL, created_at).
 
 from __future__ import annotations
 
 from django.db import models
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    PermissionsMixin,
-    BaseUserManager,
-)
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
 
 
@@ -18,7 +14,10 @@ class FlexxUserManager(BaseUserManager):
             raise ValueError("Email is required")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
         return user
 
@@ -47,11 +46,12 @@ class FlexxUser(AbstractBaseUser, PermissionsMixin):
     handelsregister_number = models.CharField(max_length=100, blank=True)
     contact_person = models.CharField(max_length=255, blank=True)
 
-    role = models.CharField(
-        max_length=20,
-        choices=Role.choices,
-        default=Role.CLIENT,
-    )
+    bank_account_holder = models.CharField(max_length=255, blank=True)
+    bank_iban = models.CharField(max_length=34, blank=True)
+    bank_name = models.CharField(max_length=255, blank=True)
+    bank_bic = models.CharField(max_length=11, blank=True)
+
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
 
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -63,3 +63,33 @@ class FlexxUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return self.email
+
+
+class TippgeberClient(models.Model):
+    """
+    Информативная связь Tippgeber (agent) -> Client (client).
+    У клиента максимум один Tippgeber.
+    Удаления НЕ каскадят (SET_NULL).
+    """
+
+    tippgeber = models.ForeignKey(
+        FlexxUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tippgeber_client_links",
+    )
+    client = models.OneToOneField(
+        FlexxUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="client_tippgeber_link",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "tippgeber_clients"
+
+    def __str__(self) -> str:
+        return f"{self.tippgeber_id} -> {self.client_id}"

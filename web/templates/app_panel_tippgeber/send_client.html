@@ -1,10 +1,378 @@
 {% extends "app_panel_tippgeber/base.html" %}
-<!-- FILE: web/templates/app_panel_tippgeber/send_client.html  (новое — 2026-02-14)
-     PURPOSE: Главная (Kunden senden). -->
-{% block panel_where %}Kunden senden{% endblock %}
-{% block nav_send_client_class %}text-[var(--accent)] font-semibold{% endblock %}
+<!-- FILE: web/templates/app_panel_tippgeber/send_client.html  (обновлено — 2026-02-15)
+     PURPOSE: Две формы (Tippgeber/Interessent) + 2 подтверждения + дата + конфликт существующего клиента (сообщение в FleXXLager). -->
+{% block panel_where %}
+Formular für Tippgeber
+{% endblock %}
+{% block nav_send_client_class %}
+text-[var(--accent)] font-semibold
+{% endblock %}
 
 {% block panel_content %}
-<div class="text-2xl mt-2">Kunden senden</div>
-<div class="mt-6 text-gray-600">Platzhalter.</div>
+
+<div class="text-2xl mt-2 mb-8">Formular für Tippgeber</div>
+
+{% if state.ok %}
+  <div class="mb-6 bg-white border border-[var(--accent)] rounded-md px-7 py-4">
+    <div class="text-[var(--text)] font-semibold">{{ state.ok }}</div>
+  </div>
+{% endif %}
+
+{% if state.err %}
+  <div class="mb-6 bg-white border border-red-400 rounded-md px-7 py-4">
+    <div class="text-red-700 font-semibold">{{ state.err }}</div>
+  </div>
+{% endif %}
+
+<form method="post" class="flex flex-col gap-6">
+  {% csrf_token %}
+
+  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-4">
+    <div class="text-xl mb-2">Angaben zum Tippgeber</div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">E-Mail*</label>
+        <input name="email" value="{{ tipp_form.email.value|default:'' }}" type="email"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.email.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.email.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Nachname*</label>
+        <input name="last_name" value="{{ tipp_form.last_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.last_name.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.last_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Vorname*</label>
+        <input name="first_name" value="{{ tipp_form.first_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.first_name.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.first_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Geburtsdatum*</label>
+        <input name="birth_date" value="{{ tipp_form.birth_date.value|default:'' }}" type="date"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.birth_date.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.birth_date.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm mb-1 px-4">Firma</label>
+      <input name="company" value="{{ tipp_form.company.value|default:'' }}" type="text"
+             class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+      {% if tipp_form.company.errors %}
+        <div class="text-sm text-red-600">{{ tipp_form.company.errors|join:", " }}</div>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-6 gap-4">
+      <div class="flex flex-col gap-1 col-span-4">
+        <label class="text-sm mb-1 px-4">Straße, Hausnummer*</label>
+        <input name="street" value="{{ tipp_form.street.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.street.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.street.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm mb-1 px-4">PLZ*</label>
+        <input name="zip_code" value="{{ tipp_form.zip_code.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.zip_code.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.zip_code.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm mb-1 px-4">Ort*</label>
+        <input name="city" value="{{ tipp_form.city.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.city.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.city.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Telefon*</label>
+        <input name="phone" value="{{ tipp_form.phone.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.phone.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.phone.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Fax</label>
+        <input name="fax" value="{{ tipp_form.fax.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.fax.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.fax.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div></div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Handelsregister</label>
+        <input name="handelsregister" value="{{ tipp_form.handelsregister.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.handelsregister.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.handelsregister.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Handelsregister-Nummer</label>
+        <input name="handelsregister_number" value="{{ tipp_form.handelsregister_number.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.handelsregister_number.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.handelsregister_number.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Ansprechpartner</label>
+        <input name="contact_person" value="{{ tipp_form.contact_person.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.contact_person.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.contact_person.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="text-lg mt-2">Bankverbindung</div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm mb-1 px-4">Kontoinhaber* (Vor- und Nachname / Firmenname)</label>
+        <input name="bank_account_holder" value="{{ tipp_form.bank_account_holder.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.bank_account_holder.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.bank_account_holder.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm mb-1 px-4">IBAN*</label>
+        <input name="bank_iban" value="{{ tipp_form.bank_iban.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.bank_iban.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.bank_iban.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm mb-1 px-4">BIC</label>
+        <input name="bank_bic" value="{{ tipp_form.bank_bic.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if tipp_form.bank_bic.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.bank_bic.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm mb-1 px-4">Bank* (Bankinstitut)</label>
+      <input name="bank_name" value="{{ tipp_form.bank_name.value|default:'' }}" type="text"
+             class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+      {% if tipp_form.bank_name.errors %}
+        <div class="text-sm text-red-600">{{ tipp_form.bank_name.errors|join:", " }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="text-[var(--text)]">
+    Hiermit übermittle ich Ihnen gem. unserer Vereinbarung in der oben angegebenen Funktion die Daten eines Interessenten.
+  </div>
+
+  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-4">
+    <div class="text-xl mb-2">Angaben zum Interessenten:</div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">E-Mail*</label>
+        <input name="email" value="{{ client_form.email.value|default:'' }}" type="email"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.email.errors %}
+          <div class="text-sm text-red-600">{{ client_form.email.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Nachname*</label>
+        <input name="last_name" value="{{ client_form.last_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.last_name.errors %}
+          <div class="text-sm text-red-600">{{ client_form.last_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Vorname*</label>
+        <input name="first_name" value="{{ client_form.first_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.first_name.errors %}
+          <div class="text-sm text-red-600">{{ client_form.first_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Geburtsdatum</label>
+        <input name="birth_date" value="{{ client_form.birth_date.value|default:'' }}" type="date"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.birth_date.errors %}
+          <div class="text-sm text-red-600">{{ client_form.birth_date.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm mb-1 px-4">Firma</label>
+      <input name="company" value="{{ client_form.company.value|default:'' }}" type="text"
+             class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+      {% if client_form.company.errors %}
+        <div class="text-sm text-red-600">{{ client_form.company.errors|join:", " }}</div>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-6 gap-4">
+      <div class="flex flex-col gap-1 col-span-4">
+        <label class="text-sm mb-1 px-4">Straße, Hausnummer*</label>
+        <input name="street" value="{{ client_form.street.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.street.errors %}
+          <div class="text-sm text-red-600">{{ client_form.street.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm mb-1 px-4">PLZ*</label>
+        <input name="zip_code" value="{{ client_form.zip_code.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.zip_code.errors %}
+          <div class="text-sm text-red-600">{{ client_form.zip_code.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1 col-span-1">
+        <label class="text-sm mb-1 px-4">Ort*</label>
+        <input name="city" value="{{ client_form.city.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.city.errors %}
+          <div class="text-sm text-red-600">{{ client_form.city.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Telefon*</label>
+        <input name="phone" value="{{ client_form.phone.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.phone.errors %}
+          <div class="text-sm text-red-600">{{ client_form.phone.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Fax</label>
+        <input name="fax" value="{{ client_form.fax.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.fax.errors %}
+          <div class="text-sm text-red-600">{{ client_form.fax.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div></div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Handelsregister</label>
+        <input name="handelsregister" value="{{ client_form.handelsregister.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.handelsregister.errors %}
+          <div class="text-sm text-red-600">{{ client_form.handelsregister.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Handelsregister-Nummer</label>
+        <input name="handelsregister_number" value="{{ client_form.handelsregister_number.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.handelsregister_number.errors %}
+          <div class="text-sm text-red-600">{{ client_form.handelsregister_number.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm mb-1 px-4">Ansprechpartner</label>
+        <input name="contact_person" value="{{ client_form.contact_person.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if client_form.contact_person.errors %}
+          <div class="text-sm text-red-600">{{ client_form.contact_person.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-3">
+    <label class="flex items-start gap-3">
+      <input type="checkbox" name="consent1" {% if conf_form.consent1.value %}checked{% endif %} class="mt-1">
+      <span>Der Interessent hat mir gegenüber der Weitergabe seiner Daten und einer Angebotsunterbreitung durch den Empfänger zugestimmt.</span>
+    </label>
+    {% if conf_form.consent1.errors %}
+      <div class="text-sm text-red-600">{{ conf_form.consent1.errors|join:", " }}</div>
+    {% endif %}
+
+    <label class="flex items-start gap-3">
+      <input type="checkbox" name="consent2" {% if conf_form.consent2.value %}checked{% endif %} class="mt-1">
+      <span>Ich bestätige, dass ich keine Empfehlung für ein konkretes Angebot ausgesprochen habe oder dazu beraten habe, soweit ich nicht über die entsprechende Erlaubnis verfüge.</span>
+    </label>
+    {% if conf_form.consent2.errors %}
+      <div class="text-sm text-red-600">{{ conf_form.consent2.errors|join:", " }}</div>
+    {% endif %}
+
+    <div class="text-sm text-gray-600 mt-2">{{ today|date:"d.m.Y" }}</div>
+  </div>
+
+  {% if state.client_is_other and not state.conflict_notified %}
+    <div class="bg-white border border-red-400 rounded-md px-7 py-5">
+      <div class="font-semibold text-red-700 mb-2">Dieser Kunde ist bereits bei uns registriert.</div>
+      <div class="text-[var(--text)] mb-4">Möchten Sie in diesem Fall eine Nachricht an FleXXLager senden?</div>
+
+      <input type="hidden" name="action" value="notify_conflict">
+      <input type="hidden" name="existing_client_email" value="{{ state.existing_client_email }}">
+      <input type="hidden" name="existing_client_first_name" value="{{ state.existing_client_first_name }}">
+      <input type="hidden" name="existing_client_last_name" value="{{ state.existing_client_last_name }}">
+
+      <button type="submit" class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-95 transition font-semibold">
+        Nachricht senden
+      </button>
+    </div>
+  {% else %}
+    <button type="submit" class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-95 transition font-semibold">
+      Senden
+    </button>
+  {% endif %}
+
+</form>
+
 {% endblock %}

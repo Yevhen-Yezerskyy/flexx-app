@@ -1,5 +1,5 @@
-# FILE: web/flexx/emailer.py  (обновлено — 2026-02-14)
-# PURPOSE: Добавлено письмо "Konto aktiviert" для Tippgeber (Agent).
+# FILE: web/flexx/emailer.py  (обновлено — 2026-02-15)
+# PURPOSE: Добавлены письма: Tippgeber übermittelt Interessent; Konflikt при попытке привязки существующего клиента.
 
 from __future__ import annotations
 
@@ -100,3 +100,39 @@ def send_account_activated_email(*, to_email: str, first_name: str, last_name: s
         "FlexxLager Team\n"
     )
     return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+def send_tippgeber_added_interessent_email(
+    *,
+    tippgeber_email: str,
+    tippgeber_first_name: str,
+    tippgeber_last_name: str,
+    client_email: str,
+    client_first_name: str,
+    client_last_name: str,
+) -> bool:
+    subject = "Neuer Interessent durch Tippgeber"
+    body = (
+        "Ein Tippgeber hat einen Interessenten übermittelt.\n\n"
+        f"Tippgeber: {tippgeber_first_name} {tippgeber_last_name} <{tippgeber_email}>\n"
+        f"Interessent: {client_first_name} {client_last_name} <{client_email}>\n"
+    )
+    return _send_text(to_email=FROM_EMAIL, subject=subject, body=body)
+
+
+def send_tippgeber_link_conflict_email(
+    *,
+    tippgeber_email: str,
+    tippgeber_first_name: str,
+    tippgeber_last_name: str,
+    client_email: str,
+    client_first_name: str,
+    client_last_name: str,
+) -> bool:
+    subject = "Konflikt: Kunde existiert bereits"
+    body = (
+        "Ein Tippgeber wollte einen bereits vorhandenen Kunden zuordnen (Zuordnung wurde NICHT erstellt).\n\n"
+        f"Tippgeber: {tippgeber_first_name} {tippgeber_last_name} <{tippgeber_email}>\n"
+        f"Kunde: {client_first_name} {client_last_name} <{client_email}>\n"
+    )
+    return _send_text(to_email=FROM_EMAIL, subject=subject, body=body)

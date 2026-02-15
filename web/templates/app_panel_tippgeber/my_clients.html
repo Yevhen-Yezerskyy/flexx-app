@@ -1,0 +1,37 @@
+{% extends "app_panel_tippgeber/base.html" %}
+<!-- FILE: web/templates/app_panel_tippgeber/my_clients.html  (обновлено — 2026-02-15)
+     PURPOSE: Список клиентов Tippgeber в стиле admin/Platzierungen. -->
+{% block panel_where %}
+Meine Kunden
+{% endblock %}
+{% block nav_my_clients_class %}
+text-[var(--accent)] font-semibold
+{% endblock %}
+
+{% block panel_content %}
+
+<div class="text-2xl mt-2 mb-8">Meine Kunden</div>
+
+<div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5">
+  {% if clients %}
+    <div class="grid grid-cols-12 text-sm font-semibold text-[var(--text)] mb-3">
+      <div class="col-span-4">E-Mail</div>
+      <div class="col-span-4">Name</div>
+      <div class="col-span-4">Firma</div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      {% for c in clients %}
+        <div class="grid grid-cols-12 bg-gray-50 rounded-md px-4 py-3 text-[var(--text)]">
+          <div class="col-span-4">{{ c.email }}</div>
+          <div class="col-span-4">{{ c.last_name }} {{ c.first_name }}</div>
+          <div class="col-span-4">{{ c.company|default:"" }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-gray-600">Keine Kunden.</div>
+  {% endif %}
+</div>
+
+{% endblock %}
