@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/forms.py  (обновлено — 2026-02-15)
-# PURPOSE: Единый ввод: 1) дата принимает YYYY-MM-DD и DD.MM.YYYY; 2) decimal-поля эмиссии принимают "7,50" и "5000000,00" (нормализация данных ДО валидации).
+# PURPOSE: Fix Emission-Form: 1) issue_date стабильно (YYYY-MM-DD + принимает DD.MM.YYYY); 2) decimal принимает запятую; 3) contract__ поля не пропадают; 4) добавить AdminTippgeberForm (чтобы не падал импорт).
 
 from __future__ import annotations
 
@@ -7,10 +7,9 @@ from typing import Dict
 
 from django import forms
 
+from app_users.models import FlexxUser, TippgeberClient
 from flexx.contract_fields import CONTRACT_FIELDS
 from flexx.models import BondIssue
-
-from app_users.models import FlexxUser, TippgeberClient
 
 
 def _normalize_decimal_like(v) -> str:
@@ -24,7 +23,7 @@ def _normalize_date_like(v) -> str:
     s = "" if v is None else str(v).strip()
     if not s:
         return s
-    # allow DD.MM.YYYY -> YYYY-MM-DD (only if it matches exactly)
+    # allow DD.MM.YYYY -> YYYY-MM-DD
     if len(s) == 10 and s[2] == "." and s[5] == ".":
         dd, mm, yyyy = s[0:2], s[3:5], s[6:10]
         if dd.isdigit() and mm.isdigit() and yyyy.isdigit():
@@ -49,7 +48,7 @@ class BondIssueForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # --- normalize bound POST data BEFORE field validation ---
+        # normalize POST BEFORE validation (DE запятая + DD.MM.YYYY)
         if self.is_bound:
             d = self.data.copy()
             d["issue_date"] = _normalize_date_like(d.get("issue_date"))
@@ -66,7 +65,6 @@ class BondIssueForm(forms.ModelForm):
         self.fields["issue_volume"].label = "Emissionsvolumen (€)"
         self.fields["term_months"].label = "Laufzeit (Monate)"
 
-        # accept both ISO and DE, but we always render as ISO in templates
         self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
         contract: Dict[str, str] = {}
@@ -140,14 +138,11 @@ class AdminClientForm(forms.ModelForm):
             "bank_bic",
             "is_active",
         ]
-        widgets = {
-            "birth_date": _DATE_WIDGET_ADMIN,
-        }
+        widgets = {"birth_date": _DATE_WIDGET_ADMIN}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # normalize bound POST date BEFORE validation
         if self.is_bound:
             d = self.data.copy()
             d["birth_date"] = _normalize_date_like(d.get("birth_date"))
@@ -177,8 +172,7 @@ class AdminClientForm(forms.ModelForm):
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
 
-        if "birth_date" in self.fields:
-            self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+        self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
         tips = FlexxUser.objects.filter(role=FlexxUser.Role.AGENT).order_by("email")
         choices = [("", "—")]
@@ -218,18 +212,13 @@ class AdminClientForm(forms.ModelForm):
 
         return cleaned
 
+
 class AdminTippgeberForm(forms.ModelForm):
     """Admin edit Tippgeber (FlexxUser role=agent)."""
 
     class Meta:
         model = FlexxUser
-        fields = [
-            "email",
-            "last_name",
-            "first_name",
-            "phone",
-            "is_active",
-        ]
+        fields = ["email", "last_name", "first_name", "phone", "is_active"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
