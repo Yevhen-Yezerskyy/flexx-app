@@ -1,5 +1,5 @@
 # FILE: web/flexx/emailer.py  (обновлено — 2026-02-15)
-# PURPOSE: Вернуть отсутствующие функции, которые импортит админка (send_account_activated_email и др.), не ломая текущие; все отправки по-прежнему RAIS’ятся при ошибке.
+# PURPOSE: Fix: активационные письма разделены (Kunde/Tippgeber); send_account_activated_email обратно-совместим (role optional).
 
 from __future__ import annotations
 
@@ -83,15 +83,26 @@ def send_registration_notify_email(*, role: str, user_email: str, first_name: st
     return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
 
 
-def send_account_activated_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:
+def send_account_activated_email(*, to_email: str, first_name: str, last_name: str, role: str = "") -> bool:
+    """Backward-compatible: role optional (older code called without it)."""
+
     subject = "Konto freigeschaltet"
+    role_part = f" ({role})" if (role or "").strip() else ""
     body = (
         f"Hallo {first_name} {last_name},\n\n"
-        f"Ihr Konto ({role}) wurde freigeschaltet.\n\n"
+        f"Ihr Konto{role_part} wurde freigeschaltet.\n\n"
         "Mit freundlichen Grüßen\n"
         "FlexxLager Team\n"
     )
     return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+def send_client_activated_email(*, to_email: str, first_name: str, last_name: str) -> bool:
+    return send_account_activated_email(to_email=to_email, first_name=first_name, last_name=last_name, role="Kunde")
+
+
+def send_tippgeber_activated_email(*, to_email: str, first_name: str, last_name: str) -> bool:
+    return send_account_activated_email(to_email=to_email, first_name=first_name, last_name=last_name, role="Tippgeber")
 
 
 def send_account_deactivated_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:

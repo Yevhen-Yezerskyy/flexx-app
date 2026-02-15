@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/forms.py  (обновлено — 2026-02-15)
-# PURPOSE: 1) BondIssueForm + редактирование contract JSON; 2) AdminClientForm: create/edit клиента + выбор Tippgeber.
+# PURPOSE: Добавлен AdminTippgeberForm для редактирования Tippgeber в админке.
 
 from __future__ import annotations
 
@@ -86,7 +86,6 @@ class AdminClientForm(forms.ModelForm):
     class Meta:
         model = FlexxUser
         fields = [
-            # base
             "email",
             "last_name",
             "first_name",
@@ -100,17 +99,14 @@ class AdminClientForm(forms.ModelForm):
             "handelsregister",
             "handelsregister_number",
             "contact_person",
-            # depot
             "bank_depo_account_holder",
             "bank_depo_iban",
             "bank_depo_name",
             "bank_depo_bic",
-            # client bank
             "bank_account_holder",
             "bank_iban",
             "bank_name",
             "bank_bic",
-            # active
             "is_active",
         ]
         widgets = {
@@ -183,4 +179,40 @@ class AdminClientForm(forms.ModelForm):
             if qs.exists():
                 self.add_error("email", "Diese E-Mail ist bereits vergeben.")
 
+        return cleaned
+
+
+class AdminTippgeberForm(forms.ModelForm):
+    """Admin edit Tippgeber (FlexxUser role=agent)."""
+
+    class Meta:
+        model = FlexxUser
+        fields = [
+            "email",
+            "last_name",
+            "first_name",
+            "phone",
+            "is_active",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["is_active"].label = "Aktiv"
+        for f in ("email", "last_name", "first_name"):
+            self.fields[f].required = True
+        self.fields["phone"].required = False
+
+    def clean_email(self):
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean(self):
+        cleaned = super().clean()
+        email = (cleaned.get("email") or "").strip().lower()
+        if email:
+            qs = FlexxUser.objects.filter(email=email)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error("email", "Diese E-Mail ist bereits vergeben.")
         return cleaned

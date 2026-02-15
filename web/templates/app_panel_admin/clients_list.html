@@ -1,10 +1,20 @@
 {% extends "app_panel_admin/base.html" %}
 <!-- FILE: web/templates/app_panel_admin/clients_list.html  (обновлено — 2026-02-15)
-     PURPOSE: Admin: Kunden список + рабочий POST toggle aktiv/inaktiv (отдельный URL) + Ändern. -->
+     PURPOSE: Admin: Kunden список в стиле Platzierungen + колонка Vertrag (готовность по заполненности всех полей) + Status toggle с confirm email при активации + Ändern/Löschen. -->
 {% block panel_where %}Kunden{% endblock %}
 {% block nav_clients_class %}text-[var(--accent)] font-semibold{% endblock %}
 
 {% block panel_content %}
+
+<script>
+function flexxClientActivateConfirm(formEl) {
+  if (formEl.dataset.askNotify !== "1") return true;
+  var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
+  var inp = formEl.querySelector('input[name="notify"]');
+  if (inp) inp.value = send ? "1" : "0";
+  return true;
+}
+</script>
 
 <div class="flex items-center mb-10 mt-2">
   <div class="text-2xl">Kunden</div>
@@ -16,58 +26,77 @@
   </a>
 </div>
 
-<div class="border border-gray-200 rounded-md overflow-hidden">
+<div class="bg-white border border-[var(--text)] rounded-md overflow-hidden">
   <table class="w-full text-sm">
     <thead class="bg-gray-50">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[25%]">E-Mail</th>
-        <th class="px-4 py-3 w-[30%]">Name</th>
-        <th class="px-4 py-3 w-[15%]">Status</th>
-        <th class="px-4 py-3 w-[15%]">&nbsp;</th>
-        <th class="px-4 py-3 w-[15%]">&nbsp;</th>
+        <th class="px-4 py-3">Kunde</th>
+        <th class="px-4 py-3">Vertrag</th>
+        <th class="px-4 py-3">Status</th>
+        <th class="px-4 py-3">&nbsp;</th>
       </tr>
     </thead>
 
     <tbody>
       {% for r in rows %}
         <tr class="border-t border-gray-200 align-top">
-          <td class="px-4 py-3">{{ r.u.email }}</td>
-
           <td class="px-4 py-3">
-            <div>{{ r.u.first_name }} {{ r.u.last_name }}</div>
-            {% if r.tippgeber %}
-              <div class="text-gray-500 text-xs mt-1">Tippgeber: {{ r.tippgeber.email }}</div>
+            <div class="grid grid-cols-[90px_150px_130px] gap-1">
+              <div>Kunde:</div>
+              <div>{{ r.u.first_name }} {{ r.u.last_name }}</div>
+              <div>{{ r.u.email }}</div>
+              {% if r.tippgeber %}
+                  <div>Tippgeber:</div>
+                  <div>{{ r.tippgeber.first_name }} {{ r.tippgeber.last_name }}</div>
+                  <div>{{ r.tippgeber.email }}</div>
+              {% endif %}
+            </div>
+          </td>
+          <td class="px-4 py-3">
+            {% if r.contract_ready %}
+              <a class="underline hover:text-[var(--accent)] transition" href="#">Vertrag erstellen</a>
+            {% else %}
+              <span class="text-gray-500">Nicht ausgefüllt</span>
             {% endif %}
           </td>
 
           <td class="px-4 py-3">
             {% if r.u.is_active %}
-              <span class="font-semibold">aktiv</span>
+              <div>Aktiv</div>
             {% else %}
-              <span class="text-gray-500">inaktiv</span>
+              <div>Inaktiv</div>
             {% endif %}
-          </td>
 
-          <td class="px-4 py-3">
-            <form method="post" action="{% url 'panel_admin_clients_toggle_active' r.u.id %}">
+            <form method="post"
+                  action="{% url 'panel_admin_clients_toggle_active' r.u.id %}"
+                  data-ask-notify="{% if not r.u.is_active %}1{% else %}0{% endif %}"
+                  onsubmit="return flexxClientActivateConfirm(this);">
               {% csrf_token %}
-              <button type="submit"
-                      class="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 transition">
+              <input type="hidden" name="notify" value="0">
+              <button type="submit" class="underline hover:text-[var(--accent)] transition mt-1">
                 {% if r.u.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}
               </button>
             </form>
           </td>
 
-          <td class="px-4 py-3">
-            <a href="{% url 'panel_admin_clients_edit' r.u.id %}"
-               class="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 hover:bg-gray-50 transition">
-              Ändern
-            </a>
+          <td class="px-4 py-3 whitespace-nowrap">
+            <a class="underline hover:text-[var(--accent)] transition"
+               href="{% url 'panel_admin_clients_edit' r.u.id %}">Ändern</a>
+            <br>
+            <form method="post"
+                  action="{% url 'panel_admin_clients_delete' r.u.id %}"
+                  onsubmit="return confirm('Wirklich löschen?');">
+              {% csrf_token %}
+              <button type="submit" class="underline hover:text-red-600 transition mt-1">
+                Löschen
+              </button>
+            </form>
           </td>
         </tr>
+
       {% empty %}
-        <tr class="border-t border-gray-200">
-          <td class="px-4 py-6 text-gray-500" colspan="5">Keine Kunden gefunden.</td>
+        <tr>
+          <td class="px-4 py-10 text-gray-500" colspan="5">Keine Kunden gefunden.</td>
         </tr>
       {% endfor %}
     </tbody>

@@ -1,14 +1,20 @@
-# FILE: web/flexx/models.py  (обновлено — 2026-02-14)
-# PURPOSE: Общие модели: BondIssue (Platzierung) без extra_term_months + BondIssueAttachment (файлы N шт. с описанием).
+# FILE: web/flexx/models.py  (обновлено — 2026-02-15)
+# PURPOSE: Оставлено без изменений: BondIssue + BondIssueAttachment (как в архиве); добавлено: Contract (договор клиента по эмиссии, PDF, даты подписания/оплаты).
 
 from __future__ import annotations
 
 from django.db import models
 import os
 
+from app_users.models import FlexxUser
+
 
 def bond_issue_attachment_upload_to(instance: "BondIssueAttachment", filename: str) -> str:
     return f"bond_issues/{instance.issue_id}/{filename}"
+
+
+def contract_pdf_upload_to(instance: "Contract", filename: str) -> str:
+    return f"contracts/{instance.issue_id}/{instance.client_id}/{filename}"
 
 
 class BondIssue(models.Model):
@@ -51,3 +57,33 @@ class BondIssueAttachment(models.Model):
     def filename(self):
         import os
         return os.path.basename(self.file.name)
+
+
+class Contract(models.Model):
+    contract_date = models.DateField()  # Datum des Vertrags
+
+    issue = models.ForeignKey(
+        BondIssue,
+        on_delete=models.CASCADE,
+        related_name="contracts",
+    )
+    client = models.ForeignKey(
+        FlexxUser,
+        on_delete=models.CASCADE,
+        related_name="contracts_as_client",
+    )
+
+    pdf_file = models.FileField(upload_to=contract_pdf_upload_to, blank=True)  # PDF-Link
+
+    signed_received_at = models.DateField(null=True, blank=True)  # Unterschrieben erhalten (Datum)
+    paid_at = models.DateField(null=True, blank=True)  # Bezahlt (Datum)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "contracts"
+        ordering = ["-contract_date", "-id"]
+
+    def __str__(self) -> str:
+        return f"Contract#{self.id} issue={self.issue_id} client={self.client_id}"

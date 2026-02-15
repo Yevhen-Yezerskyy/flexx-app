@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/views/clients.py  (обновлено — 2026-02-15)
-# PURPOSE: Admin-Panel Kunden: list/create/edit + отдельный POST toggle aktiv/inaktiv.
+# PURPOSE: Admin-Panel Kunden: toggle актив с confirm+email при активации; добавлен delete (чистит TippgeberClient по client).
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from app_panel_admin.forms import AdminClientForm
 from app_users.models import FlexxUser, TippgeberClient
+from flexx.emailer import send_client_activated_email
 
 from .common import admin_only
 
@@ -83,8 +84,32 @@ def clients_toggle_active(request: HttpRequest, user_id: int) -> HttpResponse:
         return HttpResponseNotAllowed(["POST"])
 
     user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
-    user.is_active = not bool(user.is_active)
+    was_active = bool(user.is_active)
+    user.is_active = not was_active
     user.save(update_fields=["is_active"])
+
+    if (not was_active) and user.is_active and request.POST.get("notify") == "1":
+        send_client_activated_email(
+            to_email=user.email,
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+
+    return redirect("panel_admin_clients")
+
+
+@login_required
+def clients_delete(request: HttpRequest, user_id: int) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
+    TippgeberClient.objects.filter(client=user).delete()
+    user.delete()
     return redirect("panel_admin_clients")
 
 

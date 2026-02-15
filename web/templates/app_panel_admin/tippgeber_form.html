@@ -1,0 +1,93 @@
+{% extends "app_panel_admin/base.html" %}
+<!-- FILE: web/templates/app_panel_admin/tippgeber_form.html  (новое — 2026-02-15)
+     PURPOSE: Admin: Tippgeber bearbeiten (email/имя/фамилия/телефон/актив) в стиле Kunden-формы. -->
+{% block panel_where %}Tippgeber{% endblock %}
+{% block nav_tippgebers_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">Tippgeber bearbeiten</div>
+  <div class="flex-1"></div>
+
+  <a href="{% url 'panel_admin_tippgeber_list' %}"
+     class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+    Zurück
+  </a>
+</div>
+
+<form method="post" class="flex flex-col gap-6">
+  {% csrf_token %}
+
+  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-3">
+    <div class="text-xl mb-2">Angaben zum Tippgeber</div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1 col-span-2">
+        <label class="text-sm px-4">E-Mail*</label>
+        <input name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" type="email"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.email.errors %}
+          <div class="text-sm text-red-600">{{ form.email.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center px-2 mt-7 ml-10">
+          <input name="{{ form.is_active.html_name }}" type="checkbox" value="1"
+                 class="h-4 w-4"
+                 {% if form.is_active.value %}checked{% endif %}>&nbsp;&nbsp;&nbsp;Aktiv
+        </div>
+        {% if form.is_active.errors %}
+          <div class="text-sm text-red-600">{{ form.is_active.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Nachname*</label>
+        <input name="{{ form.last_name.html_name }}" value="{{ form.last_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.last_name.errors %}
+          <div class="text-sm text-red-600">{{ form.last_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Vorname*</label>
+        <input name="{{ form.first_name.html_name }}" value="{{ form.first_name.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.first_name.errors %}
+          <div class="text-sm text-red-600">{{ form.first_name.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Telefon</label>
+        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:'' }}" type="text"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.phone.errors %}
+          <div class="text-sm text-red-600">{{ form.phone.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-4">
+    <div class="flex-1"></div>
+
+    <a href="{% url 'panel_admin_tippgeber_list' %}"
+       class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+      Abbrechen
+    </a>
+
+    <button type="submit"
+            class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold">
+      Speichern
+    </button>
+  </div>
+
+</form>
+
+{% endblock %}
