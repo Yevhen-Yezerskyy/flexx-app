@@ -22,7 +22,7 @@
     <div>{{ form.active }}&nbsp;&nbsp;{{ form.active.label }}</div>
 
     <div class="flex flex-col">
-      <label class="text-sm mb-1 px-4">{{ form.title.label }}:</label>
+      <label class="text-sm px-4">{{ form.title.label }}:</label>
       <input name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}"
              type="text" placeholder="{{ form.title.label }}"
              class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
@@ -31,7 +31,7 @@
 
     <div class="grid grid-cols-5 gap-4">
       <div class="flex flex-col gap-1">
-        <label class="text-sm mb-1 px-4">{{ form.issue_date.label }}:</label>
+        <label class="text-sm px-4">{{ form.issue_date.label }}:</label>
         <input name="{{ form.issue_date.name }}" value="{{ form.issue_date.value|date:'Y-m-d' }}"
                type="date" placeholder="{{ form.issue_date.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
@@ -39,7 +39,7 @@
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-sm mb-1 px-4">{{ form.interest_rate.label }}:</label>
+        <label class="text-sm px-4">{{ form.interest_rate.label }}:</label>
         <input name="{{ form.interest_rate.name }}" value="{{ form.interest_rate.value|default:'' }}"
                type="text" placeholder="{{ form.interest_rate.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
@@ -47,7 +47,7 @@
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-sm mb-1 px-4">{{ form.bond_price.label }}:</label>
+        <label class="text-sm px-4">{{ form.bond_price.label }}:</label>
         <input name="{{ form.bond_price.name }}" value="{{ form.bond_price.value|default:'' }}"
                type="text" placeholder="{{ form.bond_price.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
@@ -55,7 +55,7 @@
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-sm mb-1 px-4">{{ form.issue_volume.label }}:</label>
+        <label class="text-sm px-4">{{ form.issue_volume.label }}:</label>
         <input name="{{ form.issue_volume.name }}" value="{{ form.issue_volume.value|default:'' }}"
                type="text" placeholder="{{ form.issue_volume.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
@@ -63,7 +63,7 @@
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-sm mb-1 px-4">{{ form.term_months.label }}:</label>
+        <label class="text-sm px-4">{{ form.term_months.label }}:</label>
         <input name="{{ form.term_months.name }}" value="{{ form.term_months.value|default:'' }}"
                type="number" min="0" step="1" placeholder="{{ form.term_months.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
@@ -178,7 +178,7 @@
       {% for field in form %}
         {% if field.name|slice:":10" == "contract__" %}
           <div class="flex flex-col gap-1">
-            <label class="text-sm mb-1 px-4">{{ field.label }}:</label>
+            <label class="text-sm px-4">{{ field.label }}:</label>
             <textarea name="{{ field.name }}"
                       class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
                       rows="{{ field.field.widget.attrs.rows|default:4 }}">{{ field.value|default:'' }}</textarea>
