@@ -1,6 +1,7 @@
 {% extends "app_panel_admin/base.html" %}
 <!-- FILE: web/templates/app_panel_admin/contract_edit.html  (обновлено — 2026-02-16)
-     PURPOSE: Admin: страница контракта + печать таблицы Stückzinsen по дням (4 колонки, выходные/праздники). -->
+     PURPOSE: Stückzinstabelle в 3 колонки; прошедшие даты = светло-серый (перебивает всё), иначе: праздники=светло-красный, выходные=светло-жёлтый. -->
+
 {% block panel_where %}Vertrag bearbeiten{% endblock %}
 
 {% block panel_content %}
@@ -43,44 +44,37 @@
 </div>
 
 <div class="mt-6 bg-white border border-[var(--text)] rounded-md px-7 py-5">
-  <div class="text-lg font-semibold mb-4">Stückzinstabelle (je 1,00 EUR)</div>
+  <div class="text-lg font-semibold mb-4">Stückzinstabelle</div>
 
-  <div class="grid grid-cols-4 gap-4">
+  <div class="grid grid-cols-3 gap-4">
     {% for col in stueckzins_cols %}
       <table class="w-full border border-[var(--text)] text-sm">
         <thead>
           <tr>
-            <th class="border border-[var(--text)] px-2 py-2 text-center font-semibold">
-              Stückzinsen je Teilschuld-<br>verschreibung zu EUR 1,00<br>in EUR
+            <th class="border border-[var(--text)] px-2 py-2 text-center font-semibold leading-tight">
+              Stückzinsen je Teilschuld-<br>
+              verschreibung zu EUR {{ contract.issue.bond_price }}<br>
+              in EUR
             </th>
-            <th class="border border-[var(--text)] px-2 py-2 text-center font-semibold">
+            <th class="border border-[var(--text)] px-2 py-2 text-center font-semibold leading-tight">
               Datum der Einzahlung
             </th>
           </tr>
         </thead>
         <tbody>
           {% for r in col %}
-            <tr class="{% if r.is_holiday %}bg-gray-200{% elif r.is_weekend %}bg-gray-100{% endif %}">
+            <tr class="{% if r.pay_date < today %}bg-gray-100{% elif r.is_holiday %}bg-red-100{% elif r.is_weekend %}bg-yellow-100{% endif %}">
               <td class="border border-[var(--text)] px-2 py-1 text-center">
                 {{ r.stueckzins_de }}
               </td>
               <td class="border border-[var(--text)] px-2 py-1 text-center">
                 {{ r.pay_date|date:"d. M y" }}
-                {% if r.is_holiday %}
-                  <span class="ml-1 text-xs">(Feiertag)</span>
-                {% elif r.is_weekend %}
-                  <span class="ml-1 text-xs">(WE)</span>
-                {% endif %}
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% endfor %}
-  </div>
-
-  <div class="text-xs text-gray-600 mt-3">
-    Markierung: WE = Wochenende, Feiertag = gesetzlicher Feiertag (DE).
   </div>
 </div>
 

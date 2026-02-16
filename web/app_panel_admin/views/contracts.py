@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/views/contracts.py  (обновлено — 2026-02-16)
-# PURPOSE: Admin contract edit: убрать day_count_basis при вызове генератора Stückzinsen (теперь 30/360 внутри helper).
+# PURPOSE: Admin contracts views: pick issue -> create Contract; contract edit + Stückzinsen-Tabelle (30/360) в 3 колонки, today для серого.
 
 from __future__ import annotations
 
@@ -58,20 +58,24 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
     if denied:
         return denied
 
-    contract = get_object_or_404(Contract.objects.select_related("client", "issue"), id=contract_id)
+    contract = get_object_or_404(
+        Contract.objects.select_related("client", "issue"),
+        id=contract_id,
+    )
 
     rows = build_stueckzinsen_rows_for_issue(
         issue_date=contract.issue.issue_date,
         term_months=contract.issue.term_months,
         interest_rate_percent=contract.issue.interest_rate,
+        nominal_value=contract.issue.bond_price,
         decimals=6,
         holiday_country="DE",
         holiday_subdiv=None,
     )
 
     n = len(rows)
-    per_col = (n + 3) // 4 if n else 0
-    cols = [rows[i * per_col : (i + 1) * per_col] for i in range(4)] if per_col else [[], [], [], []]
+    per_col = (n + 2) // 3 if n else 0
+    cols = [rows[i * per_col : (i + 1) * per_col] for i in range(3)] if per_col else [[], [], []]
 
     return render(
         request,
@@ -79,5 +83,6 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
         {
             "contract": contract,
             "stueckzins_cols": cols,
+            "today": timezone.localdate(),
         },
     )

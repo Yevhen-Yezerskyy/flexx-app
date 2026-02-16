@@ -1,5 +1,5 @@
 # FILE: web/flexx/contract_helpers.py  (обновлено — 2026-02-16)
-# PURPOSE: Helpers для контрактов: генерация таблицы Stückzinsen по day-count 30/360 (US/Bond Basis) + пометки выходных/праздников (holidays).
+# PURPOSE: Stückzinsen 30/360 + учёт номинала облигации (таблица уже с правильным "местом запятой").
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import calendar
-
 import holidays
 
 
@@ -24,13 +23,6 @@ def _is_last_day_of_feb(d: date) -> bool:
 
 
 def _day_count_30_360_us(d1: date, d2: date) -> int:
-    """
-    30/360 US (Bond Basis):
-      - If d1 is 31 -> set d1=30
-      - If d2 is 31 and d1 is 30 or 31 -> set d2=30
-      - If d1 is last day of Feb -> set d1=30
-      - If d2 is last day of Feb and d1 is 30 or last day of Feb -> set d2=30
-    """
     y1, m1, dd1 = d1.year, d1.month, d1.day
     y2, m2, dd2 = d2.year, d2.month, d2.day
 
@@ -64,21 +56,24 @@ class StueckzinsRow:
     holiday_name: str | None
 
 
-def build_stueckzinsen_rows(
+def build_stueckzinsen_rows_for_issue(
     *,
-    start_date: date,
-    end_date: date,
+    issue_date: date,
+    term_months: int,
     interest_rate_percent: Decimal,
+    nominal_value: Decimal,  # ← НОМИНАЛ ОДНОЙ ОБЛИГАЦИИ
     decimals: int = 6,
     holiday_country: str = "DE",
     holiday_subdiv: str | None = None,
 ) -> list[StueckzinsRow]:
     """
-    Stückzinsen по 30/360 US:
-      stueckzins = day_count_30_360_us(start, d) * (rate/100) / 360
-    Период: start_date <= d < end_date   (end_date ИСКЛЮЧЕН)
+    Stückzinsen по 30/360 US.
+    Расчёт:
+        day_count * (rate/100) / 360 * nominal_value
+    Период: issue_date <= d < end_date
     """
-    if end_date <= start_date:
+    end_date = _add_months(issue_date, int(term_months))
+    if end_date <= issue_date:
         return []
 
     de_holidays = holidays.country_holidays(holiday_country, subdiv=holiday_subdiv)
@@ -86,10 +81,10 @@ def build_stueckzinsen_rows(
     denom = Decimal("360")
 
     rows: list[StueckzinsRow] = []
-    d = start_date
-    while d < end_date:  # ← было <=, теперь исключаем последний день
-        dc = _day_count_30_360_us(start_date, d)
-        st = (Decimal(dc) * rate) / denom
+    d = issue_date
+    while d < end_date:
+        dc = _day_count_30_360_us(issue_date, d)
+        st = (Decimal(dc) * rate / denom) * nominal_value
 
         is_weekend = d.weekday() >= 5
         h_name = de_holidays.get(d)
@@ -108,23 +103,3 @@ def build_stueckzinsen_rows(
         d += timedelta(days=1)
 
     return rows
-
-
-def build_stueckzinsen_rows_for_issue(
-    *,
-    issue_date: date,
-    term_months: int,
-    interest_rate_percent: Decimal,
-    decimals: int = 6,
-    holiday_country: str = "DE",
-    holiday_subdiv: str | None = None,
-) -> list[StueckzinsRow]:
-    end_date = _add_months(issue_date, int(term_months))
-    return build_stueckzinsen_rows(
-        start_date=issue_date,
-        end_date=end_date,
-        interest_rate_percent=interest_rate_percent,
-        decimals=decimals,
-        holiday_country=holiday_country,
-        holiday_subdiv=holiday_subdiv,
-    )
