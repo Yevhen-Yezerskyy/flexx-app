@@ -1,7 +1,10 @@
 # FILE: web/app_panel_admin/views/contracts.py  (обновлено — 2026-02-16)
-# PURPOSE: Admin contracts views: список всех Verträge + pick issue -> create Contract; contract edit + Stückzinsen-Tabelle.
+# PURPOSE: Admin contracts: список договоров; создание договора для клиента (pick issue); редактирование договора с раздельными шагами Berechnen→Speichern и UI-state (empty/calc/saved).
 
 from __future__ import annotations
+
+from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -10,9 +13,30 @@ from django.utils import timezone
 
 from app_users.models import FlexxUser
 from flexx.models import BondIssue, Contract
-from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
+from flexx.contract_helpers import calc_contract_amounts_from_stueckzins_table
 
 from .common import admin_only
+
+
+def _parse_iso_date(v: str) -> date | None:
+    v = (v or "").strip()
+    if not v:
+        return None
+    try:
+        return date.fromisoformat(v)
+    except Exception:
+        return None
+
+
+def _parse_decimal_2(v: str) -> Decimal | None:
+    v = (v or "").strip()
+    if not v:
+        return None
+    v = v.replace(",", ".")
+    try:
+        return Decimal(v).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
 
 
 @login_required
@@ -26,12 +50,7 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
         .all()
         .order_by("-contract_date", "-id")
     )
-
-    return render(
-        request,
-        "app_panel_admin/contracts_list.html",
-        {"contracts": contracts},
-    )
+    return render(request, "app_panel_admin/contracts_list.html", {"contracts": contracts})
 
 
 @login_required
@@ -81,27 +100,113 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
         Contract.objects.select_related("client", "issue"),
         id=contract_id,
     )
+    issue = contract.issue
 
-    rows = build_stueckzinsen_rows_for_issue(
-        issue_date=contract.issue.issue_date,
-        term_months=contract.issue.term_months,
-        interest_rate_percent=contract.issue.interest_rate,
-        nominal_value=contract.issue.bond_price,
-        decimals=6,
-        holiday_country="DE",
-        holiday_subdiv=None,
-    )
+    errors: list[str] = []
+    ok_message: str | None = None
 
-    n = len(rows)
-    per_col = (n + 2) // 3 if n else 0
-    cols = [rows[i * per_col : (i + 1) * per_col] for i in range(3)] if per_col else [[], [], []]
+    form_contract_date = contract.contract_date
+    form_qty = contract.bonds_quantity or issue.minimal_bonds_quantity
+
+    calc_result: dict[str, object] | None = None
+
+    # UI state: empty | calc | saved
+    mode = "saved" if (contract.nominal_amount_plus_percent and contract.settlement_date and contract.bonds_quantity) else "empty"
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+
+        d = _parse_iso_date(request.POST.get("contract_date") or "")
+        if d is None:
+            errors.append("Bitte geben Sie das Datum der Unterzeichnung an.")
+        else:
+            form_contract_date = d
+
+        qty_raw = (request.POST.get("bonds_quantity") or "").strip()
+        try:
+            qty = int(qty_raw)
+        except Exception:
+            qty = 0
+
+        if qty < int(issue.minimal_bonds_quantity):
+            errors.append(f"Anzahl der Anleihen muss mindestens {issue.minimal_bonds_quantity} sein.")
+        else:
+            form_qty = qty
+
+        if not errors and action == "calc":
+            settlement_date, nominal_amount, accrued_interest, total_amount = calc_contract_amounts_from_stueckzins_table(
+                issue_date=issue.issue_date,
+                term_months=issue.term_months,
+                interest_rate_percent=issue.interest_rate,
+                nominal_value=issue.bond_price,
+                sign_date=form_contract_date,
+                quantity=form_qty,
+                banking_days_plus=10,
+                holiday_country="DE",
+                holiday_subdiv=None,
+            )
+            calc_result = {
+                "settlement_date": settlement_date,
+                "nominal_amount": nominal_amount,
+                "accrued_interest": accrued_interest,
+                "total_amount": total_amount,
+            }
+            mode = "calc"
+
+        if not errors and action == "save":
+            # save только после calc: берём hidden values
+            settlement_date = _parse_iso_date(request.POST.get("calc_settlement_date") or "")
+            nominal_amount = _parse_decimal_2(request.POST.get("calc_nominal_amount") or "")
+            accrued_interest = _parse_decimal_2(request.POST.get("calc_accrued_interest") or "")
+            total_amount = _parse_decimal_2(request.POST.get("calc_total_amount") or "")
+
+            if settlement_date is None or nominal_amount is None or accrued_interest is None or total_amount is None:
+                errors.append("Bitte zuerst berechnen, dann speichern.")
+                mode = "empty"
+            else:
+                contract.contract_date = form_contract_date
+                contract.settlement_date = settlement_date
+                contract.bonds_quantity = form_qty
+                contract.nominal_amount = nominal_amount
+                contract.nominal_amount_plus_percent = total_amount
+                contract.save(update_fields=[
+                    "contract_date",
+                    "settlement_date",
+                    "bonds_quantity",
+                    "nominal_amount",
+                    "nominal_amount_plus_percent",
+                    "updated_at",
+                ])
+                ok_message = "Gespeichert."
+                calc_result = {
+                    "settlement_date": settlement_date,
+                    "nominal_amount": nominal_amount,
+                    "accrued_interest": accrued_interest,
+                    "total_amount": total_amount,
+                }
+                mode = "saved"
+
+    # GET: показываем цифры только если уже сохранено (mode=saved)
+    if calc_result is None and mode == "saved":
+        accrued_interest = (Decimal(contract.nominal_amount_plus_percent) - Decimal(contract.nominal_amount)).quantize(Decimal("0.01"))
+        calc_result = {
+            "settlement_date": contract.settlement_date,
+            "nominal_amount": Decimal(contract.nominal_amount).quantize(Decimal("0.01")),
+            "accrued_interest": accrued_interest,
+            "total_amount": Decimal(contract.nominal_amount_plus_percent).quantize(Decimal("0.01")),
+        }
 
     return render(
         request,
         "app_panel_admin/contract_edit.html",
         {
             "contract": contract,
-            "stueckzins_cols": cols,
-            "today": timezone.localdate(),
+            "errors": errors,
+            "ok_message": ok_message,
+            "form_contract_date": form_contract_date,
+            "form_qty": form_qty,
+            "calc_result": calc_result,
+            "min_qty": issue.minimal_bonds_quantity,
+            "mode": mode,
         },
     )

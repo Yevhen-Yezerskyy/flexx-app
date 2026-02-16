@@ -1,8 +1,12 @@
 {% extends "app_panel_admin/base.html" %}
 <!-- FILE: web/templates/app_panel_admin/contract_edit.html  (обновлено — 2026-02-16)
-     PURPOSE: Stückzinstabelle в 3 колонки; прошедшие даты = светло-серый (перебивает всё), иначе: праздники=светло-красный, выходные=светло-жёлтый. -->
+     PURPOSE: UI state machine:
+       - mode=empty: only Berechnen
+       - mode=calc: show results + Speichern (and hide PDF)
+       - mode=saved: hide Speichern, show “PDF generieren”; re-calc switches back to mode=calc -->
 
 {% block panel_where %}Vertrag bearbeiten{% endblock %}
+{% block nav_contracts_class %}text-[var(--accent)] font-semibold{% endblock %}
 
 {% block panel_content %}
 
@@ -20,62 +24,127 @@
       <div class="text-sm text-gray-600">{{ contract.client.email }}</div>
     </div>
 
-    <div>
-      <div class="text-sm text-gray-600">Emission</div>
-      <div class="font-semibold">{{ contract.issue.title }}</div>
-      <div class="text-sm text-gray-600">{{ contract.issue.issue_date }}</div>
-    </div>
-  </div>
+    <div class="flex items-start gap-4">
+      <div class="flex-1">
+        <div class="text-sm text-gray-600">Emission</div>
+        <div class="font-semibold">{{ contract.issue.title }}</div>
+        <div class="text-sm text-gray-600">{{ contract.issue.issue_date|date:"d.m.Y" }}</div>
+      </div>
 
-  <div class="grid grid-cols-3 gap-4 pt-2">
-    <div>
-      <div class="text-sm text-gray-600">Vertragsdatum</div>
-      <div class="font-semibold">{{ contract.contract_date }}</div>
-    </div>
-    <div>
-      <div class="text-sm text-gray-600">Unterschrieben erhalten</div>
-      <div class="font-semibold">{% if contract.signed_received_at %}{{ contract.signed_received_at }}{% else %}-{% endif %}</div>
-    </div>
-    <div>
-      <div class="text-sm text-gray-600">Bezahlt</div>
-      <div class="font-semibold">{% if contract.paid_at %}{{ contract.paid_at }}{% else %}-{% endif %}</div>
+      <a href="#"
+         data-interest-modal-open
+         data-issue-id="{{ contract.issue.id }}"
+         class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+        Stückzinstabelle
+      </a>
     </div>
   </div>
 </div>
 
-<div class="mt-6 bg-white border border-[var(--text)] rounded-md px-7 py-5">
-  <div class="text-lg font-semibold mb-4">Stückzinstabelle</div>
+<div class="mt-6 bg-white border border-[var(--text)] rounded-md px-7 py-5 flex flex-col gap-4">
+  <div class="text-lg font-semibold">Berechnung</div>
 
-  <div class="grid grid-cols-3 gap-4">
-    {% for col in stueckzins_cols %}
-      <table class="w-full border border-[var(--text)] text-sm">
-        <thead>
-          <tr>
-            <th class="border border-[var(--text)] px-2 py-2 text-center font-semibold leading-tight">
-              Stückzinsen je Teilschuld-<br>
-              verschreibung zu EUR {{ contract.issue.bond_price }}<br>
-              in EUR
-            </th>
-            <th class="border border-[var(--text)] px-2 py-2 text-center font-semibold leading-tight">
-              Datum der Einzahlung
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in col %}
-            <tr class="{% if r.pay_date < today %}bg-gray-100{% elif r.is_holiday %}bg-red-100{% elif r.is_weekend %}bg-yellow-100{% endif %}">
-              <td class="border border-[var(--text)] px-2 py-1 text-center">
-                {{ r.stueckzins_de }}
-              </td>
-              <td class="border border-[var(--text)] px-2 py-1 text-center">
-                {{ r.pay_date|date:"d. M y" }}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% endfor %}
-  </div>
+  {% if errors %}
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-md px-4 py-3">
+      {% for e in errors %}
+        <div>{{ e }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if ok_message %}
+    <div class="bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3">
+      {{ ok_message }}
+    </div>
+  {% endif %}
+
+  <form method="post" class="flex flex-col gap-4">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-1">Datum der Unterzeichnung*</label>
+        <input
+          name="contract_date"
+          type="date"
+          value="{{ form_contract_date|date:'Y-m-d' }}"
+          class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
+        >
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-1">Anzahl der Anleihen*</label>
+        <input
+          name="bonds_quantity"
+          type="number"
+          min="{{ min_qty }}"
+          step="1"
+          value="{{ form_qty }}"
+          class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
+        >
+        <div class="text-xs text-gray-500 px-1">Minimum: {{ min_qty }}</div>
+      </div>
+
+      <div class="flex items-end gap-3 justify-end">
+        <button
+          name="action"
+          value="calc"
+          class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center flex items-center justify-center"
+        >
+          Berechnen
+        </button>
+
+        {% if mode == "calc" and calc_result %}
+          <input type="hidden" name="calc_settlement_date" value="{{ calc_result.settlement_date|date:'Y-m-d' }}">
+          <input type="hidden" name="calc_nominal_amount" value="{{ calc_result.nominal_amount }}">
+          <input type="hidden" name="calc_accrued_interest" value="{{ calc_result.accrued_interest }}">
+          <input type="hidden" name="calc_total_amount" value="{{ calc_result.total_amount }}">
+
+          <button
+            name="action"
+            value="save"
+            class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center"
+          >
+            Speichern
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if calc_result %}
+      <div class="grid grid-cols-4 gap-4 pt-2">
+        <div>
+          <div class="text-sm text-gray-600">Zahlungsfrist bis</div>
+          <div class="font-semibold">{{ calc_result.settlement_date|date:"d.m.Y" }}</div>
+        </div>
+        <div>
+          <div class="text-sm text-gray-600">Nominalbetrag</div>
+          <div class="font-semibold">{{ calc_result.nominal_amount }}</div>
+        </div>
+        <div>
+          <div class="text-sm text-gray-600">Aufgelaufene Zinsen</div>
+          <div class="font-semibold">{{ calc_result.accrued_interest }}</div>
+        </div>
+        <div>
+          <div class="text-sm text-gray-600">Gesamtbetrag</div>
+          <div class="font-semibold">{{ calc_result.total_amount }}</div>
+        </div>
+      </div>
+    {% endif %}
+  </form>
+
+  {% if mode == "saved" %}
+    <div class="pt-2">
+      <button
+        type="button"
+        disabled
+        class="w-48 rounded-md bg-gray-200 text-gray-500 py-3 cursor-not-allowed font-semibold text-center flex items-center justify-center"
+        title="Später implementieren"
+      >
+        PDF generieren
+      </button>
+    </div>
+  {% endif %}
 </div>
 
 {% endblock %}
