@@ -1,0 +1,18 @@
+<!-- FILE: web/templates/app_users/_interest_modal.html  (новое — 2026-02-16)
+     PURPOSE: Переиспользуемый попап (modal) для Stückzinstabelle; контент подгружается по public URL. -->
+
+<div id="interestModal"
+     class="fixed inset-0 z-[9999] hidden"
+     aria-hidden="true">
+
+  <div class="absolute inset-0 bg-black/50" data-interest-modal-close></div>
+
+  <div class="absolute inset-0 flex items-start justify-center p-6 overflow-auto">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[1100px] max-w-[1100px] p-6">
+      <div id="interestModalBody" class="text-sm text-gray-600">
+        Laden...
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -54,6 +54,13 @@
               <div>Emissionsvolumen:</div> 
               <div>€ {{ it.issue_volume_fmt }}</div>
             </div>
+
+            <a href="#"
+               data-interest-modal-open
+               data-issue-id="{{ it.id }}"
+               class="underline hover:text-[var(--accent)] transition inline-block mt-2">
+              Stückzinstabelle
+            </a>
           </td>
           <td class="px-4 py-3">
               <a class="underline hover:text-[var(--accent)] transition"
