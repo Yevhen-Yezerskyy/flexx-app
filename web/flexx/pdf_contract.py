@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from io import BytesIO
+import re
 
 from dateutil.relativedelta import relativedelta
 from django.utils import timezone
@@ -25,14 +26,49 @@ class ContractPdfBuildResult:
     pdf_bytes: bytes
     filename: str
 
-    
+
+@dataclass(frozen=True)
+class CalcBankingLayout:
+    calc_top_pad: float = 16.0
+    calc_line_h: float = 22.0
+    calc_bottom_pad: float = 12.0
+
+    x_sign: float = 18.0
+    x_val: float = 58.0
+    x_eur: float = 138.0
+    x_text: float = 188.0
+
+    banking_x_pad: float = 10.0
+    banking_top_gap: float = 14.0
+    banking_bottom_pad: float = 10.0
+
+    table_stroke: float = 0.7
+    after_block_gap: float = 10.0
+    banking_leading: float = 10.8
+    banking_para_mult: float = 1.4
+
+
+CALC_BANKING_LAYOUT = CalcBankingLayout()
+
 
 
 # --- helpers ---
 
 def _t(issue_contract: dict, key: str) -> str:
-    v = issue_contract.get(key) or ""
-    return str(v).strip()
+    return _normalize_db_text(issue_contract.get(key) or "")
+
+
+def _normalize_db_text(text: str) -> str:
+    txt = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not txt:
+        return ""
+    txt = "\n".join(line.strip() for line in txt.split("\n"))
+    txt = re.sub(r"\n{3,}", "\n\n", txt)
+    return txt
+
+
+def _db_cell_text(value) -> str:
+    return _normalize_db_text(value).replace("\n", " ")
 
 
 def _fmt_ddmmyyyy_no_sep(d: date | None) -> str:
@@ -81,60 +117,80 @@ def _draw_wrapped(
     return y
 
 
-def _draw_wrapped_banking(
+def _draw_db_text(
     c: Canvas,
     *,
     x: float,
     y_top: float,
     width: float,
     text: str,
-    font: str = "Helvetica",
-    font_size: float = 10,
+    font_size: float = 10.0,
     leading: float = 10.8,
     para_mult: float = 1.4,
 ) -> float:
     """
-    banking-текст:
-    - одинарный \n = принудительный перенос строки
-    - двойной \n\n = новый абзац (добавочный отступ = (para_mult-1)*leading)
+    DB text renderer:
+    - trims all edges
+    - single \n keeps manual line break
+    - double \n makes paragraph gap via para_mult
+    - **text** renders bold inline
     """
-    text = (text or "").replace("\r\n", "\n").replace("\r", "")
+    normalized = _normalize_db_text(text)
+    if not normalized:
+        return y_top
 
-    parts = text.split("\n\n")
+    parts = normalized.split("\n\n")
 
-    c.setFont(font, font_size)
-
-    def measure(s: str) -> float:
-        return c.stringWidth(s, font, font_size)
+    def measure(s: str, bold: bool) -> float:
+        return c.stringWidth(s, "Helvetica-Bold" if bold else "Helvetica", font_size)
 
     y = y_top
+    drew_any = False
     for pi, part in enumerate(parts):
-        part = part.strip()
-        if not part:
-            continue
-
-        lines = [ln.rstrip() for ln in part.split("\n")]
+        lines = part.split("\n")
         for ln in lines:
             ln = ln.strip()
             if not ln:
                 continue
-            words = ln.split()
-            cur = ""
-            for w in words:
-                cand = (cur + " " + w).strip()
-                if measure(cand) <= width:
-                    cur = cand
-                else:
-                    if cur:
-                        c.drawString(x, y, cur)
+
+            segments: list[tuple[str, bool]] = []
+            for i, seg in enumerate(ln.split("**")):
+                if not seg:
+                    continue
+                segments.append((seg, i % 2 == 1))
+
+            cur: list[tuple[str, bool]] = []
+            cur_w = 0.0
+            for seg_text, is_bold in segments:
+                for word in seg_text.split():
+                    token = f"{word} "
+                    token_w = measure(token, is_bold)
+                    if cur and (cur_w + token_w > width):
+                        cx = x
+                        for t, b in cur:
+                            c.setFont("Helvetica-Bold" if b else "Helvetica", font_size)
+                            c.drawString(cx, y, t)
+                            cx += measure(t, b)
                         y -= leading
-                    cur = w
+                        cur = []
+                        cur_w = 0.0
+                    cur.append((token, is_bold))
+                    cur_w += token_w
+
             if cur:
-                c.drawString(x, y, cur)
+                cx = x
+                for t, b in cur:
+                    c.setFont("Helvetica-Bold" if b else "Helvetica", font_size)
+                    c.drawString(cx, y, t)
+                    cx += measure(t, b)
                 y -= leading
+                drew_any = True
 
         if pi != len(parts) - 1:
             y -= leading * (para_mult - 1.0)
+
+    if drew_any:
+        y += leading
 
     return y
 
@@ -144,32 +200,125 @@ def _rect(c: Canvas, x: float, y: float, w: float, h: float, lw: float = 0.7) ->
     c.rect(x, y, w, h, stroke=1, fill=0)
 
 
+def _draw_type1_table(
+    c: Canvas,
+    *,
+    x: float,
+    y_top: float,
+    w: float,
+    row_h: float,
+    row_splits: list[list[float]],
+    labels: list[list[str]],
+    values: list[list[str]],
+    label_font: float = 6.0,
+    label_y_pad: float = 7.0,
+    value_font: float = 10.0,
+    value_y_pad: float = 7.0,
+) -> tuple[float, float]:
+    table_top = y_top
+
+    for row_idx, splits in enumerate(row_splits):
+        row_y = table_top - ((row_idx + 1) * row_h)
+        _rect(c, x, row_y, w, row_h)
+
+        c.setLineWidth(0.7)
+        run = 0.0
+        for s in splits[:-1]:
+            run += s
+            vx = x + (w * run)
+            c.line(vx, row_y, vx, row_y + row_h)
+
+    c.setFont("Helvetica", label_font)
+    for row_idx, row_labels in enumerate(labels):
+        row_y = table_top - ((row_idx + 1) * row_h)
+        run = 0.0
+        for col_idx, txt in enumerate(row_labels):
+            cell_x = x + (w * run)
+            c.drawString(cell_x + 6, row_y + row_h - label_y_pad, txt)
+            run += row_splits[row_idx][col_idx]
+
+    c.setFont("Helvetica", value_font)
+    for row_idx, row_values in enumerate(values):
+        row_y = table_top - ((row_idx + 1) * row_h)
+        run = 0.0
+        for col_idx, txt in enumerate(row_values):
+            cell_x = x + (w * run)
+            c.drawString(cell_x + 6, row_y + value_y_pad, txt)
+            run += row_splits[row_idx][col_idx]
+
+    table_bottom = table_top - (len(row_splits) * row_h)
+    return table_top, table_bottom
+
+
+def _draw_framed_text_block(
+    c: Canvas,
+    *,
+    x: float,
+    y_top: float,
+    w: float,
+    header: str,
+    body: str,
+    header_font: str = "Helvetica-Bold",
+    header_size: float = 9.0,
+    body_font: str = "Helvetica",
+    body_size: float = 9.0,
+    content_pad_x: float = 8.0,
+    header_top_pad: float = 15.0,
+    header_body_gap: float = 15.0,
+    body_leading: float = 11.0,
+    bottom_pad: float = 8.0,
+    border_lw: float = 0.9,
+) -> tuple[float, float, float, float]:
+    c.setFont(header_font, header_size)
+    c.drawString(x + content_pad_x, y_top - header_top_pad, header)
+
+    body_y_end = _draw_db_text(
+        c,
+        x=x + content_pad_x,
+        y_top=y_top - header_top_pad - header_body_gap,
+        width=w - (content_pad_x * 2),
+        text=body,
+        font_size=body_size,
+        leading=body_leading,
+        para_mult=1.4,
+    )
+    y_bottom = body_y_end - bottom_pad
+    h = y_top - y_bottom
+    _rect(c, x, y_bottom, w, h, lw=border_lw)
+    return x, y_bottom, w, h
+
+
 # --- draw parts (page 1) ---
 
-def draw_top_box(c: Canvas, *, page_h: float, issue_contract: dict) -> tuple[float, float, float, float]:
-    # НЕ ТРОГАЕМ (фикс)
-    x = 55
-    y = page_h - 105
-    w = A4[0] * (2 / 3)
-    h = 55
-
-    _rect(c, x, y, w, h, lw=0.9)
-
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(x + 8, y + h - 15, "Bitte vollständig ausgefüllt und unterzeichnet zurücksenden an:")
-
-    c.setFont("Helvetica", 9)
-    _draw_wrapped(
+def draw_top_box(
+    c: Canvas,
+    *,
+    page_h: float,
+    issue_contract: dict,
+    left: float | None = None,
+    width: float | None = None,
+) -> tuple[float, float, float, float]:
+    x = 55 if left is None else left
+    w = (A4[0] * (2 / 3)) if width is None else width
+    y_top = page_h - 50
+    return _draw_framed_text_block(
         c,
-        x=x + 8,
-        y_top=y + h - 30,
-        width=w - 16,
-        text=_t(issue_contract, "unternehmen_emittent"),
-        font="Helvetica",
-        font_size=9,
-        leading=11,
+        x=x,
+        y_top=y_top,
+        w=w,
+        header="Bitte vollständig ausgefüllt und unterzeichnet zurücksenden an:",
+        body=_t(issue_contract, "unternehmen_emittent"),
+        header_font="Helvetica-Bold",
+        header_size=9,
+        body_font="Helvetica",
+        body_size=9,
+        content_pad_x=8,
+        header_top_pad=15,
+        header_body_gap=15,
+        body_leading=11,
+        bottom_pad=8,
+        border_lw=0.7,
     )
-    return x, y, w, h
 
 
 def draw_title_block(c: Canvas, *, left: float, y_top: float) -> float:
@@ -179,16 +328,15 @@ def draw_title_block(c: Canvas, *, left: float, y_top: float) -> float:
 
 
 def draw_emission_block(c: Canvas, *, left: float, y_top: float, width: float, issue_contract: dict) -> float:
-    c.setFont("Helvetica-Bold", 11)
-    y_after = _draw_wrapped(
+    y_after = _draw_db_text(
         c,
         x=left,
         y_top=y_top,
         width=width,
         text=_t(issue_contract, "ueberschrift_emission"),
-        font="Helvetica-Bold",
         font_size=11,
         leading=13,
+        para_mult=1.4,
     )
     return y_after - 10
 
@@ -208,94 +356,68 @@ def draw_kaufer_table(
     client,
 ) -> tuple[float, float]:
     row_h = 26
-    table_top = y_top
-
-    r1_y = table_top - row_h
-    _rect(c, x, r1_y, w, row_h)
-    col1 = w * 0.30
-    col2 = w * 0.35
-
-    c.setLineWidth(0.7)
-    c.line(x + col1, r1_y, x + col1, r1_y + row_h)
-    c.line(x + col1 + col2, r1_y, x + col1 + col2, r1_y + row_h)
-
-    r2_y = r1_y - row_h
-    _rect(c, x, r2_y, w, row_h)
-
-    r3_y = r2_y - row_h
-    _rect(c, x, r3_y, w, row_h)
-    c.line(x + w * 0.60, r3_y, x + w * 0.60, r3_y + row_h)
-
-    r4_y = r3_y - row_h
-    _rect(c, x, r4_y, w, row_h)
-    c.line(x + w / 3, r4_y, x + w / 3, r4_y + row_h)
-    c.line(x + 2 * w / 3, r4_y, x + 2 * w / 3, r4_y + row_h)
-
-    r5_y = r4_y - row_h
-    _rect(c, x, r5_y, w, row_h)
-    c.line(x + w / 3, r5_y, x + w / 3, r5_y + row_h)
-    c.line(x + 2 * w / 3, r5_y, x + 2 * w / 3, r5_y + row_h)
-
-    # labels
-    label_font = 6.0
-    label_y_pad = 7.2
-    c.setFont("Helvetica", label_font)
-
-    c.drawString(x + 6, r1_y + row_h - label_y_pad, "Name")
-    c.drawString(x + col1 + 6, r1_y + row_h - label_y_pad, "Vorname")
-    c.drawString(x + col1 + col2 + 6, r1_y + row_h - label_y_pad, "Geburtsdatum (TTMMJJJJ)")
-
-    c.drawString(x + 6, r2_y + row_h - label_y_pad, "Firma")
-
-    c.drawString(x + 6, r3_y + row_h - label_y_pad, "Straße, Hausnummer")
-    c.drawString(x + w * 0.60 + 6, r3_y + row_h - label_y_pad, "PLZ, Ort")
-
-    c.drawString(x + 6, r4_y + row_h - label_y_pad, "Telefon")
-    c.drawString(x + w / 3 + 6, r4_y + row_h - label_y_pad, "Fax-Nr.")
-    c.drawString(x + 2 * w / 3 + 6, r4_y + row_h - label_y_pad, "E-Mail")
-
-    c.drawString(x + 6, r5_y + row_h - label_y_pad, "Nur bei Firmen: Handelsregister")
-    c.drawString(x + w / 3 + 6, r5_y + row_h - label_y_pad, "Handelsregister-Nummer")
-    c.drawString(x + 2 * w / 3 + 6, r5_y + row_h - label_y_pad, "Ansprechpartner")
-
-    # values
-    c.setFont("Helvetica", 10)
-    c.drawString(x + 6, r1_y + 7, (client.last_name or "").strip())
-    c.drawString(x + col1 + 6, r1_y + 7, (client.first_name or "").strip())
-    c.drawString(x + col1 + col2 + 6, r1_y + 7, _fmt_ddmmyyyy_no_sep(getattr(client, "birth_date", None)))
-
-    c.drawString(x + 6, r2_y + 7, (getattr(client, "company", "") or "").strip())
-
-    c.drawString(x + 6, r3_y + 7, (getattr(client, "street", "") or "").strip())
-    c.drawString(
-        x + w * 0.60 + 6,
-        r3_y + 7,
-        f"{(getattr(client, 'zip_code', '') or '').strip()} {(getattr(client, 'city', '') or '').strip()}".strip(),
+    row_splits = [
+        [0.30, 0.35, 0.35],
+        [1.0],
+        [0.60, 0.40],
+        [1 / 3, 1 / 3, 1 / 3],
+        [1 / 3, 1 / 3, 1 / 3],
+    ]
+    labels = [
+        ["Name", "Vorname", "Geburtsdatum (TTMMJJJJ)"],
+        ["Firma"],
+        ["Straße, Hausnummer", "PLZ, Ort"],
+        ["Telefon", "Fax-Nr.", "E-Mail"],
+        ["Nur bei Firmen: Handelsregister", "Handelsregister-Nummer", "Ansprechpartner"],
+    ]
+    values = [
+        [
+            _db_cell_text(client.last_name or ""),
+            _db_cell_text(client.first_name or ""),
+            _fmt_ddmmyyyy_no_sep(getattr(client, "birth_date", None)),
+        ],
+        [_db_cell_text(getattr(client, "company", "") or "")],
+        [
+            _db_cell_text(getattr(client, "street", "") or ""),
+            f"{_db_cell_text(getattr(client, 'zip_code', '') or '')} {_db_cell_text(getattr(client, 'city', '') or '')}".strip(),
+        ],
+        [
+            _db_cell_text(getattr(client, "phone", "") or ""),
+            _db_cell_text(getattr(client, "fax", "") or ""),
+            _db_cell_text(getattr(client, "email", "") or ""),
+        ],
+        [
+            _db_cell_text(getattr(client, "handelsregister", "") or ""),
+            _db_cell_text(getattr(client, "handelsregister_number", "") or ""),
+            _db_cell_text(getattr(client, "contact_person", "") or ""),
+        ],
+    ]
+    return _draw_type1_table(
+        c,
+        x=x,
+        y_top=y_top,
+        w=w,
+        row_h=row_h,
+        row_splits=row_splits,
+        labels=labels,
+        values=values,
+        label_font=6.0,
+        label_y_pad=7.2,
+        value_font=10.0,
+        value_y_pad=7.0,
     )
-
-    c.drawString(x + 6, r4_y + 7, (getattr(client, "phone", "") or "").strip())
-    c.drawString(x + w / 3 + 6, r4_y + 7, (getattr(client, "fax", "") or "").strip())
-    c.drawString(x + 2 * w / 3 + 6, r4_y + 7, (getattr(client, "email", "") or "").strip())
-
-    c.drawString(x + 6, r5_y + 7, (getattr(client, "handelsregister", "") or "").strip())
-    c.drawString(x + w / 3 + 6, r5_y + 7, (getattr(client, "handelsregister_number", "") or "").strip())
-    c.drawString(x + 2 * w / 3 + 6, r5_y + 7, (getattr(client, "contact_person", "") or "").strip())
-
-    table_bottom_y = r5_y
-    return table_top, table_bottom_y
 
 
 def draw_text_zwischen_1(c: Canvas, *, left: float, y_top: float, width: float, issue_contract: dict) -> float:
-    c.setFont("Helvetica-Bold", 10)
-    return _draw_wrapped(
+    return _draw_db_text(
         c,
         x=left,
         y_top=y_top,
         width=width,
         text=_t(issue_contract, "text_zwischen_1"),
-        font="Helvetica-Bold",
         font_size=10,
         leading=12,
+        para_mult=1.4,
     )
 
 
@@ -308,15 +430,8 @@ def draw_calc_and_banking_block(
     contract: Contract,
     issue_contract: dict,
 ) -> float:
-    base_h = 200
-    box_h = int(base_h * 1.17)
+    cfg = CALC_BANKING_LAYOUT
     box_x = left
-    box_y = y_top - box_h
-    _rect(c, box_x, box_y, width, box_h, lw=0.9)
-
-    split_y = (y_top - base_h) + 78
-    c.setLineWidth(0.7)
-    c.line(box_x, split_y, box_x + width, split_y)
 
     def _fmt_6(v: Decimal | None) -> str:
         if v is None:
@@ -339,13 +454,13 @@ def draw_calc_and_banking_block(
     per_bond_st = (st_total / Decimal(qty)) if (st_total is not None and qty) else None
     per_bond_total = (Decimal("1.00") + per_bond_st) if per_bond_st is not None else None
 
-    calc_top = y_top - 16
-    line_h = 22
+    calc_top = y_top - cfg.calc_top_pad
+    line_h = cfg.calc_line_h
 
-    x_sign = box_x + 18
-    x_val = box_x + 58
-    x_eur = box_x + 138
-    x_text = box_x + 188
+    x_sign = box_x + cfg.x_sign
+    x_val = box_x + cfg.x_val
+    x_eur = box_x + cfg.x_eur
+    x_text = box_x + cfg.x_text
 
     num_font = 10
     eur_font = 10
@@ -402,21 +517,27 @@ def draw_calc_and_banking_block(
     c.setFont("Helvetica-Bold", 10)
     c.drawString(x_text, y, "Gesamtbetrag (Kaufsumme)")
 
+    calc_bottom_y = y - cfg.calc_bottom_pad
+
     # banking
     bank_text = _t(issue_contract, "banking")
-    _draw_wrapped_banking(
+    bank_text_bottom = _draw_db_text(
         c,
-        x=box_x + 10,
-        y_top=split_y - 14,
-        width=width - 20,
+        x=box_x + cfg.banking_x_pad,
+        y_top=calc_bottom_y - cfg.banking_top_gap,
+        width=width - (cfg.banking_x_pad * 2),
         text=bank_text,
-        font="Helvetica",
         font_size=10,
-        leading=10.8,
-        para_mult=1.4,
+        leading=cfg.banking_leading,
+        para_mult=cfg.banking_para_mult,
     )
+    box_bottom_y = bank_text_bottom - cfg.banking_bottom_pad
 
-    return box_y - 10
+    # Two stacked frames with shared border (calc bottom == banking top).
+    _rect(c, box_x, calc_bottom_y, width, y_top - calc_bottom_y, lw=cfg.table_stroke)
+    _rect(c, box_x, box_bottom_y, width, calc_bottom_y - box_bottom_y, lw=cfg.table_stroke)
+
+    return box_bottom_y - cfg.after_block_gap
 
 
 def draw_footnotes_after_calc(
@@ -459,15 +580,15 @@ def draw_text_zwischen_2(
     width: float,
     issue_contract: dict,
 ) -> float:
-    return _draw_wrapped(
+    return _draw_db_text(
         c,
         x=left,
         y_top=y_top,
         width=width,
         text=_t(issue_contract, "text_zwischen_2"),
-        font="Helvetica",
         font_size=10.0,
         leading=12.0,
+        para_mult=1.4,
     )
 
 
@@ -502,41 +623,28 @@ def draw_depot_block(
     c.setFont("Helvetica-Bold", 10)
     c.drawString(left, y_top, "Depot-Informationen des Käufers / Zeichners:")
 
-    table_top = y_top - 4
-    row_h = 24
-    table_w = width
-    table_x = left
-
-    r1_y = table_top - row_h
-    r2_y = r1_y - row_h
-
-    _rect(c, table_x, r1_y, table_w, row_h)
-    _rect(c, table_x, r2_y, table_w, row_h)
-
-    c.setLineWidth(0.7)
-    c.line(table_x + table_w / 2, r1_y, table_x + table_w / 2, r1_y + row_h)
-    c.line(table_x + table_w / 2, r2_y, table_x + table_w / 2, r2_y + row_h)
-
-    c.setFont("Helvetica", 6.0)
-    pad_y = 7
-
-    c.drawString(table_x + 6, r1_y + row_h - pad_y, "Depotinhaber (Vorname, Name)")
-    c.drawString(table_x + table_w / 2 + 6, r1_y + row_h - pad_y, "Depot-IBAN")
-
-    c.drawString(table_x + 6, r2_y + row_h - pad_y, "Bank/Kreditinstitut")
-    c.drawString(table_x + table_w / 2 + 6, r2_y + row_h - pad_y, "BIC")
-
-    c.setFont("Helvetica", 10)
-
-    depot_holder = f"{(client.first_name or '').strip()} {(client.last_name or '').strip()}".strip()
-
-    c.drawString(table_x + 6, r1_y + 6, depot_holder)
-    c.drawString(table_x + table_w / 2 + 6, r1_y + 6, (getattr(client, "bank_depo_iban", "") or "").strip())
-
-    c.drawString(table_x + 6, r2_y + 6, (getattr(client, "bank_depo_name", "") or "").strip())
-    c.drawString(table_x + table_w / 2 + 6, r2_y + 6, (getattr(client, "bank_depo_bic", "") or "").strip())
-
-    return r2_y - 8
+    depot_holder = f"{_db_cell_text(client.first_name or '')} {_db_cell_text(client.last_name or '')}".strip()
+    _, table_bottom = _draw_type1_table(
+        c,
+        x=left,
+        y_top=y_top - 4,
+        w=width,
+        row_h=24,
+        row_splits=[[0.5, 0.5], [0.5, 0.5]],
+        labels=[
+            ["Depotinhaber (Vorname, Name)", "Depot-IBAN"],
+            ["Bank/Kreditinstitut", "BIC"],
+        ],
+        values=[
+            [depot_holder, _db_cell_text(getattr(client, "bank_depo_iban", "") or "")],
+            [_db_cell_text(getattr(client, "bank_depo_name", "") or ""), _db_cell_text(getattr(client, "bank_depo_bic", "") or "")],
+        ],
+        label_font=6.0,
+        label_y_pad=7.0,
+        value_font=10.0,
+        value_y_pad=6.0,
+    )
+    return table_bottom - 8
 
 def draw_page2_refund_intro(c: Canvas, *, left: float, y_top: float, width: float) -> float:
     text = (
@@ -568,114 +676,28 @@ def draw_konto_block(
     c.setFont("Helvetica-Bold", 10)
     c.drawString(left, y_top, "Konto-Informationen des Käufers / Zeichners:")
 
-    table_top = y_top - 4
-    row_h = 24
-    table_w = width
-    table_x = left
-
-    r1_y = table_top - row_h
-    r2_y = r1_y - row_h
-
-    _rect(c, table_x, r1_y, table_w, row_h)
-    _rect(c, table_x, r2_y, table_w, row_h)
-
-    c.setLineWidth(0.7)
-    c.line(table_x + table_w / 2, r1_y, table_x + table_w / 2, r1_y + row_h)
-    c.line(table_x + table_w / 2, r2_y, table_x + table_w / 2, r2_y + row_h)
-
-    c.setFont("Helvetica", 6.0)
-    pad_y = 7
-
-    c.drawString(table_x + 6, r1_y + row_h - pad_y, "Kontoinhaber (Vorname, Name)")
-    c.drawString(table_x + table_w / 2 + 6, r1_y + row_h - pad_y, "IBAN")
-
-    c.drawString(table_x + 6, r2_y + row_h - pad_y, "Bank/Kreditinstitut")
-    c.drawString(table_x + table_w / 2 + 6, r2_y + row_h - pad_y, "BIC")
-
-    c.setFont("Helvetica", 10)
-
-    holder = f"{(client.first_name or '').strip()} {(client.last_name or '').strip()}".strip()
-
-    c.drawString(table_x + 6, r1_y + 6, holder)
-    c.drawString(table_x + table_w / 2 + 6, r1_y + 6, (getattr(client, "bank_iban", "") or "").strip())
-
-    c.drawString(table_x + 6, r2_y + 6, (getattr(client, "bank_name", "") or "").strip())
-    c.drawString(table_x + table_w / 2 + 6, r2_y + 6, (getattr(client, "bank_bic", "") or "").strip())
-
-    return r2_y - 8
-
-def _draw_wrapped_bold_markup(
-    c: Canvas,
-    *,
-    x: float,
-    y_top: float,
-    width: float,
-    text: str,
-    font_size: float = 10.0,
-    leading: float = 12.0,
-    para_mult: float = 1.4,
-) -> float:
-    text = (text or "").replace("\r\n", "\n").replace("\r", "")
-    paragraphs = text.split("\n\n")
-
-    def measure(s: str, bold: bool) -> float:
-        f = "Helvetica-Bold" if bold else "Helvetica"
-        return c.stringWidth(s, f, font_size)
-
-    y = y_top
-
-    for pi, p in enumerate(paragraphs):
-        p = p.strip()
-        if not p:
-            continue
-
-        lines = p.split("\n")
-        for ln in lines:
-            ln = ln.strip()
-            if not ln:
-                continue
-
-            parts = []
-            tmp = ln.split("**")
-            for i, part in enumerate(tmp):
-                if not part:
-                    continue
-                parts.append((part, i % 2 == 1))  # odd = bold
-
-            cur = []
-            cur_w = 0.0
-
-            for txt, is_bold in parts:
-                words = txt.split()
-                for w in words:
-                    token = (w + " ")
-                    w_width = measure(token, is_bold)
-                    if cur_w + w_width <= width:
-                        cur.append((token, is_bold))
-                        cur_w += w_width
-                    else:
-                        cx = x
-                        for t, b in cur:
-                            c.setFont("Helvetica-Bold" if b else "Helvetica", font_size)
-                            c.drawString(cx, y, t)
-                            cx += measure(t, b)
-                        y -= leading
-                        cur = [(token, is_bold)]
-                        cur_w = w_width
-
-            if cur:
-                cx = x
-                for t, b in cur:
-                    c.setFont("Helvetica-Bold" if b else "Helvetica", font_size)
-                    c.drawString(cx, y, t)
-                    cx += measure(t, b)
-                y -= leading
-
-        if pi != len(paragraphs) - 1:
-            y -= leading * (para_mult - 1.0)
-
-    return y
-
+    holder = f"{_db_cell_text(client.first_name or '')} {_db_cell_text(client.last_name or '')}".strip()
+    _, table_bottom = _draw_type1_table(
+        c,
+        x=left,
+        y_top=y_top - 4,
+        w=width,
+        row_h=24,
+        row_splits=[[0.5, 0.5], [0.5, 0.5]],
+        labels=[
+            ["Kontoinhaber (Vorname, Name)", "IBAN"],
+            ["Bank/Kreditinstitut", "BIC"],
+        ],
+        values=[
+            [holder, _db_cell_text(getattr(client, "bank_iban", "") or "")],
+            [_db_cell_text(getattr(client, "bank_name", "") or ""), _db_cell_text(getattr(client, "bank_bic", "") or "")],
+        ],
+        label_font=6.0,
+        label_y_pad=7.0,
+        value_font=10.0,
+        value_y_pad=6.0,
+    )
+    return table_bottom - 8
 
 def draw_text_zwischen_3(
     c: Canvas,
@@ -687,7 +709,7 @@ def draw_text_zwischen_3(
 ) -> float:
     text = _t(issue_contract, "text_zwischen_3")
 
-    return _draw_wrapped_bold_markup(
+    return _draw_db_text(
         c,
         x=left,
         y_top=y_top,
