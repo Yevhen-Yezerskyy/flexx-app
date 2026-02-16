@@ -52,12 +52,6 @@
     </div>
   {% endif %}
 
-  {% if ok_message %}
-    <div class="bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3">
-      {{ ok_message }}
-    </div>
-  {% endif %}
-
   <form method="post" class="flex flex-col gap-4">
     {% csrf_token %}
 
@@ -85,7 +79,7 @@
         <div class="text-xs text-gray-500 px-1">Minimum: {{ min_qty }}</div>
       </div>
 
-      <div class="flex items-end gap-3 justify-end">
+      <div class="flex items-center gap-3">
         <button
           name="action"
           value="calc"
@@ -94,20 +88,6 @@
           Berechnen
         </button>
 
-        {% if mode == "calc" and calc_result %}
-          <input type="hidden" name="calc_settlement_date" value="{{ calc_result.settlement_date|date:'Y-m-d' }}">
-          <input type="hidden" name="calc_nominal_amount" value="{{ calc_result.nominal_amount }}">
-          <input type="hidden" name="calc_accrued_interest" value="{{ calc_result.accrued_interest }}">
-          <input type="hidden" name="calc_total_amount" value="{{ calc_result.total_amount }}">
-
-          <button
-            name="action"
-            value="save"
-            class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center"
-          >
-            Speichern
-          </button>
-        {% endif %}
       </div>
     </div>
 
@@ -130,21 +110,37 @@
           <div class="font-semibold">{{ calc_result.total_amount }}</div>
         </div>
       </div>
+        {% if mode == "calc" and calc_result %}
+          <input type="hidden" name="calc_settlement_date" value="{{ calc_result.settlement_date|date:'Y-m-d' }}">
+          <input type="hidden" name="calc_nominal_amount" value="{{ calc_result.nominal_amount }}">
+          <input type="hidden" name="calc_accrued_interest" value="{{ calc_result.accrued_interest }}">
+          <input type="hidden" name="calc_total_amount" value="{{ calc_result.total_amount }}">
+
+          <button
+            name="action"
+            value="save"
+            class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center"
+          >
+            Speichern
+          </button>
+        {% endif %}      
     {% endif %}
   </form>
 
-  {% if mode == "saved" %}
-    <div class="pt-2">
+{% if mode == "saved" %}
+  <div class="pt-2">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="pdf">
       <button
-        type="button"
-        disabled
-        class="w-48 rounded-md bg-gray-200 text-gray-500 py-3 cursor-not-allowed font-semibold text-center flex items-center justify-center"
-        title="Später implementieren"
+        type="submit"
+        class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center"
       >
         PDF generieren
       </button>
-    </div>
-  {% endif %}
+    </form>
+  </div>
+{% endif %}
 </div>
 
 {% endblock %}

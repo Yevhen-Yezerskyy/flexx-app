@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/views/contracts.py  (обновлено — 2026-02-16)
-# PURPOSE: Admin contracts: список договоров; создание договора для клиента (pick issue); редактирование договора с раздельными шагами Berechnen→Speichern и UI-state (empty/calc/saved).
+# PURPOSE: Добавлена генерация PDF для сохранённого договора (action=pdf): build_contract_pdf → сохранить в Contract.pdf_file.
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -14,6 +15,7 @@ from django.utils import timezone
 from app_users.models import FlexxUser
 from flexx.models import BondIssue, Contract
 from flexx.contract_helpers import calc_contract_amounts_from_stueckzins_table
+from flexx.pdf_contract import build_contract_pdf
 
 from .common import admin_only
 
@@ -115,6 +117,16 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+
+        # --- PDF: только если уже сохранено ---
+        if action == "pdf":
+            if mode != "saved":
+                errors.append("Bitte zuerst berechnen und speichern, dann PDF erzeugen.")
+            else:
+                res = build_contract_pdf(contract)
+                contract.pdf_file.save(res.filename, ContentFile(res.pdf_bytes), save=True)
+                ok_message = "PDF erstellt."
+                return redirect("panel_admin_contract_edit", contract_id=contract.id)
 
         d = _parse_iso_date(request.POST.get("contract_date") or "")
         if d is None:
