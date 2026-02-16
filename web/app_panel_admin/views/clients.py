@@ -1,5 +1,5 @@
-# FILE: web/app_panel_admin/views/clients.py  (обновлено — 2026-02-15)
-# PURPOSE: Admin-Panel Kunden: список клиентов + contract_ready (ссылка “Vertrag erstellen” только если заполнены обязательные поля); toggle актив с confirm+email; delete (чистит TippgeberClient по client).
+# FILE: web/app_panel_admin/views/clients.py  (обновлено — 2026-02-16)
+# PURPOSE: Admin-Panel Kunden: список клиентов + contract_ready; contracts (дата+эмиссия+pdf) для колонки Vertrag; toggle актив с confirm+email; delete (чистит TippgeberClient по client).
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from app_panel_admin.forms import AdminClientForm
 from app_users.models import FlexxUser, TippgeberClient
 from flexx.emailer import send_client_activated_email
+from flexx.models import Contract
 
 from .common import admin_only
 
@@ -33,9 +34,7 @@ def _is_contract_ready(u: FlexxUser) -> bool:
 
     for f in required_str_fields:
         v = getattr(u, f, None)
-        if v is None:
-            return False
-        if not str(v).strip():
+        if v is None or not str(v).strip():
             return False
 
     if getattr(u, "birth_date", None) is None:
@@ -51,14 +50,26 @@ def clients_list(request: HttpRequest) -> HttpResponse:
         return denied
 
     clients = FlexxUser.objects.filter(role=FlexxUser.Role.CLIENT).order_by("email")
+
     links = TippgeberClient.objects.filter(client__in=clients).select_related("client", "tippgeber").all()
     tip_by_client_id = {l.client_id: l.tippgeber for l in links if l.client_id}
+
+    contracts = (
+        Contract.objects.filter(client__in=clients)
+        .select_related("issue", "client")
+        .order_by("-contract_date", "-id")
+        .all()
+    )
+    contracts_by_client_id: dict[int, list[Contract]] = {}
+    for c in contracts:
+        contracts_by_client_id.setdefault(c.client_id, []).append(c)
 
     rows = [
         {
             "u": c,
             "tippgeber": tip_by_client_id.get(c.id),
             "contract_ready": _is_contract_ready(c),
+            "contracts": contracts_by_client_id.get(c.id, []),
         }
         for c in clients
     ]

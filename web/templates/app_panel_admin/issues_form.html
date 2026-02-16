@@ -1,6 +1,6 @@
 {% extends "app_panel_admin/base.html" %}
-<!-- FILE: web/templates/app_panel_admin/issues_form.html  (обновлено — 2026-02-15)
-     PURPOSE: Fix Emission edit: issue_date правильно подставляется (GET = date:'Y-m-d', POST = raw value), contract__ тексты снова выводятся из form (как было). -->
+<!-- FILE: web/templates/app_panel_admin/issues_form.html  (обновлено — 2026-02-16)
+     PURPOSE: Emission create/edit: добавить поле "Mindestanzahl Anleihen" (minimal_bonds_quantity) в основную сетку. -->
 {% block panel_where %}Platzierungen{% endblock %}
 {% block nav_issues_class %}text-[var(--accent)] font-semibold{% endblock %}
 
@@ -29,7 +29,7 @@
           {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
     </div>
 
-    <div class="grid grid-cols-5 gap-4">
+    <div class="grid grid-cols-6 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">{{ form.issue_date.label }}:</label>
         <input name="{{ form.issue_date.name }}"
@@ -69,6 +69,14 @@
                type="number" min="0" step="1" placeholder="{{ form.term_months.label }}"
                class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
         {% if form.term_months.errors %}<div class="text-sm text-red-600">{{ form.term_months.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">{{ form.minimal_bonds_quantity.label }}:</label>
+        <input name="{{ form.minimal_bonds_quantity.name }}" value="{{ form.minimal_bonds_quantity.value|default:'' }}"
+               type="number" min="1" step="1" placeholder="{{ form.minimal_bonds_quantity.label }}"
+               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+        {% if form.minimal_bonds_quantity.errors %}<div class="text-sm text-red-600">{{ form.minimal_bonds_quantity.errors|join:", " }}</div>{% endif %}
       </div>
     </div>
   </div>

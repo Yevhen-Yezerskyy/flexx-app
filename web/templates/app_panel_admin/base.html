@@ -1,6 +1,6 @@
 {% load static %}
-<!-- FILE: web/templates/app_panel_admin/base.html  (обновлено — 2026-02-15)
-     PURPOSE: Admin-base: меню Kunden/Tippgeber/Emissionen; root = Kunden; активность через blocks. -->
+<!-- FILE: web/templates/app_panel_admin/base.html  (обновлено — 2026-02-16)
+     PURPOSE: Admin-base: добавить пункт меню “Verträge” между Kunden и Tippgeber. -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -41,6 +41,11 @@
         <a href="{% url 'panel_admin_clients' %}"
            class="underline {% block nav_clients_class %}hover:text-[var(--accent)]{% endblock %}">
           Kunden
+        </a>
+
+        <a href="{% url 'panel_admin_contracts_list' %}"
+           class="underline {% block nav_contracts_class %}hover:text-[var(--accent)]{% endblock %}">
+          Verträge
         </a>
 
         <a href="{% url 'panel_admin_tippgeber_list' %}"

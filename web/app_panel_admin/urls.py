@@ -1,5 +1,5 @@
-# FILE: web/app_panel_admin/urls.py  (обновлено — 2026-02-15)
-# PURPOSE: Admin panel URLs: Kunden/Tippgeber/Issues + Contract flow (pick issue -> create -> edit).
+# FILE: web/app_panel_admin/urls.py  (обновлено — 2026-02-16)
+# PURPOSE: Admin panel URLs: добавить список всех Verträge (/contracts/).
 
 from django.urls import path
 
@@ -10,7 +10,7 @@ from .views.clients import (
     clients_toggle_active,
     clients_delete,
 )
-from .views.contracts import contract_pick_issue, contract_edit
+from .views.contracts import contract_pick_issue, contract_edit, contracts_list
 from .views.issues import issues_list, issues_create, issues_edit, issues_delete
 from .views.tippgeber import tippgeber_list, tippgeber_edit, tippgeber_toggle_active, tippgeber_delete
 
@@ -23,6 +23,7 @@ urlpatterns = [
     path("clients/<int:user_id>/delete/", clients_delete, name="panel_admin_clients_delete"),
 
     # Contracts
+    path("contracts/", contracts_list, name="panel_admin_contracts_list"),
     path("clients/<int:user_id>/contract/new/", contract_pick_issue, name="panel_admin_contract_pick_issue"),
     path("contracts/<int:contract_id>/edit/", contract_edit, name="panel_admin_contract_edit"),
 

@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/views/contracts.py  (обновлено — 2026-02-16)
-# PURPOSE: Admin contracts views: pick issue -> create Contract; contract edit + Stückzinsen-Tabelle (30/360) в 3 колонки, today для серого.
+# PURPOSE: Admin contracts views: список всех Verträge + pick issue -> create Contract; contract edit + Stückzinsen-Tabelle.
 
 from __future__ import annotations
 
@@ -13,6 +13,25 @@ from flexx.models import BondIssue, Contract
 from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
 
 from .common import admin_only
+
+
+@login_required
+def contracts_list(request: HttpRequest) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+
+    contracts = (
+        Contract.objects.select_related("client", "issue")
+        .all()
+        .order_by("-contract_date", "-id")
+    )
+
+    return render(
+        request,
+        "app_panel_admin/contracts_list.html",
+        {"contracts": contracts},
+    )
 
 
 @login_required

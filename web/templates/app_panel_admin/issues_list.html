@@ -20,9 +20,9 @@
   <table class="w-full text-sm">
     <thead class="bg-gray-50">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[30%]">Titel</th>
-        <th class="px-4 py-3 w-[30%]">Kennzahlen</th>
-        <th class="px-4 py-3 w-[30%]">Wert</th>
+        <th class="px-4 py-3">Titel</th>
+        <th class="px-4 py-3">Kennzahlen</th>
+        <th class="px-4 py-3">Wert</th>
         <th class="px-4 py-3">&nbsp;</th>
         <th class="px-4 py-3">&nbsp;</th>
       </tr>
@@ -37,7 +37,7 @@
           </td>
 
           <td class="px-4 py-3">
-            <div class="grid grid-cols-2">
+            <div class="grid grid-cols-[105px_70px] gap-1">
                 <div>Ausgabedatum:</div>
                 <div>{{ it.issue_date|date:"d.m.Y" }}</div>
                 <div>Zinssatz:</div>
@@ -48,28 +48,31 @@
           </td>
 
           <td class="px-4 py-3">
-            <div class="grid grid-cols-2 gap-1">
+            <div class="grid grid-cols-[115px_80px] gap-1">
               <div>Preis pro Anleihe:</div>
               <div>€ {{ it.bond_price }}</div>
-              <div>Emissionsvolumen:</div> 
+              <div>Volumen:</div> 
               <div>€ {{ it.issue_volume_fmt }}</div>
-            </div>
+              <div>Mindestmenge:</div> 
+              <div>{{ it.minimal_bonds_quantity }}</div>
 
+            </div>
+          </td>
+          <td class="px-4 py-3">
             <a href="#"
                data-interest-modal-open
                data-issue-id="{{ it.id }}"
-               class="underline hover:text-[var(--accent)] transition inline-block mt-2">
+               class="underline hover:text-[var(--accent)] transition">
               Stückzinstabelle
             </a>
-          </td>
-          <td class="px-4 py-3">
-              <a class="underline hover:text-[var(--accent)] transition"
-                   href="{% url 'panel_admin_issues_create' %}?copy={{ it.id }}">Kopieren</a><br>
           </td>
 
           <td class="px-4 py-3 whitespace-nowrap">
             <a class="underline hover:text-[var(--accent)] transition"
                href="{% url 'panel_admin_issues_edit' it.id %}">Ändern</a><br>
+
+            <a class="underline hover:text-[var(--accent)] transition inline-block mt-1"
+                   href="{% url 'panel_admin_issues_create' %}?copy={{ it.id }}">Kopieren</a><br>
 
             <form method="post"
                   action="{% url 'panel_admin_issues_delete' it.id %}"

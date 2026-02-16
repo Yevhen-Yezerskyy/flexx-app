@@ -1,8 +1,5 @@
-# FILE: web/app_panel_admin/views/issues.py  (обновлено — 2026-02-14)
-# PURPOSE: 1) Файлы: прокидываем request.FILES в BondIssueForm (create/edit);
-#          2) Вывод: сортировка вложений по description (лейблу);
-#          3) Имя файла: отдаём в шаблон уже "basename" (после последнего /);
-#          4) Copy: правильно заполняем contract__* через initial (и базовые поля тоже).
+# FILE: web/app_panel_admin/views/issues.py  (обновлено — 2026-02-16)
+# PURPOSE: Copy Emission: прокинуть minimal_bonds_quantity в initial при copy.
 
 from __future__ import annotations
 
@@ -91,6 +88,7 @@ def issues_create(request: HttpRequest) -> HttpResponse:
                 "bond_price": src.bond_price,
                 "issue_volume": src.issue_volume,
                 "term_months": src.term_months,
+                "minimal_bonds_quantity": src.minimal_bonds_quantity,
             }
             for f in CONTRACT_FIELDS:
                 key = f["key"]

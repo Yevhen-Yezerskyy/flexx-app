@@ -1,5 +1,5 @@
-# FILE: web/app_panel_admin/forms.py  (обновлено — 2026-02-15)
-# PURPOSE: Fix Emission-Form: 1) issue_date стабильно (YYYY-MM-DD + принимает DD.MM.YYYY); 2) decimal принимает запятую; 3) contract__ поля не пропадают; 4) добавить AdminTippgeberForm (чтобы не падал импорт).
+# FILE: web/app_panel_admin/forms.py  (обновлено — 2026-02-16)
+# PURPOSE: Emission-Form: добавить поле minimal_bonds_quantity (минимальное количество облигаций) + сохранить прежние фиксы даты/десятичных/contract__.
 
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ class BondIssueForm(forms.ModelForm):
             "bond_price",
             "issue_volume",
             "term_months",
+            "minimal_bonds_quantity",
         ]
         widgets = {"issue_date": forms.DateInput(attrs={"type": "date"})}
 
@@ -62,8 +63,9 @@ class BondIssueForm(forms.ModelForm):
         self.fields["issue_date"].label = "Emissionsdatum"
         self.fields["interest_rate"].label = "Zinssatz (%)"
         self.fields["bond_price"].label = "Preis je Anleihe (€)"
-        self.fields["issue_volume"].label = "Emissionsvolumen (€)"
+        self.fields["issue_volume"].label = "Volumen (€)"
         self.fields["term_months"].label = "Laufzeit (Monate)"
+        self.fields["minimal_bonds_quantity"].label = "Mindestmenge"
 
         self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
@@ -218,26 +220,33 @@ class AdminTippgeberForm(forms.ModelForm):
 
     class Meta:
         model = FlexxUser
-        fields = ["email", "last_name", "first_name", "phone", "is_active"]
+        fields = [
+            "email",
+            "last_name",
+            "first_name",
+            "birth_date",
+            "street",
+            "zip_code",
+            "city",
+            "phone",
+            "is_active",
+        ]
+        widgets = {"birth_date": _DATE_WIDGET_ADMIN}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if self.is_bound:
+            d = self.data.copy()
+            d["birth_date"] = _normalize_date_like(d.get("birth_date"))
+            self.data = d
+
         self.fields["is_active"].label = "Aktiv"
-        for f in ("email", "last_name", "first_name"):
+        self.fields["birth_date"].required = False
+        self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+
+        for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):
             self.fields[f].required = True
-        self.fields["phone"].required = False
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
-
-    def clean(self):
-        cleaned = super().clean()
-        email = (cleaned.get("email") or "").strip().lower()
-        if email:
-            qs = FlexxUser.objects.filter(email=email)
-            if self.instance and self.instance.pk:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                self.add_error("email", "Diese E-Mail ist bereits vergeben.")
-        return cleaned

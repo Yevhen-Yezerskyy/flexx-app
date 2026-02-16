@@ -1,6 +1,6 @@
 {% extends "app_panel_admin/base.html" %}
-<!-- FILE: web/templates/app_panel_admin/clients_list.html  (обновлено — 2026-02-15)
-     PURPOSE: Admin: Kunden список в стиле Platzierungen + колонка Vertrag (готовность по заполненности всех полей) + Status toggle с confirm email при активации + Ändern/Löschen. -->
+<!-- FILE: web/templates/app_panel_admin/clients_list.html  (обновлено — 2026-02-16)
+     PURPOSE: Admin: Kunden список: в колонке Vertrag сверху показывать существующие Verträge (дата + Emission + PDF/нет), ниже — ссылка “Vertrag erstellen” как раньше. -->
 {% block panel_where %}Kunden{% endblock %}
 {% block nav_clients_class %}text-[var(--accent)] font-semibold{% endblock %}
 
@@ -52,11 +52,46 @@ function flexxClientActivateConfirm(formEl) {
               {% endif %}
             </div>
           </td>
+
           <td class="px-4 py-3">
-            {% if r.contract_ready %}
-              <a class="underline hover:text-[var(--accent)] transition" href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
+            {% if r.contracts %}
+              <div class="flex flex-col gap-2">
+                {% for c in r.contracts %}
+                  <div class="border border-gray-200 rounded-md px-3 py-2 bg-gray-50">
+                    <div>
+                      <span class="font-semibold">{{ c.contract_date|date:"d.m.Y" }}</span>
+                      — {{ c.issue.title }}
+                    </div>
+
+                    {% if c.pdf_file %}
+                      <div class="mt-1">
+                        <a class="underline hover:text-[var(--accent)] transition"
+                           href="{{ c.pdf_file.url }}">
+                          {{ c.pdf_file.name }}
+                        </a>
+                      </div>
+                    {% else %}
+                      <div class="mt-1 text-red-600">Vertrag nicht erstellt</div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="mt-2">
+                {% if r.contract_ready %}
+                  <a class="underline hover:text-[var(--accent)] transition"
+                     href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
+                {% else %}
+                  <span class="text-gray-500">Nicht ausgefüllt</span>
+                {% endif %}
+              </div>
             {% else %}
-              <span class="text-gray-500">Nicht ausgefüllt</span>
+              {% if r.contract_ready %}
+                <a class="underline hover:text-[var(--accent)] transition"
+                   href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
+              {% else %}
+                <span class="text-gray-500">Nicht ausgefüllt</span>
+              {% endif %}
             {% endif %}
           </td>
 

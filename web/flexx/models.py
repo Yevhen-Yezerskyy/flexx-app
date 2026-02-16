@@ -1,11 +1,13 @@
-# FILE: web/flexx/models.py  (обновлено — 2026-02-15)
-# PURPOSE: Оставлено без изменений: BondIssue + BondIssueAttachment (как в архиве); добавлено: Contract (договор клиента по эмиссии, PDF, даты подписания/оплаты).
+# FILE: web/flexx/models.py  (обновлено — 2026-02-16)
+# PURPOSE: Добавлено поле minimal_bonds_quantity в BondIssue.
+#          Contract содержит settlement_date, bonds_quantity,
+#          nominal_amount, nominal_amount_plus_percent.
 
 from __future__ import annotations
 
-from django.db import models
 import os
 
+from django.db import models
 from app_users.models import FlexxUser
 
 
@@ -26,6 +28,9 @@ class BondIssue(models.Model):
     issue_volume = models.DecimalField(max_digits=14, decimal_places=2)  # Emissionsvolumen
 
     term_months = models.PositiveSmallIntegerField()  # Laufzeit (Monate)
+    minimal_bonds_quantity = models.PositiveIntegerField(
+        default=1
+    )  # Минимальное количество облигаций
 
     contract = models.JSONField(default=dict, blank=True)  # key->text (Textarea)
     active = models.BooleanField(default=True)
@@ -55,12 +60,21 @@ class BondIssueAttachment(models.Model):
 
     @property
     def filename(self):
-        import os
         return os.path.basename(self.file.name)
 
 
 class Contract(models.Model):
     contract_date = models.DateField()  # Datum des Vertrags
+
+    settlement_date = models.DateField(null=True, blank=True)  # Расчетная дата
+    bonds_quantity = models.PositiveIntegerField(null=True, blank=True)  # Количество облигаций
+    nominal_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)  # Номинальная сумма
+    nominal_amount_plus_percent = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )  # Номинальная сумма плюс %
 
     issue = models.ForeignKey(
         BondIssue,
@@ -73,10 +87,10 @@ class Contract(models.Model):
         related_name="contracts_as_client",
     )
 
-    pdf_file = models.FileField(upload_to=contract_pdf_upload_to, blank=True)  # PDF-Link
+    pdf_file = models.FileField(upload_to=contract_pdf_upload_to, blank=True)
 
-    signed_received_at = models.DateField(null=True, blank=True)  # Unterschrieben erhalten (Datum)
-    paid_at = models.DateField(null=True, blank=True)  # Bezahlt (Datum)
+    signed_received_at = models.DateField(null=True, blank=True)
+    paid_at = models.DateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
