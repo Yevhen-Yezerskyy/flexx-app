@@ -39,6 +39,7 @@ class FlexxUser(AbstractBaseUser, PermissionsMixin):
     city = models.CharField(max_length=150, blank=True)
 
     phone = models.CharField(max_length=50, blank=True)
+    mobile_phone = models.CharField(max_length=50, blank=True)
     fax = models.CharField(max_length=50, blank=True)
 
     company = models.CharField(max_length=255, blank=True)
