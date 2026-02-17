@@ -11,21 +11,21 @@
     {% if mode == "edit" %}Platzierung ändern{% else %}Neue Platzierung{% endif %}
   </div>
   <div class="flex-1"></div>
-   <a href="{% url 'panel_admin_issues_list' %}" class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+   <a href="{% url 'panel_admin_issues_list' %}" class="w-48 rounded-md bg-gray-100 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
     Zurück
   </a>
 </div>
 
 <form method="post" enctype="multipart/form-data" class="flex flex-col gap-6">
   {% csrf_token %}
-  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-4">
+  <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-4">
     <div>{{ form.active }}&nbsp;&nbsp;{{ form.active.label }}</div>
 
     <div class="flex flex-col">
       <label class="text-sm px-4">{{ form.title.label }}:</label>
       <input name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}"
              type="text" placeholder="{{ form.title.label }}"
-             class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+             class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
           {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
     </div>
 
@@ -35,7 +35,7 @@
         <input name="{{ form.issue_date.name }}"
                value="{% if form.is_bound %}{{ form.issue_date.value|default:'' }}{% else %}{{ form.issue_date.value|date:'Y-m-d' }}{% endif %}"
                type="date" placeholder="{{ form.issue_date.label }}"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
             {% if form.issue_date.errors %}<div class="text-sm text-red-600">{{ form.issue_date.errors|join:", " }}</div>{% endif %}
       </div>
 
@@ -43,7 +43,7 @@
         <label class="text-sm px-4">{{ form.interest_rate.label }}:</label>
         <input name="{{ form.interest_rate.name }}" value="{{ form.interest_rate.value|default:'' }}"
                type="text" placeholder="{{ form.interest_rate.label }}"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
               {% if form.interest_rate.errors %}<div class="text-sm text-red-600">{{ form.interest_rate.errors|join:", " }}</div>{% endif %}
       </div>
 
@@ -51,7 +51,7 @@
         <label class="text-sm px-4">{{ form.bond_price.label }}:</label>
         <input name="{{ form.bond_price.name }}" value="{{ form.bond_price.value|default:'' }}"
                type="text" placeholder="{{ form.bond_price.label }}"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
               {% if form.bond_price.errors %}<div class="text-sm text-red-600">{{ form.bond_price.errors|join:", " }}</div>{% endif %}
       </div>
 
@@ -59,7 +59,7 @@
         <label class="text-sm px-4">{{ form.issue_volume.label }}:</label>
         <input name="{{ form.issue_volume.name }}" value="{{ form.issue_volume.value|default:'' }}"
                type="text" placeholder="{{ form.issue_volume.label }}"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
             {% if form.issue_volume.errors %}<div class="text-sm text-red-600">{{ form.issue_volume.errors|join:", " }}</div>{% endif %}
       </div>
 
@@ -67,7 +67,7 @@
         <label class="text-sm px-4">{{ form.term_months.label }}:</label>
         <input name="{{ form.term_months.name }}" value="{{ form.term_months.value|default:'' }}"
                type="number" min="0" step="1" placeholder="{{ form.term_months.label }}"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.term_months.errors %}<div class="text-sm text-red-600">{{ form.term_months.errors|join:", " }}</div>{% endif %}
       </div>
 
@@ -75,22 +75,22 @@
         <label class="text-sm px-4">{{ form.minimal_bonds_quantity.label }}:</label>
         <input name="{{ form.minimal_bonds_quantity.name }}" value="{{ form.minimal_bonds_quantity.value|default:'' }}"
                type="number" min="1" step="1" placeholder="{{ form.minimal_bonds_quantity.label }}"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.minimal_bonds_quantity.errors %}<div class="text-sm text-red-600">{{ form.minimal_bonds_quantity.errors|join:", " }}</div>{% endif %}
       </div>
     </div>
   </div>
 
-  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5">
+  <div class="bg-white border border-gray-400 rounded-md px-7 py-5">
     <div class="text-xl mb-4">Dateien</div>
 
     {% if attachments %}
-      <div class="bg-gray-50 border-2 border-white rounded-md overflow-hidden mb-6">
+      <div class="bg-gray-100 border-2 border-white rounded-md overflow-hidden mb-6">
         <div class="divide-y-4 divide-white">
           {% for a in attachments %}
             <div class="grid grid-cols-12 items-center px-4 py-3 gap-4">
               <div class="col-span-5">
-                <a class="underline hover:text-[var(--accent)] transition"
+                <a class="underline hover:text-[var(--accent)] transition block px-4 py-2 text-base truncate"
                    href="{{ a.att.file.url }}" target="_blank">
                   {{ a.filename }}
                 </a>
@@ -102,7 +102,7 @@
                   value="{{ a.att.description|default:'' }}"
                   type="text"
                   placeholder="Beschreibung"
-                  class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white"
+                  class="w-full border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white"
                 >
               </div>
 
@@ -118,14 +118,14 @@
       </div>
     {% endif %}
 
-    <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 overflow-hidden">
+    <div class="bg-gray-100 border-2 border-white rounded-md overflow-hidden">
       <div id="new-files" class="divide-y-4 divide-white">
-        <div class="grid grid-cols-12 items-center px-4 py-3 gap-4">
+        <div class="grid grid-cols-12 items-center px-4 py-3 gap-2">
           <div class="col-span-5">
             <input
               type="file"
               name="new_file"
-              class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white"
+              class="w-full h-10 border border-gray-400 rounded-md px-3 pt-[3px] pb-2 focus:outline-none bg-white text-sm file:mr-2 file:px-2 file:py-1 file:text-sm"
             >
           </div>
 
@@ -134,14 +134,14 @@
               type="text"
               name="new_desc"
               placeholder="Beschreibung"
-              class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white"
+              class="w-full h-10 border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white"
             >
           </div>
 
           <div class="col-span-1 flex items-center justify-end">
             <button
               type="button"
-              class="underline hover:text-[var(--accent)] transition"
+              class="w-[70px] ml-auto h-10 rounded-md bg-[var(--accent)] text-white text-sm font-semibold inline-flex items-center justify-center hover:brightness-110 transition"
               onclick="addNewFileRow()"
             >
               + Datei
@@ -156,23 +156,23 @@
     function addNewFileRow() {
       const wrap = document.getElementById("new-files");
       const row = document.createElement("div");
-      row.className = "grid grid-cols-12 items-center px-4 py-3 gap-4";
+      row.className = "grid grid-cols-12 items-center px-4 py-3 gap-2";
       row.innerHTML = `
         <div class="col-span-5">
           <input type="file" name="new_file"
-            class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white">
+            class="w-full h-10 border border-gray-400 rounded-md px-3 pt-[3px] pb-2 focus:outline-none bg-white text-sm file:mr-2 file:px-2 file:py-1 file:text-sm">
         </div>
 
         <div class="col-span-6">
           <input type="text" name="new_desc" placeholder="Beschreibung"
-            class="w-full border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none bg-white">
+            class="w-full h-10 border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         </div>
 
         <div class="col-span-1 flex items-center justify-end">
           <button type="button"
-            class="underline hover:text-red-600 transition"
+            class="w-[70px] ml-auto h-10 rounded-md bg-white border border-gray-300 text-[var(--text)] text-sm font-semibold inline-flex items-center justify-center hover:bg-gray-100 transition"
             onclick="this.closest('.grid').remove()">
-            Entfernen
+            - Del
           </button>
         </div>
       `;
@@ -180,7 +180,7 @@
     }
   </script>
 
-  <div class="bg-white border border-[var(--text)] rounded-md p-6">
+  <div class="bg-white border border-gray-400 rounded-md p-6">
     <div class="text-xl mb-4">Vertrag (Texte)</div>
 
     <div class="flex flex-col gap-4">
@@ -189,7 +189,7 @@
           <div class="flex flex-col gap-1">
             <label class="text-sm px-4">{{ field.label }}:</label>
             <textarea name="{{ field.name }}"
-                      class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none"
+                      class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none"
                       rows="{{ field.field.widget.attrs.rows|default:4 }}">{{ field.value|default:'' }}</textarea>
             {% if field.errors %}<div class="text-sm text-red-600">{{ field.errors|join:", " }}</div>{% endif %}
           </div>
@@ -205,7 +205,7 @@
     </button>
 
     <a href="{% url 'panel_admin_issues_list' %}"
-       class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+       class="w-48 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
       Abbrechen
     </a>
   </div>

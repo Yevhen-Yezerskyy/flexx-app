@@ -27,6 +27,10 @@ body{
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
+input[type="checkbox"]{
+  accent-color: var(--accent);
+}
+
 .wrap{
   width: var(--w);
   margin: 0 auto;
