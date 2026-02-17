@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from io import BytesIO
 from dataclasses import dataclass
 from decimal import Decimal
@@ -7,12 +8,14 @@ import re
 from typing import Any
 
 from babel.dates import format_date
+from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph
 
+from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
 from flexx.models import Contract
 
 
@@ -69,13 +72,21 @@ class ContractPdfCreator:
     def _cursor_gap(self, gap: float) -> None:
         self.y -= gap
 
-    def _build_paragraph(self, text: str, font_size: float) -> Paragraph:
+    def _build_paragraph(
+        self,
+        text: str,
+        font_size: float,
+        *,
+        font_name: str | None = None,
+        alignment: int = TA_JUSTIFY,
+    ) -> Paragraph:
         paragraph_text = _format_text(text).replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;").replace("\n", "<br/>")
         style = ParagraphStyle(
             name="contract-text",
-            fontName=self.FONT_FAMILY,
+            fontName=font_name or self.FONT_FAMILY,
             fontSize=font_size,
             leading=font_size * 1.2,
+            alignment=alignment,
         )
         return Paragraph(paragraph_text, style)
 
@@ -174,6 +185,24 @@ class ContractPdfCreator:
         self.y = y_bottom
         return y_bottom
 
+    def _measure_text_height(self, text: str, font_size: float, width: float) -> float:
+        parts = self._split_paragraphs(text)
+        if not parts:
+            return 0.0
+        total = 0.0
+        for idx, part in enumerate(parts):
+            paragraph = self._build_paragraph(part, font_size)
+            _, h = paragraph.wrap(max(width, 1), self.PAGE_SIZE[1])
+            total += h
+            if idx > 0:
+                total += self.PARAGRAPH_TOP_GAP
+        return total
+
+    def _ensure_space(self, c: Canvas, needed_height: float) -> None:
+        if self.y - needed_height < self.MARGIN_BOTTOM:
+            c.showPage()
+            self._cursor_reset()
+
     def _resolve_from_path(self, source: dict[str, Any], path: str) -> Any:
         current: Any = source
         for part in path.split("."):
@@ -194,8 +223,13 @@ class ContractPdfCreator:
         width: float,
         top_pad: float,
         font_size: float,
+        *,
+        font_name: str | None = None,
+        alignment: int = TA_JUSTIFY,
     ) -> None:
-        paragraph = self._build_paragraph(text, font_size)
+        if not _format_text(text).strip():
+            return
+        paragraph = self._build_paragraph(text, font_size, font_name=font_name, alignment=alignment)
         _, h = paragraph.wrap(max(width, 1), self.PAGE_SIZE[1])
         paragraph.drawOn(c, x, y_top - top_pad - h)
 
@@ -210,24 +244,75 @@ class ContractPdfCreator:
         source: dict[str, Any] | None = None,
         table_width: float | None = None,
         left_indent: float | None = None,
-        row_height: float = 24.0,
+        row_height: float | None = None,
         label_font_size: float = 6.0,
         value_font_size: float | None = None,
         label_top_pad: float = 0.5,
         value_top_pad: float = 9.0,
+        label_align: int = TA_JUSTIFY,
+        value_align: int = TA_JUSTIFY,
+        label_bold: bool = False,
+        value_bold: bool = False,
+        row_bottom_pad: float = 2.0,
+        min_row_height: float = 24.0,
     ) -> float:
         value_size = self.FONT_SIZE_TEXT if value_font_size is None else value_font_size
         src = source or self.content
         y = self.y if y_top is None else y_top
         x = self.MARGIN_LEFT if left_indent is None else left_indent
         width = table_width or self.content_width
-        row_h = float(row_height)
+        default_row_h = min_row_height if row_height is None else float(row_height)
+
+        row_heights: list[float] = []
+        for row_idx in range(rows):
+            if row_height is not None:
+                row_heights.append(default_row_h)
+                continue
+
+            row_cols = cols[row_idx]
+            row_cells = cell_map[row_idx]
+            row_needed_h = default_row_h
+            for col_idx, share in enumerate(row_cols):
+                cell_w = width * share
+                cell_cfg = row_cells[col_idx] if col_idx < len(row_cells) else {}
+                cell_data = self._resolve_from_path(src, cell_cfg["from"]) if "from" in cell_cfg else cell_cfg
+                label = _format_text((cell_data or {}).get(cell_cfg.get("label_key", "label"), ""))
+                value = _format_text((cell_data or {}).get(cell_cfg.get("value_key", "value"), ""))
+
+                content_w = max(cell_w - 8, 1)
+                label_h = 0.0
+                if label.strip():
+                    label_p = self._build_paragraph(
+                        label,
+                        label_font_size,
+                        font_name=self.FONT_FAMILY_BOLD if label_bold else self.FONT_FAMILY,
+                        alignment=label_align,
+                    )
+                    _, label_h = label_p.wrap(content_w, self.PAGE_SIZE[1])
+
+                value_h = 0.0
+                if value.strip():
+                    value_p = self._build_paragraph(
+                        value,
+                        value_size,
+                        font_name=self.FONT_FAMILY_BOLD if value_bold else self.FONT_FAMILY,
+                        alignment=value_align,
+                    )
+                    _, value_h = value_p.wrap(content_w, self.PAGE_SIZE[1])
+
+                needed_h = max(label_top_pad + label_h, value_top_pad + value_h) + row_bottom_pad
+                row_needed_h = max(row_needed_h, needed_h)
+
+            row_heights.append(row_needed_h)
+
+        total_height = sum(row_heights)
 
         c.setLineWidth(0.7)
-        c.rect(x, y - (rows * row_h), width, rows * row_h)
+        c.rect(x, y - total_height, width, total_height)
 
         y_cursor = y
         for row_idx in range(rows):
+            row_h = row_heights[row_idx]
             y_next = y_cursor - row_h
             if row_idx > 0:
                 c.line(x, y_cursor, x + width, y_cursor)
@@ -245,13 +330,33 @@ class ContractPdfCreator:
                 label = _format_text((cell_data or {}).get(cell_cfg.get("label_key", "label"), ""))
                 value = _format_text((cell_data or {}).get(cell_cfg.get("value_key", "value"), ""))
 
-                self._draw_paragraph_in_cell(c, label, cx + 4, y_cursor, cell_w - 8, label_top_pad, label_font_size)
-                self._draw_paragraph_in_cell(c, value, cx + 4, y_cursor, cell_w - 8, value_top_pad, value_size)
+                self._draw_paragraph_in_cell(
+                    c,
+                    label,
+                    cx + 4,
+                    y_cursor,
+                    cell_w - 8,
+                    label_top_pad,
+                    label_font_size,
+                    font_name=self.FONT_FAMILY_BOLD if label_bold else self.FONT_FAMILY,
+                    alignment=label_align,
+                )
+                self._draw_paragraph_in_cell(
+                    c,
+                    value,
+                    cx + 4,
+                    y_cursor,
+                    cell_w - 8,
+                    value_top_pad,
+                    value_size,
+                    font_name=self.FONT_FAMILY_BOLD if value_bold else self.FONT_FAMILY,
+                    alignment=value_align,
+                )
                 cx += cell_w
 
             y_cursor = y_next
 
-        self.y = y - (rows * row_h)
+        self.y = y - total_height
         return self.y
 
     def draw_framed_calc_block(
@@ -401,6 +506,146 @@ class ContractPdfCreator:
             "Siegen, den _______________      _______________________ / FleXXLager GmbH & Co. KG",
         )
 
+    def draw_interest_tables_headers(self, c: Canvas, y_top: float | None = None) -> float:
+        y = self.y if y_top is None else y_top
+        x = self.MARGIN_LEFT
+        width = self.content_width
+        gap = 12.0
+        table_w = (width - (gap * 2)) / 3.0
+
+        bond_price = Decimal(self.issue.bond_price) if self.issue.bond_price is not None else None
+        if bond_price is None:
+            bond_price_text = "[__]"
+        else:
+            bond_price_text = f"{bond_price.quantize(Decimal('0.01'))}".replace(".", ",")
+
+        left_header = f"Stückzinsen je Teilschuldverschreibung zu EUR {bond_price_text}\nin EUR"
+        right_header = "Datum der Einzahlung"
+
+        for idx in range(3):
+            tx = x + idx * (table_w + gap)
+            self.draw_table(
+                c,
+                y_top=y,
+                rows=1,
+                cols=[[0.52, 0.48]],
+                cell_map=[[{"label": "", "value": left_header}, {"label": "", "value": right_header}]],
+                table_width=table_w,
+                left_indent=tx,
+                label_font_size=self.FONT_SIZE_SMALL,
+                value_font_size=self.FONT_SIZE_SMALL,
+                label_top_pad=0.0,
+                value_top_pad=5.0,
+                value_align=1,
+                value_bold=True,
+                row_bottom_pad=5.0,
+            )
+
+        self.y = min(self.y, y)
+        return self.y
+
+    def draw_interest_tables_rows(self, c: Canvas, y_top: float | None = None) -> float:
+        y = self.y if y_top is None else y_top
+        x = self.MARGIN_LEFT
+        width = self.content_width
+        gap = 12.0
+        table_w = (width - (gap * 2)) / 3.0
+        content_top_pad = 5.0
+        content_bottom_pad = 5.0
+
+        if not (self.issue.issue_date and self.issue.term_months and self.issue.interest_rate and self.issue.bond_price):
+            self.y = y
+            return self.y
+
+        rows = build_stueckzinsen_rows_for_issue(
+            issue_date=self.issue.issue_date,
+            term_months=self.issue.term_months,
+            interest_rate_percent=Decimal(self.issue.interest_rate),
+            nominal_value=Decimal(self.issue.bond_price),
+            decimals=6,
+            holiday_country="DE",
+            holiday_subdiv=None,
+        )
+        period_start = self.issue.issue_date
+        try:
+            period_end = period_start.replace(year=period_start.year + 1) - timedelta(days=1)
+        except ValueError:
+            # 29 Feb -> 28 Feb next year, then minus one day.
+            period_end = period_start.replace(year=period_start.year + 1, month=2, day=28) - timedelta(days=1)
+
+        period_rows = [r for r in rows if period_start <= r.pay_date <= period_end]
+        if not period_rows:
+            self.y = y
+            return self.y
+
+        per_col = (len(period_rows) + 2) // 3
+        split_cols = [period_rows[i * per_col:(i + 1) * per_col] for i in range(3)]
+        num_w = max((table_w * 0.52) - 8, 1)
+        date_w = max((table_w * 0.48) - 8, 1)
+        num_h_max = 0.0
+        date_h_max = 0.0
+        for r in period_rows:
+            p_num = self._build_paragraph(r.stueckzins_de, self.FONT_SIZE_SMALL)
+            _, h_num = p_num.wrap(num_w, self.PAGE_SIZE[1])
+            num_h_max = max(num_h_max, h_num)
+
+            p_date = self._build_paragraph(
+                format_date(r.pay_date, format="d. LLL yy", locale="de_DE"),
+                self.FONT_SIZE_SMALL,
+            )
+            _, h_date = p_date.wrap(date_w, self.PAGE_SIZE[1])
+            date_h_max = max(date_h_max, h_date)
+
+        row_h = max(content_top_pad + num_h_max, content_top_pad + date_h_max) + content_bottom_pad
+        max_rows = max(len(c_rows) for c_rows in split_cols)
+        row_offset = 0
+        last_bottom = y
+        while row_offset < max_rows:
+            available_h = y - self.MARGIN_BOTTOM
+            rows_fit = max(1, int(available_h // row_h))
+            take = min(rows_fit, max_rows - row_offset)
+
+            bottoms: list[float] = []
+            for idx, all_rows in enumerate(split_cols):
+                col_rows = all_rows[row_offset:row_offset + take]
+                if not col_rows:
+                    continue
+                tx = x + idx * (table_w + gap)
+                cell_map = [[
+                    {"label": "", "value": r.stueckzins_de},
+                    {"label": "", "value": format_date(r.pay_date, format="d. LLL yy", locale="de_DE")},
+                ] for r in col_rows]
+                bottom = self.draw_table(
+                    c,
+                    y_top=y,
+                    rows=len(cell_map),
+                    cols=[[0.52, 0.48] for _ in range(len(cell_map))],
+                    cell_map=cell_map,
+                    table_width=table_w,
+                    left_indent=tx,
+                    row_height=row_h,
+                    label_font_size=self.FONT_SIZE_SMALL,
+                    value_font_size=self.FONT_SIZE_SMALL,
+                    label_top_pad=0.0,
+                    value_top_pad=content_top_pad,
+                    value_align=1,
+                    row_bottom_pad=content_bottom_pad,
+                    min_row_height=0.0,
+                )
+                bottoms.append(bottom)
+
+            if bottoms:
+                last_bottom = min(bottoms)
+
+            row_offset += take
+            if row_offset < max_rows:
+                c.showPage()
+                self._cursor_reset()
+                y = self.y
+
+        self.y = last_bottom
+        return self.y
+
     def _build_framed_block_2(self) -> dict[str, Any]:
         def _fmt_6(v: Decimal | None) -> str:
             if v is None:
@@ -523,6 +768,9 @@ class ContractPdfCreator:
                 "field_4": {"label": "BIC", "value": _format_text(self.client.bank_bic)},
             },
             "text_block_6": _format_text(issue_contract.get("text_zwischen_3")),
+            "header_3": _format_text(issue_contract.get("ueberschrift_ergaenzung")),
+            "text_block_7": _format_text(issue_contract.get("ergaenzung_text_1")),
+            "text_block_8": _format_text(issue_contract.get("ergaenzung_beispiel")),
         }
 
     def build(self) -> ContractPdfBuildResult:
@@ -533,7 +781,12 @@ class ContractPdfCreator:
 
         block_1 = self.content.get("framed_block_1", {})
         block_1_text = f"{block_1.get('text_1', '')}\n{block_1.get('text_2', '')}"
-        self.draw_framed_text(c, block_1_text, frame_width=self.content_width * 0.62)
+        self.draw_framed_text(
+            c,
+            block_1_text,
+            frame_width=self.content_width * 0.62,
+            left_indent=self.MARGIN_LEFT + 30.0,
+        )
         self._cursor_gap(self.BLOCK_GAP_XXL + 4)
 
         self.draw_text(c, self.content.get("header_1", ""), font_size=self.FONT_SIZE_HEADER_1)
@@ -625,6 +878,25 @@ class ContractPdfCreator:
         self.draw_bottom_company_footer(c)
 
         c.showPage()
+        self._cursor_reset()
+        self.draw_text(c, self.content.get("header_3", ""), font_size=self.FONT_SIZE_HEADER_2)
+        self._cursor_gap(self.BLOCK_GAP_MD)
+        self.draw_text(c, self.content.get("text_block_7", ""))
+        self._cursor_gap(self.BLOCK_GAP_LG + 10.0)
+        self.draw_interest_tables_headers(c)
+        self._cursor_gap(0.0)
+        self.draw_interest_tables_rows(c)
+
+        framed_text = self.content.get("text_block_8", "")
+        needed_h = (self.BLOCK_GAP_LG + 5.0) + self._measure_text_height(
+            framed_text,
+            self.FONT_SIZE_TEXT,
+            max(self.content_width - 12.0, 1),
+        ) + 12.0
+        self._ensure_space(c, needed_h)
+        self._cursor_gap(self.BLOCK_GAP_LG + 5.0)
+        self.draw_framed_text(c, framed_text)
+
         c.save()
         return ContractPdfBuildResult(
             pdf_bytes=buffer.getvalue(),
