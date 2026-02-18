@@ -6,12 +6,14 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import os
+from urllib.parse import urlencode
 
 from babel.numbers import format_decimal
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from app_users.models import FlexxUser, TippgeberClient
@@ -76,6 +78,11 @@ def _format_decimal_de(value, fmt: str) -> str:
         return str(value)
 
 
+def _redirect_contracts_list_with_notice(code: str) -> HttpResponse:
+    base = reverse("panel_admin_contracts_list")
+    return redirect(f"{base}?{urlencode({'notice': code})}")
+
+
 @login_required
 def contracts_list(request: HttpRequest) -> HttpResponse:
     denied = admin_only(request)
@@ -98,8 +105,7 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
     for c in contracts:
         c.tippgeber = tip_by_client_id.get(c.client_id)
         c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
-        c.pdf_display_name = f"FleXXLager-Vertrag-IN{c.id}.pdf" if c.pdf_file else ""
-        c.pdf_shortname = _shorten_middle(c.pdf_display_name) if c.pdf_display_name else ""
+        c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
         c.bonds_quantity_display = _format_decimal_de(c.bonds_quantity, "#,##0") if c.bonds_quantity is not None else ""
         c.nominal_amount_display = _format_decimal_de(c.nominal_amount, "#,##0.00") if c.nominal_amount is not None else ""
         c.nominal_amount_plus_percent_display = (
@@ -107,7 +113,16 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
             if c.nominal_amount_plus_percent is not None else ""
         )
 
-    return render(request, "app_panel_admin/contracts_list.html", {"contracts": contracts})
+    notice_code = (request.GET.get("notice") or "").strip()
+    notice_text = ""
+    if notice_code == "mail_failed_status_changed":
+        notice_text = "E-Mail wurde wegen technischer Probleme nicht versendet. Status wurde geändert."
+
+    return render(
+        request,
+        "app_panel_admin/contracts_list.html",
+        {"contracts": contracts, "notice_text": notice_text},
+    )
 
 
 @login_required
@@ -124,14 +139,17 @@ def contract_toggle_signed_received(request: HttpRequest, contract_id: int) -> H
     c.save(update_fields=["signed_received_at", "updated_at"])
 
     if (not was_set) and c.signed_received_at and request.POST.get("notify") == "1":
-        send_contract_signed_received_email(
-            to_email=c.client.email,
-            first_name=c.client.first_name or "",
-            last_name=c.client.last_name or "",
-            contract_id=c.id,
-            issue_title=c.issue.title,
-            signed_date=c.signed_received_at,
-        )
+        try:
+            send_contract_signed_received_email(
+                to_email=c.client.email,
+                first_name=c.client.first_name or "",
+                last_name=c.client.last_name or "",
+                contract_id=c.id,
+                issue_title=c.issue.title,
+                signed_date=c.signed_received_at,
+            )
+        except Exception:
+            return _redirect_contracts_list_with_notice("mail_failed_status_changed")
     return redirect("panel_admin_contracts_list")
 
 
@@ -149,14 +167,17 @@ def contract_toggle_paid(request: HttpRequest, contract_id: int) -> HttpResponse
     c.save(update_fields=["paid_at", "updated_at"])
 
     if (not was_set) and c.paid_at and request.POST.get("notify") == "1":
-        send_contract_paid_received_email(
-            to_email=c.client.email,
-            first_name=c.client.first_name or "",
-            last_name=c.client.last_name or "",
-            contract_id=c.id,
-            issue_title=c.issue.title,
-            paid_date=c.paid_at,
-        )
+        try:
+            send_contract_paid_received_email(
+                to_email=c.client.email,
+                first_name=c.client.first_name or "",
+                last_name=c.client.last_name or "",
+                contract_id=c.id,
+                issue_title=c.issue.title,
+                paid_date=c.paid_at,
+            )
+        except Exception:
+            return _redirect_contracts_list_with_notice("mail_failed_status_changed")
     return redirect("panel_admin_contracts_list")
 
 

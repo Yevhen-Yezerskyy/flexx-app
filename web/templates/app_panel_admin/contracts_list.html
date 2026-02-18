@@ -22,6 +22,11 @@ function flexxContractStatusConfirm(formEl) {
 </div>
 
 <div class="bg-white border border-gray-400 rounded-md overflow-hidden">
+  {% if notice_text %}
+    <div class="px-4 py-3 bg-gray-100 border-b border-gray-200">
+      {{ notice_text }}
+    </div>
+  {% endif %}
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
@@ -57,20 +62,20 @@ function flexxContractStatusConfirm(formEl) {
             <div>Kunde:</div>
             <div class="font-semibold">
               {{ c.client.first_name }} {{ c.client.last_name }}
-              (<a href="mailto:{{ c.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.client.email }}</a>)
+              <a href="mailto:{{ c.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.client.email }}</a>
             </div>
             {% if c.tippgeber %}
               <div class="mt-2">Tippgeber:</div>
               <div>
                 {{ c.tippgeber.first_name }} {{ c.tippgeber.last_name }}
-                (<a href="mailto:{{ c.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.tippgeber.email }}</a>)
+                <a href="mailto:{{ c.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.tippgeber.email }}</a>
               </div>
             {% endif %}
           </td>
 
           <td class="px-4 py-3">
             {% if c.pdf_file %}
-              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_display_name }}">
+              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_basename }}">
                 {{ c.pdf_shortname }}
               </a>
             {% else %}
