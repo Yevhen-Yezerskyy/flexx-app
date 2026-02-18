@@ -38,15 +38,22 @@ User = get_user_model()
 
 # ---------------- AUTH ----------------
 
-def _redirect_by_role(role: str) -> HttpResponse:
+def _redirect_by_role(user) -> HttpResponse:
+    role = getattr(user, "role", "client")
     if role == "admin":
         return redirect("/panel/admin/")
     if role == "agent":
         return redirect("/panel/tippgeber/")
+    has_contracts = user.contracts_as_client.exists()
+    if has_contracts:
+        return redirect("/panel/client/contracts/")
     return redirect("/panel/client/")
 
 
 def home(request: HttpRequest) -> HttpResponse:
+    if request.user.is_authenticated:
+        return _redirect_by_role(request.user)
+
     error = ""
     form = LoginForm(request.POST or None)
 
@@ -60,7 +67,7 @@ def home(request: HttpRequest) -> HttpResponse:
                 error = "Benutzer gefunden. Wir warten auf die Aktivierung."
             else:
                 auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-                return _redirect_by_role(getattr(user, "role", "client"))
+                return _redirect_by_role(user)
         else:
             error = "Login oder Passwort ist falsch."
 
