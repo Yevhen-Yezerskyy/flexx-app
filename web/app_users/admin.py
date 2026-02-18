@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from django.contrib import admin
-from .models import FlexxUser
+from .models import FlexxUser, TippgeberClient
 
 
 @admin.register(FlexxUser)
@@ -34,3 +34,18 @@ class FlexxUserAdmin(admin.ModelAdmin):
         ("Company", {"fields": ("company",)}),
         ("Meta", {"fields": ("date_joined", "last_login")}),
     )
+
+
+@admin.register(TippgeberClient)
+class TippgeberClientAdmin(admin.ModelAdmin):
+    list_display = ("id", "tippgeber", "client", "created_at")
+    search_fields = (
+        "tippgeber__email",
+        "tippgeber__first_name",
+        "tippgeber__last_name",
+        "client__email",
+        "client__first_name",
+        "client__last_name",
+    )
+    autocomplete_fields = ("tippgeber", "client")
+    readonly_fields = ("created_at",)
