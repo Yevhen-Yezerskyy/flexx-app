@@ -48,15 +48,17 @@ def send_client(request: HttpRequest) -> HttpResponse:
         if action == "notify_conflict":
             ex_email = (request.POST.get("client_email") or "").strip().lower()
 
-            # важное: email отправка должна падать райзом внутри emailer.py
-            send_tippgeber_link_conflict_email(
-                tippgeber_email=getattr(request.user, "email", ""),
-                tippgeber_first_name=getattr(request.user, "first_name", ""),
-                tippgeber_last_name=getattr(request.user, "last_name", ""),
-                client_email=ex_email,
-                client_first_name=(request.POST.get("client_first_name") or "").strip(),
-                client_last_name=(request.POST.get("client_last_name") or "").strip(),
-            )
+            try:
+                send_tippgeber_link_conflict_email(
+                    tippgeber_email=getattr(request.user, "email", ""),
+                    tippgeber_first_name=getattr(request.user, "first_name", ""),
+                    tippgeber_last_name=getattr(request.user, "last_name", ""),
+                    client_email=ex_email,
+                    client_first_name=(request.POST.get("client_first_name") or "").strip(),
+                    client_last_name=(request.POST.get("client_last_name") or "").strip(),
+                )
+            except Exception:
+                pass
 
             return redirect("panel_tippgeber_my_clients")
 
@@ -105,6 +107,7 @@ def send_client(request: HttpRequest) -> HttpResponse:
                 "client_zip_code": (cd.get("zip_code") or "").strip(),
                 "client_city": (cd.get("city") or "").strip(),
                 "client_phone": (cd.get("phone") or "").strip(),
+                "client_mobile_phone": (cd.get("mobile_phone") or "").strip(),
             }
             return render(request, "app_panel_tippgeber/client_status.html", {"today": today, "state": state})
 
@@ -116,15 +119,17 @@ def send_client(request: HttpRequest) -> HttpResponse:
 
         TippgeberClient.objects.create(tippgeber=request.user, client=new_client)
 
-        # важное: email отправка должна падать райзом внутри emailer.py
-        send_tippgeber_added_interessent_email(
-            tippgeber_email=getattr(request.user, "email", ""),
-            tippgeber_first_name=getattr(request.user, "first_name", ""),
-            tippgeber_last_name=getattr(request.user, "last_name", ""),
-            client_email=new_client.email,
-            client_first_name=new_client.first_name or "",
-            client_last_name=new_client.last_name or "",
-        )
+        try:
+            send_tippgeber_added_interessent_email(
+                tippgeber_email=getattr(request.user, "email", ""),
+                tippgeber_first_name=getattr(request.user, "first_name", ""),
+                tippgeber_last_name=getattr(request.user, "last_name", ""),
+                client_email=new_client.email,
+                client_first_name=new_client.first_name or "",
+                client_last_name=new_client.last_name or "",
+            )
+        except Exception:
+            pass
 
         state = {
             "mode": "created",
@@ -141,6 +146,7 @@ def send_client(request: HttpRequest) -> HttpResponse:
             "client_zip_code": (cd.get("zip_code") or "").strip(),
             "client_city": (cd.get("city") or "").strip(),
             "client_phone": (cd.get("phone") or "").strip(),
+            "client_mobile_phone": (cd.get("mobile_phone") or "").strip(),
         }
         return render(request, "app_panel_tippgeber/client_status.html", {"today": today, "state": state})
 

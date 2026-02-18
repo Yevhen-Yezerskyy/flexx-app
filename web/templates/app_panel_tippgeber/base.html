@@ -26,9 +26,9 @@
 
       <div class="h-5 w-px bg-gray-300"></div>
 
-      <div class="bg-gray-50 rounded-md px-6 py-3">
+      <div class="bg-gray-100 rounded-md px-6 py-3">
         <div class="text-[23px] text-[var(--text)]">
-          {% block panel_where %}Kunden senden{% endblock %}
+          {% block panel_where %}Kunden erfassen{% endblock %}
         </div>
       </div>
 
@@ -38,7 +38,7 @@
 
         <a href="{% url 'panel_tippgeber_send_client' %}"
            class="underline {% block nav_send_client_class %}hover:text-[var(--accent)]{% endblock %}">
-          Kunden senden
+          Kunden erfassen
         </a>
 
         <a href="{% url 'panel_tippgeber_my_clients' %}"
@@ -70,7 +70,7 @@
   <footer>
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
-    <div class="bg-gray-50 px-8 py-3 flex items-center">
+    <div class="bg-gray-100 px-8 py-3 flex items-center">
       <div class="text-sm text-[var(--text)]">
         {% if user.first_name or user.last_name %}
           {{ user.first_name }} {{ user.last_name }}

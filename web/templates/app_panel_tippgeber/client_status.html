@@ -58,6 +58,9 @@ text-[var(--accent)] font-semibold
 
       <div class="col-span-3 font-semibold">Telefon</div>
       <div class="col-span-9">{{ state.client_phone|default:"" }}</div>
+
+      <div class="col-span-3 font-semibold">Mobiltelefon</div>
+      <div class="col-span-9">{{ state.client_mobile_phone|default:"" }}</div>
     </div>
   </div>
 
@@ -75,6 +78,7 @@ text-[var(--accent)] font-semibold
         <input type="hidden" name="client_zip_code" value="{{ state.client_zip_code }}">
         <input type="hidden" name="client_city" value="{{ state.client_city }}">
         <input type="hidden" name="client_phone" value="{{ state.client_phone }}">
+        <input type="hidden" name="client_mobile_phone" value="{{ state.client_mobile_phone }}">
 
         <button type="submit"
                 class="rounded-md bg-[var(--accent)] text-white py-3 px-6 hover:brightness-110 transition font-semibold text-center">

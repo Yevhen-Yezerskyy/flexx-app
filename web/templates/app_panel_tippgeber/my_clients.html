@@ -20,26 +20,68 @@ text-[var(--accent)] font-semibold
   </a>
 </div>
 
-<div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5">
-  {% if clients %}
-    <div class="grid grid-cols-12 text-sm font-semibold text-[var(--text)] mb-3">
-      <div class="col-span-4">E-Mail</div>
-      <div class="col-span-4">Name</div>
-      <div class="col-span-4">Firma</div>
-    </div>
-
-    <div class="flex flex-col gap-2">
-      {% for c in clients %}
-        <div class="grid grid-cols-12 bg-gray-50 rounded-md px-4 py-3 text-[var(--text)]">
-          <div class="col-span-4">{{ c.email }}</div>
-          <div class="col-span-4">{{ c.last_name }} {{ c.first_name }}</div>
-          <div class="col-span-4">{{ c.company|default:"" }}</div>
-        </div>
+<div class="bg-white border border-gray-400 rounded-md overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-100">
+      <tr class="text-left">
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[30%]">Kunde</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[26%]">Vertrag</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[14%]">Vertrag erstellt?</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[14%]">Vertrag erhalten?</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Vertrag bezahlt?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr class="border-t border-gray-200 align-top">
+          <td class="px-4 py-3">
+            {{ r.client.last_name }} {{ r.client.first_name }}<br>
+            <a href="mailto:{{ r.client.email }}" class="underline hover:text-[var(--accent)] transition">
+              {{ r.client.email }}
+            </a>
+          </td>
+          <td class="px-4 py-3">
+            {% if r.contract %}
+              {{ r.contract.issue.title }}<br>
+              <div class="grid grid-cols-[95px_1fr] gap-x-2 mt-1">
+                <div>Zahlbar bis:</div>
+                <div>{% if r.contract.settlement_date %}{{ r.contract.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                <div>Betrag, €:</div>
+                <div>{{ r.contract_total_display }}</div>
+              </div>
+            {% else %}
+              Kein Vertrag
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if r.contract %}
+              Ja<br>{{ r.contract.contract_date|date:"d.m.Y" }}
+            {% else %}
+              Nein
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if r.contract and r.contract.signed_received_at %}
+              Ja<br>{{ r.contract.signed_received_at|date:"d.m.Y" }}
+            {% else %}
+              Nein
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if r.contract and r.contract.paid_at %}
+              Ja<br>{{ r.contract.paid_at|date:"d.m.Y" }}
+            {% else %}
+              Nein
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td class="px-4 py-10 text-gray-500" colspan="5">Keine Kunden.</td>
+        </tr>
       {% endfor %}
-    </div>
-  {% else %}
-    <div class="text-gray-600">Keine Kunden.</div>
-  {% endif %}
+    </tbody>
+  </table>
 </div>
 
 {% endblock %}

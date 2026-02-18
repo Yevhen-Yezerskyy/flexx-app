@@ -12,7 +12,7 @@ _DATE_WIDGET = forms.DateInput(
     format="%Y-%m-%d",
     attrs={
         "type": "date",
-        "class": "border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none",
+        "class": "border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white",
     },
 )
 
@@ -30,6 +30,7 @@ class TippgeberProfileForm(forms.ModelForm):
             "zip_code",
             "city",
             "phone",
+            "mobile_phone",
             "fax",
             "handelsregister",
             "handelsregister_number",
@@ -51,6 +52,7 @@ class TippgeberProfileForm(forms.ModelForm):
             self.fields[f].required = True
 
         self.fields["bank_bic"].required = False
+        self.fields["mobile_phone"].required = False
         self.fields["fax"].required = False
         self.fields["company"].required = False
         self.fields["contact_person"].required = False
@@ -64,17 +66,7 @@ class TippgeberProfileForm(forms.ModelForm):
         return (self.cleaned_data.get("email") or "").strip().lower()
 
     def clean(self):
-        cleaned = super().clean()
-        company = (cleaned.get("company") or "").strip()
-        hr = (cleaned.get("handelsregister") or "").strip()
-        hrn = (cleaned.get("handelsregister_number") or "").strip()
-
-        if company:
-            if not hr:
-                self.add_error("handelsregister", "Pflichtfeld, wenn Firma gesetzt ist.")
-            if not hrn:
-                self.add_error("handelsregister_number", "Pflichtfeld, wenn Firma gesetzt ist.")
-        return cleaned
+        return super().clean()
 
 
 class ClientCreateForm(forms.ModelForm):
@@ -90,6 +82,7 @@ class ClientCreateForm(forms.ModelForm):
             "zip_code",
             "city",
             "phone",
+            "mobile_phone",
             "fax",
             "handelsregister",
             "handelsregister_number",
@@ -104,6 +97,7 @@ class ClientCreateForm(forms.ModelForm):
             self.fields[f].required = True
 
         self.fields["birth_date"].required = False
+        self.fields["mobile_phone"].required = False
         self.fields["fax"].required = False
         self.fields["company"].required = False
         self.fields["contact_person"].required = False
@@ -120,17 +114,7 @@ class ClientCreateForm(forms.ModelForm):
         return
 
     def clean(self):
-        cleaned = super().clean()
-        company = (cleaned.get("company") or "").strip()
-        hr = (cleaned.get("handelsregister") or "").strip()
-        hrn = (cleaned.get("handelsregister_number") or "").strip()
-
-        if company:
-            if not hr:
-                self.add_error("handelsregister", "Pflichtfeld, wenn Firma gesetzt ist.")
-            if not hrn:
-                self.add_error("handelsregister_number", "Pflichtfeld, wenn Firma gesetzt ist.")
-        return cleaned
+        return super().clean()
 
 
 class ConfirmationsForm(forms.Form):

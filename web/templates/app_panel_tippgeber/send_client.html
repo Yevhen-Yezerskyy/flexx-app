@@ -2,7 +2,7 @@
 <!-- FILE: web/templates/app_panel_tippgeber/send_client.html  (обновлено — 2026-02-15)
      PURPOSE: Взято 1:1 из архива; добавлено: верхняя кнопка "Zurück" и нижняя серая "Abbrechen" (как в эмиссиях). -->
 {% block panel_where %}
-Formular für Tippgeber
+Kunden erfassen
 {% endblock %}
 {% block nav_send_client_class %}
 text-[var(--accent)] font-semibold
@@ -11,17 +11,17 @@ text-[var(--accent)] font-semibold
 {% block panel_content %}
 
 <div class="flex items-center mb-10 mt-2">
-  <div class="text-2xl">Formular für Tippgeber</div>
+  <div class="text-2xl">Kunden erfassen</div>
   <div class="flex-1"></div>
 
   <a href="{% url 'panel_tippgeber_my_clients' %}"
-     class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+     class="w-48 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
     Zurück
   </a>
 </div>
 
 {% if state.ok %}
-  <div class="mb-6 bg-white border border-[var(--accent)] rounded-md px-7 py-4">
+  <div class="mb-6 bg-white border border-gray-400 rounded-md px-7 py-4">
     <div class="text-[var(--text)] font-semibold">{{ state.ok }}</div>
   </div>
 {% endif %}
@@ -35,14 +35,14 @@ text-[var(--accent)] font-semibold
 <form method="post" class="flex flex-col gap-6">
   {% csrf_token %}
 
-  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-3">
+  <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
     <div class="text-xl mb-2">Angaben zum Tippgeber</div>
 
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">E-Mail*</label>
         <input name="{{ tipp_form.email.html_name }}" value="{{ tipp_form.email.value|default:'' }}" type="email"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.email.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.email.errors|join:", " }}</div>
         {% endif %}
@@ -54,7 +54,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Nachname*</label>
         <input name="{{ tipp_form.last_name.html_name }}" value="{{ tipp_form.last_name.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.last_name.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.last_name.errors|join:", " }}</div>
         {% endif %}
@@ -63,7 +63,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Vorname*</label>
         <input name="{{ tipp_form.first_name.html_name }}" value="{{ tipp_form.first_name.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.first_name.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.first_name.errors|join:", " }}</div>
         {% endif %}
@@ -82,7 +82,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">Firma</label>
         <input name="{{ tipp_form.company.html_name }}" value="{{ tipp_form.company.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.company.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.company.errors|join:", " }}</div>
         {% endif %}
@@ -94,7 +94,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">Straße, Hausnummer*</label>
         <input name="{{ tipp_form.street.html_name }}" value="{{ tipp_form.street.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.street.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.street.errors|join:", " }}</div>
         {% endif %}
@@ -103,7 +103,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">PLZ*</label>
         <input name="{{ tipp_form.zip_code.html_name }}" value="{{ tipp_form.zip_code.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.zip_code.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.zip_code.errors|join:", " }}</div>
         {% endif %}
@@ -112,7 +112,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">Ort*</label>
         <input name="{{ tipp_form.city.html_name }}" value="{{ tipp_form.city.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.city.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.city.errors|join:", " }}</div>
         {% endif %}
@@ -123,29 +123,36 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Telefon*</label>
         <input name="{{ tipp_form.phone.html_name }}" value="{{ tipp_form.phone.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.phone.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.phone.errors|join:", " }}</div>
         {% endif %}
       </div>
 
       <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Mobiltelefon</label>
+        <input name="{{ tipp_form.mobile_phone.html_name }}" value="{{ tipp_form.mobile_phone.value|default:'' }}" type="text"
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
+        {% if tipp_form.mobile_phone.errors %}
+          <div class="text-sm text-red-600">{{ tipp_form.mobile_phone.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Fax</label>
         <input name="{{ tipp_form.fax.html_name }}" value="{{ tipp_form.fax.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.fax.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.fax.errors|join:", " }}</div>
         {% endif %}
       </div>
-
-      <div>&nbsp;</div>
     </div>
 
     <div class="grid grid-cols-3 gap-4 mb-8 mt-8">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Handelsregister</label>
         <input name="{{ tipp_form.handelsregister.html_name }}" value="{{ tipp_form.handelsregister.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.handelsregister.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.handelsregister.errors|join:", " }}</div>
         {% endif %}
@@ -154,7 +161,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Handelsregister-Nummer</label>
         <input name="{{ tipp_form.handelsregister_number.html_name }}" value="{{ tipp_form.handelsregister_number.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.handelsregister_number.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.handelsregister_number.errors|join:", " }}</div>
         {% endif %}
@@ -163,7 +170,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Ansprechpartner</label>
         <input name="{{ tipp_form.contact_person.html_name }}" value="{{ tipp_form.contact_person.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.contact_person.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.contact_person.errors|join:", " }}</div>
         {% endif %}
@@ -176,7 +183,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Kontoinhaber* (Vor- und Nachname / Firmenname)</label>
         <input name="{{ tipp_form.bank_account_holder.html_name }}" value="{{ tipp_form.bank_account_holder.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.bank_account_holder.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.bank_account_holder.errors|join:", " }}</div>
         {% endif %}
@@ -188,7 +195,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">IBAN*</label>
         <input name="{{ tipp_form.bank_iban.html_name }}" value="{{ tipp_form.bank_iban.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.bank_iban.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.bank_iban.errors|join:", " }}</div>
         {% endif %}
@@ -197,7 +204,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">Bank* (Bankinstitut)</label>
         <input name="{{ tipp_form.bank_name.html_name }}" value="{{ tipp_form.bank_name.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.bank_name.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.bank_name.errors|join:", " }}</div>
         {% endif %}
@@ -206,7 +213,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">BIC</label>
         <input name="{{ tipp_form.bank_bic.html_name }}" value="{{ tipp_form.bank_bic.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if tipp_form.bank_bic.errors %}
           <div class="text-sm text-red-600">{{ tipp_form.bank_bic.errors|join:", " }}</div>
         {% endif %}
@@ -218,14 +225,14 @@ text-[var(--accent)] font-semibold
     Hiermit übermittle ich Ihnen gem. unserer Vereinbarung in der oben angegebenen Funktion die Daten eines Interessenten.
   </div>
 
-  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-3">
+  <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
     <div class="text-xl mb-2">Angaben zum Interessenten:</div>
 
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">E-Mail*</label>
         <input name="{{ client_form.email.html_name }}" value="{{ client_form.email.value|default:'' }}" type="email"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.email.errors %}
           <div class="text-sm text-red-600">{{ client_form.email.errors|join:", " }}</div>
         {% endif %}
@@ -237,7 +244,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Nachname*</label>
         <input name="{{ client_form.last_name.html_name }}" value="{{ client_form.last_name.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.last_name.errors %}
           <div class="text-sm text-red-600">{{ client_form.last_name.errors|join:", " }}</div>
         {% endif %}
@@ -246,7 +253,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Vorname*</label>
         <input name="{{ client_form.first_name.html_name }}" value="{{ client_form.first_name.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.first_name.errors %}
           <div class="text-sm text-red-600">{{ client_form.first_name.errors|join:", " }}</div>
         {% endif %}
@@ -265,7 +272,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">Firma</label>
         <input name="{{ client_form.company.html_name }}" value="{{ client_form.company.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.company.errors %}
           <div class="text-sm text-red-600">{{ client_form.company.errors|join:", " }}</div>
         {% endif %}
@@ -277,7 +284,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">Straße, Hausnummer*</label>
         <input name="{{ client_form.street.html_name }}" value="{{ client_form.street.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.street.errors %}
           <div class="text-sm text-red-600">{{ client_form.street.errors|join:", " }}</div>
         {% endif %}
@@ -286,7 +293,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">PLZ*</label>
         <input name="{{ client_form.zip_code.html_name }}" value="{{ client_form.zip_code.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.zip_code.errors %}
           <div class="text-sm text-red-600">{{ client_form.zip_code.errors|join:", " }}</div>
         {% endif %}
@@ -295,7 +302,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">Ort*</label>
         <input name="{{ client_form.city.html_name }}" value="{{ client_form.city.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.city.errors %}
           <div class="text-sm text-red-600">{{ client_form.city.errors|join:", " }}</div>
         {% endif %}
@@ -306,29 +313,36 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Telefon*</label>
         <input name="{{ client_form.phone.html_name }}" value="{{ client_form.phone.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.phone.errors %}
           <div class="text-sm text-red-600">{{ client_form.phone.errors|join:", " }}</div>
         {% endif %}
       </div>
 
       <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Mobiltelefon</label>
+        <input name="{{ client_form.mobile_phone.html_name }}" value="{{ client_form.mobile_phone.value|default:'' }}" type="text"
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
+        {% if client_form.mobile_phone.errors %}
+          <div class="text-sm text-red-600">{{ client_form.mobile_phone.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Fax</label>
         <input name="{{ client_form.fax.html_name }}" value="{{ client_form.fax.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.fax.errors %}
           <div class="text-sm text-red-600">{{ client_form.fax.errors|join:", " }}</div>
         {% endif %}
       </div>
-
-      <div>&nbsp;</div>
     </div>
 
     <div class="grid grid-cols-3 gap-4 mb-8 mt-8">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Handelsregister</label>
         <input name="{{ client_form.handelsregister.html_name }}" value="{{ client_form.handelsregister.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.handelsregister.errors %}
           <div class="text-sm text-red-600">{{ client_form.handelsregister.errors|join:", " }}</div>
         {% endif %}
@@ -337,7 +351,7 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Handelsregister-Nummer</label>
         <input name="{{ client_form.handelsregister_number.html_name }}" value="{{ client_form.handelsregister_number.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.handelsregister_number.errors %}
           <div class="text-sm text-red-600">{{ client_form.handelsregister_number.errors|join:", " }}</div>
         {% endif %}
@@ -346,14 +360,14 @@ text-[var(--accent)] font-semibold
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Ansprechpartner</label>
         <input name="{{ client_form.contact_person.html_name }}" value="{{ client_form.contact_person.value|default:'' }}" type="text"
-               class="border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none">
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
         {% if client_form.contact_person.errors %}
           <div class="text-sm text-red-600">{{ client_form.contact_person.errors|join:", " }}</div>{% endif %}
       </div>
     </div>
   </div>
 
-  <div class="bg-white border border-[var(--accent)] rounded-md px-7 py-5 flex flex-col gap-3">
+  <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
     <label class="flex items-start gap-3">
       <input type="checkbox" name="{{ conf_form.consent1.html_name }}" {% if conf_form.consent1.value %}checked{% endif %} class="mt-1">
       <span>Der Interessent hat mir gegenüber der Weitergabe seiner Daten und einer Angebotsunterbreitung durch den Empfänger zugestimmt.</span>
@@ -380,7 +394,7 @@ text-[var(--accent)] font-semibold
     </button>
 
     <a href="{% url 'panel_tippgeber_my_clients' %}"
-       class="w-48 rounded-md bg-gray-50 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
+       class="w-48 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
       Abbrechen
     </a>
   </div>
