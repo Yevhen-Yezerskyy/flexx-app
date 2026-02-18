@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from babel.numbers import format_decimal
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -12,6 +13,13 @@ from flexx.contract_fields import CONTRACT_FIELDS
 from flexx.models import BondIssue, BondIssueAttachment
 
 from .common import admin_only
+
+
+def _format_decimal_de(value, fmt: str) -> str:
+    try:
+        return format_decimal(value, format=fmt, locale="de_DE")
+    except Exception:
+        return str(value or "")
 
 
 def _apply_attachments_post(issue: BondIssue, request: HttpRequest) -> None:
@@ -45,13 +53,9 @@ def issues_list(request: HttpRequest) -> HttpResponse:
     )
 
     for it in issues:
-        try:
-            if it.issue_volume is not None:
-                it.issue_volume_fmt = f"{int(it.issue_volume):,}".replace(",", " ")
-            else:
-                it.issue_volume_fmt = ""
-        except Exception:
-            it.issue_volume_fmt = str(it.issue_volume or "")
+        it.bond_price_fmt = _format_decimal_de(it.bond_price, "#,##0.00")
+        it.issue_volume_fmt = _format_decimal_de(it.issue_volume, "#,##0.00")
+        it.minimal_bonds_quantity_fmt = _format_decimal_de(it.minimal_bonds_quantity, "#,##0")
 
     return render(
         request,

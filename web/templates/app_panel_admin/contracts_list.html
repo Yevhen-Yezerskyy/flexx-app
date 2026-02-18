@@ -45,11 +45,11 @@ function flexxContractStatusConfirm(formEl) {
               <div class="font-semibold">{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
               <div class="font-semibold col-span-2 mt-2">{{ c.issue.title }}</div>
               <div>Anzahl:</div>
-              <div>{% if c.bonds_quantity %}{{ c.bonds_quantity }}{% else %}—{% endif %}</div>
-              <div>Nominal:</div>
-              <div>{% if c.nominal_amount %}{{ c.nominal_amount }}{% else %}—{% endif %}</div>
-              <div>Nominal + %:</div>
-              <div>{% if c.nominal_amount_plus_percent %}{{ c.nominal_amount_plus_percent }}{% else %}—{% endif %}</div>
+              <div>{% if c.bonds_quantity is not None %}{{ c.bonds_quantity_display }}{% else %}—{% endif %}</div>
+              <div>Nominal, €:</div>
+              <div>{% if c.nominal_amount is not None %}{{ c.nominal_amount_display }}{% else %}—{% endif %}</div>
+              <div>Nominal + %, €:</div>
+              <div>{% if c.nominal_amount_plus_percent is not None %}{{ c.nominal_amount_plus_percent_display }}{% else %}—{% endif %}</div>
             </div>
           </td>
 
@@ -70,7 +70,7 @@ function flexxContractStatusConfirm(formEl) {
 
           <td class="px-4 py-3">
             {% if c.pdf_file %}
-              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_basename }}">
+              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_display_name }}">
                 {{ c.pdf_shortname }}
               </a>
             {% else %}

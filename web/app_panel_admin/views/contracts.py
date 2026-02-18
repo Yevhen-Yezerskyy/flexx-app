@@ -7,6 +7,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 import os
 
+from babel.numbers import format_decimal
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
@@ -68,6 +69,13 @@ def _shorten_middle_keep_ext(name: str, max_len: int = 28) -> str:
     return f"{base[:keep_left]}...{base[-keep_right:]}{ext}"
 
 
+def _format_decimal_de(value, fmt: str) -> str:
+    try:
+        return format_decimal(value, format=fmt, locale="de_DE")
+    except Exception:
+        return str(value)
+
+
 @login_required
 def contracts_list(request: HttpRequest) -> HttpResponse:
     denied = admin_only(request)
@@ -90,7 +98,14 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
     for c in contracts:
         c.tippgeber = tip_by_client_id.get(c.client_id)
         c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
-        c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
+        c.pdf_display_name = f"FleXXLager-Vertrag-IN{c.id}.pdf" if c.pdf_file else ""
+        c.pdf_shortname = _shorten_middle(c.pdf_display_name) if c.pdf_display_name else ""
+        c.bonds_quantity_display = _format_decimal_de(c.bonds_quantity, "#,##0") if c.bonds_quantity is not None else ""
+        c.nominal_amount_display = _format_decimal_de(c.nominal_amount, "#,##0.00") if c.nominal_amount is not None else ""
+        c.nominal_amount_plus_percent_display = (
+            _format_decimal_de(c.nominal_amount_plus_percent, "#,##0.00")
+            if c.nominal_amount_plus_percent is not None else ""
+        )
 
     return render(request, "app_panel_admin/contracts_list.html", {"contracts": contracts})
 
@@ -173,6 +188,8 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
     tippgeber = tip_link.tippgeber if tip_link and tip_link.tippgeber_id else None
     issues = BondIssue.objects.prefetch_related("attachments").all().order_by("-issue_date", "-id")
     for issue in issues:
+        issue.bond_price_display = _format_decimal_de(issue.bond_price, "#,##0.00")
+        issue.issue_volume_display = _format_decimal_de(issue.issue_volume, "#,##0.00")
         for a in issue.attachments.all():
             a.short_filename = _shorten_middle_keep_ext(a.filename, max_len=28)
     pick_error: str | None = None
@@ -233,9 +250,17 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
         id=contract_id,
     )
     issue = contract.issue
+    tip_link = (
+        TippgeberClient.objects.filter(client=contract.client)
+        .select_related("tippgeber")
+        .first()
+    )
+    tippgeber = tip_link.tippgeber if tip_link and tip_link.tippgeber_id else None
 
     errors: list[str] = []
     ok_message: str | None = None
+    saved_pdf_url: str | None = None
+    saved_pdf_name: str | None = None
 
     form_contract_date = contract.contract_date
     form_qty = contract.bonds_quantity or issue.minimal_bonds_quantity
@@ -247,16 +272,6 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
-
-        # --- PDF: только если уже сохранено ---
-        if action == "pdf":
-            if mode != "saved":
-                errors.append("Bitte zuerst berechnen und speichern, dann PDF erzeugen.")
-            else:
-                res = build_contract_pdf(contract)
-                contract.pdf_file.save(res.filename, ContentFile(res.pdf_bytes), save=True)
-                ok_message = "PDF erstellt."
-                return redirect("panel_admin_contract_edit", contract_id=contract.id)
 
         d = _parse_iso_date(request.POST.get("contract_date") or "")
         if d is None:
@@ -295,7 +310,12 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             }
             mode = "calc"
 
-        if not errors and action == "save":
+        if not errors and action in {"save", "save_pdf"}:
+            if action == "save_pdf" and request.POST.get("receipt_confirm_contract") != "1":
+                errors.append("Bitte bestätigen Sie die Empfangsbestätigung.")
+                mode = "calc"
+
+        if not errors and action in {"save", "save_pdf"}:
             # save только после calc: берём hidden values
             settlement_date = _parse_iso_date(request.POST.get("calc_settlement_date") or "")
             nominal_amount = _parse_decimal_2(request.POST.get("calc_nominal_amount") or "")
@@ -319,7 +339,16 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
                     "nominal_amount_plus_percent",
                     "updated_at",
                 ])
-                ok_message = "Gespeichert."
+                if action == "save_pdf":
+                    res = build_contract_pdf(contract.id)
+                    if contract.pdf_file:
+                        contract.pdf_file.delete(save=False)
+                    contract.pdf_file.save(res.filename, ContentFile(res.pdf_bytes), save=True)
+                    ok_message = "Gespeichert und PDF erstellt."
+                    saved_pdf_url = contract.pdf_file.url
+                    saved_pdf_name = res.filename
+                else:
+                    ok_message = "Gespeichert."
                 calc_result = {
                     "settlement_date": settlement_date,
                     "nominal_amount": nominal_amount,
@@ -338,17 +367,37 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             "total_amount": Decimal(contract.nominal_amount_plus_percent).quantize(Decimal("0.01")),
         }
 
+    issue_bond_price_display = _format_decimal_de(issue.bond_price, "#,##0.00")
+    issue_volume_display = _format_decimal_de(issue.issue_volume, "#,##0.00")
+    min_qty_display = _format_decimal_de(issue.minimal_bonds_quantity, "#,##0")
+    calc_nominal_display = None
+    calc_accrued_display = None
+    calc_total_display = None
+    if calc_result:
+        calc_nominal_display = _format_decimal_de(calc_result["nominal_amount"], "#,##0.00")
+        calc_accrued_display = _format_decimal_de(calc_result["accrued_interest"], "#,##0.00")
+        calc_total_display = _format_decimal_de(calc_result["total_amount"], "#,##0.00")
+
     return render(
         request,
         "app_panel_admin/contract_edit.html",
         {
             "contract": contract,
+            "tippgeber": tippgeber,
             "errors": errors,
             "ok_message": ok_message,
+            "saved_pdf_url": saved_pdf_url,
+            "saved_pdf_name": saved_pdf_name,
             "form_contract_date": form_contract_date,
             "form_qty": form_qty,
             "calc_result": calc_result,
             "min_qty": issue.minimal_bonds_quantity,
+            "min_qty_display": min_qty_display,
+            "issue_bond_price_display": issue_bond_price_display,
+            "issue_volume_display": issue_volume_display,
+            "calc_nominal_display": calc_nominal_display,
+            "calc_accrued_display": calc_accrued_display,
+            "calc_total_display": calc_total_display,
             "mode": mode,
         },
     )

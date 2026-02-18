@@ -900,7 +900,7 @@ class ContractPdfCreator:
         c.save()
         return ContractPdfBuildResult(
             pdf_bytes=buffer.getvalue(),
-            filename=f"contract_{self.contract.id}.pdf",
+            filename=f"FleXXLager-Vertrag-IN{self.contract.id}.pdf",
         )
 
 

@@ -48,13 +48,13 @@
           </td>
 
           <td class="px-4 py-3">
-            <div class="grid grid-cols-[115px_80px] gap-1">
-              <div>Preis pro Anleihe:</div>
-              <div>€ {{ it.bond_price }}</div>
-              <div>Volumen:</div> 
-              <div>€ {{ it.issue_volume_fmt }}</div>
+            <div class="grid grid-cols-[125px_80px] gap-1">
+              <div>Preis pro Anleihe, €:</div>
+              <div>{{ it.bond_price_fmt }}</div>
+              <div>Volumen, €:</div> 
+              <div>{{ it.issue_volume_fmt }}</div>
               <div>Mindestmenge:</div> 
-              <div>{{ it.minimal_bonds_quantity }}</div>
+              <div>{{ it.minimal_bonds_quantity_fmt }}</div>
 
             </div>
           </td>

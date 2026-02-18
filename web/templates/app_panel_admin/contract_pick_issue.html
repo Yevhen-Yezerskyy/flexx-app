@@ -74,22 +74,22 @@ function validateIssueReceipt(formEl) {
                   <div class="flex flex-col min-w-0">
                     <div class="font-semibold">{{ it.title }}</div>
                     <div class="flex flex-col min-w-0 pt-1">
-                      <div class="grid grid-cols-[130px_minmax(0,1fr)] gap-x-2 py-1">
+                      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
                         <div>Ausgabedatum:</div><div>{{ it.issue_date|date:"d.m.Y" }}</div>
                       </div>
-                      <div class="grid grid-cols-[130px_minmax(0,1fr)] gap-x-2 py-1">
+                      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
                         <div>Zinssatz:</div><div>{{ it.interest_rate }}%</div>
                       </div>
-                      <div class="grid grid-cols-[130px_minmax(0,1fr)] gap-x-2 py-1">
-                        <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
-                      </div>
-                      <div class="grid grid-cols-[130px_minmax(0,1fr)] gap-x-2 py-1">
-                        <div>Preis pro Anleihe:</div><div>{{ it.bond_price }}</div>
-                      </div>
-                      <div class="grid grid-cols-[130px_minmax(0,1fr)] gap-x-2 py-1">
-                        <div>Volumen:</div><div>{{ it.issue_volume }}</div>
-                      </div>
-                      <div class="grid grid-cols-[130px_minmax(0,1fr)] gap-x-2 py-1">
+                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
+                      <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
+                    </div>
+                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
+                      <div>Preis pro Anleihe, €:</div><div>{{ it.bond_price_display }}</div>
+                    </div>
+                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
+                      <div>Volumen, €:</div><div>{{ it.issue_volume_display }}</div>
+                    </div>
+                      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
                         <div>Mindestmenge:</div><div>{% if it.minimal_bonds_quantity %}{{ it.minimal_bonds_quantity }}{% else %}5000{% endif %}</div>
                       </div>
                     </div>
