@@ -750,10 +750,10 @@ class ContractPdfCreator:
             "text_block_4": "Die Inhaber-Teilschuldverschreibungen sollen in nachfolgendes Depot eingebucht werden:",
             "fill_table_2": {
                 "title": "Depot-Informationen des Käufers / Zeichners:",
-                "field_1": {"label": "Depotinhaber (Vorname, Name)", "value": full_name},
-                "field_2": {"label": "Depot-IBAN", "value": _format_text(self.client.bank_depo_iban)},
-                "field_3": {"label": "Bank/Kreditinstitut", "value": _format_text(self.client.bank_depo_name)},
-                "field_4": {"label": "BIC", "value": _format_text(self.client.bank_depo_bic)},
+                "field_1": {"label": "Depotinhaber (Vorname und Nachname oder Firma)", "value": full_name},
+                "field_2": {"label": "Depotnummer", "value": _format_text(self.client.bank_depo_depotnummer)},
+                "field_3": {"label": "Bank / Kreditinstitut", "value": _format_text(self.client.bank_depo_name)},
+                "field_4": {"label": "BLZ", "value": _format_text(self.client.bank_depo_blz)},
             },
             #new page
             "text_block_5": (
@@ -762,10 +762,10 @@ class ContractPdfCreator:
             ),
             "fill_table_3": {
                 "title": "Konto-Informationen des Käufers / Zeichners:",
-                "field_1": {"label": "Kontoinhaber (Vorname, Name)", "value": full_name},
-                "field_2": {"label": "IBAN", "value": _format_text(self.client.bank_iban)},
-                "field_3": {"label": "Bank/Kreditinstitut", "value": _format_text(self.client.bank_name)},
-                "field_4": {"label": "BIC", "value": _format_text(self.client.bank_bic)},
+                "field_1": {"label": "Kontoinhaber (Vorname und Nachname oder Firma)", "value": full_name},
+                "field_2": {"label": "IBAN / Kontonummer", "value": _format_text(self.client.bank_iban)},
+                "field_3": {"label": "Bank / Kreditinstitut", "value": _format_text(self.client.bank_name)},
+                "field_4": {"label": "BIC / BLZ", "value": _format_text(self.client.bank_bic)},
             },
             "text_block_6": _format_text(issue_contract.get("text_zwischen_3")),
             "header_3": _format_text(issue_contract.get("ueberschrift_ergaenzung")),

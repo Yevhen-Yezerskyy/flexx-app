@@ -26,14 +26,14 @@ function flexxClientActivateConfirm(formEl) {
   </a>
 </div>
 
-<div class="bg-white border border-[var(--text)] rounded-md overflow-hidden">
+<div class="bg-white border border-gray-400 rounded-md overflow-hidden">
   <table class="w-full text-sm">
-    <thead class="bg-gray-50">
+    <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3">Kunde</th>
-        <th class="px-4 py-3">Vertrag</th>
-        <th class="px-4 py-3">Status</th>
-        <th class="px-4 py-3">&nbsp;</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Kunde</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Vertrag</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Status</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
     </thead>
 
@@ -41,43 +41,45 @@ function flexxClientActivateConfirm(formEl) {
       {% for r in rows %}
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
-            <div class="grid grid-cols-[90px_150px_130px] gap-1">
+            <div class="grid grid-cols-[80px_1fr] gap-1">
               <div>Kunde:</div>
-              <div>{{ r.u.first_name }} {{ r.u.last_name }}</div>
-              <div>{{ r.u.email }}</div>
-              {% if r.tippgeber %}
-                  <div>Tippgeber:</div>
-                  <div>{{ r.tippgeber.first_name }} {{ r.tippgeber.last_name }}</div>
-                  <div>{{ r.tippgeber.email }}</div>
-              {% endif %}
+              <div class="font-semibold">
+                {{ r.u.first_name }} {{ r.u.last_name }}
+                (<a href="mailto:{{ r.u.email }}" class="underline hover:text-[var(--accent)] transition">{{ r.u.email }}</a>)
+              </div>
             </div>
+            {% if r.tippgeber %}
+              <div class="grid grid-cols-[80px_1fr] gap-1 mt-2">
+                <div>Tippgeber:</div>
+                <div>
+                  {{ r.tippgeber.first_name }} {{ r.tippgeber.last_name }}
+                  (<a href="mailto:{{ r.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ r.tippgeber.email }}</a>)
+                </div>
+              </div>
+            {% endif %}
           </td>
 
           <td class="px-4 py-3">
             {% if r.contracts %}
-              <div class="flex flex-col gap-2">
+              <div>
                 {% for c in r.contracts %}
-                  <div class="border border-gray-200 rounded-md px-3 py-2 bg-gray-50">
-                    <div>
-                      <span class="font-semibold">{{ c.contract_date|date:"d.m.Y" }}</span>
-                      — {{ c.issue.title }}
-                    </div>
-
+                  <div class="mb-6 last:mb-0">
+                    <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }} — {{ c.issue.title }}</div>
                     {% if c.pdf_file %}
                       <div class="mt-1">
                         <a class="underline hover:text-[var(--accent)] transition"
                            href="{{ c.pdf_file.url }}">
-                          {{ c.pdf_file.name }}
+                          {{ c.pdf_basename }}
                         </a>
                       </div>
                     {% else %}
-                      <div class="mt-1 text-red-600">Vertrag nicht erstellt</div>
+                      <div class="mt-1 text-gray-500">Vertrag nicht erstellt</div>
                     {% endif %}
                   </div>
                 {% endfor %}
               </div>
 
-              <div class="mt-2">
+              <div class="mt-3">
                 {% if r.contract_ready %}
                   <a class="underline hover:text-[var(--accent)] transition"
                      href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
@@ -131,7 +133,7 @@ function flexxClientActivateConfirm(formEl) {
 
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="5">Keine Kunden gefunden.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="4">Keine Kunden gefunden.</td>
         </tr>
       {% endfor %}
     </tbody>

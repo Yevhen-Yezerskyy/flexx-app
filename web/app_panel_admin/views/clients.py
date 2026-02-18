@@ -28,7 +28,7 @@ def _is_contract_ready(u: FlexxUser) -> bool:
         "bank_iban",
         "bank_name",
         "bank_depo_account_holder",
-        "bank_depo_iban",
+        "bank_depo_depotnummer",
         "bank_depo_name",
     ]
 
@@ -62,6 +62,7 @@ def clients_list(request: HttpRequest) -> HttpResponse:
     )
     contracts_by_client_id: dict[int, list[Contract]] = {}
     for c in contracts:
+        c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
         contracts_by_client_id.setdefault(c.client_id, []).append(c)
 
     rows = [

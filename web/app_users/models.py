@@ -55,9 +55,9 @@ class FlexxUser(AbstractBaseUser, PermissionsMixin):
 
     # ---- Depot (Wertpapierdepot) ----
     bank_depo_account_holder = models.CharField(max_length=255, blank=True)
-    bank_depo_iban = models.CharField(max_length=34, blank=True)
+    bank_depo_depotnummer = models.CharField(max_length=34, blank=True)
     bank_depo_name = models.CharField(max_length=255, blank=True)
-    bank_depo_bic = models.CharField(max_length=11, blank=True)
+    bank_depo_blz = models.CharField(max_length=11, blank=True)
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
 

@@ -104,7 +104,7 @@ _DATE_WIDGET_ADMIN = forms.DateInput(
     format="%Y-%m-%d",
     attrs={
         "type": "date",
-        "class": "border border-[var(--text)] rounded-md px-4 py-2 focus:outline-none",
+        "class": "border border-gray-400 rounded-md px-4 py-2 focus:outline-none",
     },
 )
 
@@ -126,14 +126,15 @@ class AdminClientForm(forms.ModelForm):
             "zip_code",
             "city",
             "phone",
+            "mobile_phone",
             "fax",
             "handelsregister",
             "handelsregister_number",
             "contact_person",
             "bank_depo_account_holder",
-            "bank_depo_iban",
+            "bank_depo_depotnummer",
             "bank_depo_name",
-            "bank_depo_bic",
+            "bank_depo_blz",
             "bank_account_holder",
             "bank_iban",
             "bank_name",
@@ -157,9 +158,9 @@ class AdminClientForm(forms.ModelForm):
 
         for f in (
             "bank_depo_account_holder",
-            "bank_depo_iban",
+            "bank_depo_depotnummer",
             "bank_depo_name",
-            "bank_depo_bic",
+            "bank_depo_blz",
             "bank_account_holder",
             "bank_iban",
             "bank_name",
@@ -168,6 +169,7 @@ class AdminClientForm(forms.ModelForm):
             self.fields[f].required = False
 
         self.fields["birth_date"].required = False
+        self.fields["mobile_phone"].required = False
         self.fields["fax"].required = False
         self.fields["company"].required = False
         self.fields["contact_person"].required = False
@@ -195,15 +197,6 @@ class AdminClientForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
 
-        company = (cleaned.get("company") or "").strip()
-        hr = (cleaned.get("handelsregister") or "").strip()
-        hrn = (cleaned.get("handelsregister_number") or "").strip()
-        if company:
-            if not hr:
-                self.add_error("handelsregister", "Pflichtfeld, wenn Firma gesetzt ist.")
-            if not hrn:
-                self.add_error("handelsregister_number", "Pflichtfeld, wenn Firma gesetzt ist.")
-
         email = (cleaned.get("email") or "").strip().lower()
         if email:
             qs = FlexxUser.objects.filter(email=email)
@@ -225,10 +218,20 @@ class AdminTippgeberForm(forms.ModelForm):
             "last_name",
             "first_name",
             "birth_date",
+            "company",
             "street",
             "zip_code",
             "city",
             "phone",
+            "mobile_phone",
+            "fax",
+            "handelsregister",
+            "handelsregister_number",
+            "contact_person",
+            "bank_account_holder",
+            "bank_iban",
+            "bank_name",
+            "bank_bic",
             "is_active",
         ]
         widgets = {"birth_date": _DATE_WIDGET_ADMIN}
@@ -243,6 +246,16 @@ class AdminTippgeberForm(forms.ModelForm):
 
         self.fields["is_active"].label = "Aktiv"
         self.fields["birth_date"].required = False
+        self.fields["mobile_phone"].required = False
+        self.fields["fax"].required = False
+        self.fields["company"].required = False
+        self.fields["contact_person"].required = False
+        self.fields["handelsregister"].required = False
+        self.fields["handelsregister_number"].required = False
+        self.fields["bank_account_holder"].required = False
+        self.fields["bank_iban"].required = False
+        self.fields["bank_name"].required = False
+        self.fields["bank_bic"].required = False
         self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
         for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):

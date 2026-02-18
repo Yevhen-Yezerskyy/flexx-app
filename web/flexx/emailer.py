@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 import logging
 import os
 
@@ -181,3 +182,49 @@ def send_tippgeber_link_conflict_email(
         f"Kunde: {client_first_name} {client_last_name} <{client_email}>\n"
     )
     return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+
+
+# ---- Contract status flows ----
+
+def send_contract_signed_received_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    contract_id: int,
+    issue_title: str,
+    signed_date: date,
+) -> bool:
+    subject = "Vertrag erhalten"
+    body = (
+        f"Hallo {first_name} {last_name},\n\n"
+        "wir bestätigen den Eingang Ihres unterzeichneten Vertrags.\n"
+        f"Vertrag: #{contract_id}\n"
+        f"Emission: {issue_title}\n"
+        f"Eingang am: {signed_date:%d.%m.%Y}\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FlexxLager Team\n"
+    )
+    return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+def send_contract_paid_received_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    contract_id: int,
+    issue_title: str,
+    paid_date: date,
+) -> bool:
+    subject = "Zahlung erhalten"
+    body = (
+        f"Hallo {first_name} {last_name},\n\n"
+        "wir bestätigen den Eingang Ihrer Zahlung.\n"
+        f"Vertrag: #{contract_id}\n"
+        f"Emission: {issue_title}\n"
+        f"Eingang am: {paid_date:%d.%m.%Y}\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FlexxLager Team\n"
+    )
+    return _send_text(to_email=to_email, subject=subject, body=body)

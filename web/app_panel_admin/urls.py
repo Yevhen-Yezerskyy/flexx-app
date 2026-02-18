@@ -10,7 +10,14 @@ from .views.clients import (
     clients_toggle_active,
     clients_delete,
 )
-from .views.contracts import contract_pick_issue, contract_edit, contracts_list
+from .views.contracts import (
+    contract_pick_issue,
+    contract_edit,
+    contracts_list,
+    contract_toggle_signed_received,
+    contract_toggle_paid,
+    contract_delete,
+)
 from .views.issues import issues_list, issues_create, issues_edit, issues_delete
 from .views.tippgeber import tippgeber_list, tippgeber_edit, tippgeber_toggle_active, tippgeber_delete
 
@@ -24,6 +31,9 @@ urlpatterns = [
 
     # Contracts
     path("contracts/", contracts_list, name="panel_admin_contracts_list"),
+    path("contracts/<int:contract_id>/toggle-signed/", contract_toggle_signed_received, name="panel_admin_contract_toggle_signed"),
+    path("contracts/<int:contract_id>/toggle-paid/", contract_toggle_paid, name="panel_admin_contract_toggle_paid"),
+    path("contracts/<int:contract_id>/delete/", contract_delete, name="panel_admin_contract_delete"),
     path("clients/<int:user_id>/contract/new/", contract_pick_issue, name="panel_admin_contract_pick_issue"),
     path("contracts/<int:contract_id>/edit/", contract_edit, name="panel_admin_contract_edit"),
 

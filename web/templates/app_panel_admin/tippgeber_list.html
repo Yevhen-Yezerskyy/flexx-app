@@ -20,15 +20,14 @@ function flexxTippgeberActivateConfirm(formEl) {
   <div class="text-2xl">Tippgeber</div>
 </div>
 
-<div class="border border-gray-200 rounded-md overflow-hidden">
+<div class="bg-white border border-gray-400 rounded-md overflow-hidden">
   <table class="w-full text-sm">
-    <thead class="bg-gray-50">
+    <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[30%]">Tippgeber</th>
-        <th class="px-4 py-3 w-[35%]">Kunden</th>
-        <th class="px-4 py-3 w-[15%]">Status</th>
-        <th class="px-4 py-3 w-[10%]">&nbsp;</th>
-        <th class="px-4 py-3 w-[10%]">&nbsp;</th>
+        <th class="px-4 py-3 w-[30%] text-[var(--accent)] font-semibold w-[45%]">Tippgeber</th>
+        <th class="px-4 py-3 w-[40%] text-[var(--accent)] font-semibold w-[45%]">Kunden</th>
+        <th class="px-4 py-3 w-[15%] text-[var(--accent)] font-semibold">Status</th>
+        <th class="px-4 py-3 w-[15%] text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
     </thead>
 
@@ -37,17 +36,30 @@ function flexxTippgeberActivateConfirm(formEl) {
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
             <div class="font-semibold">{{ r.u.first_name }} {{ r.u.last_name }}</div>
-            <div class="text-xs text-gray-500">{{ r.u.email }}</div>
+            <div>
+              <a href="mailto:{{ r.u.email }}" class="underline hover:text-[var(--accent)] transition">
+                {{ r.u.email }}
+              </a>
+            </div>
+            {% if r.u.phone %}
+              <div class="text-gray-500">Telefon: {{ r.u.phone }}</div>
+            {% endif %}
+            {% if r.u.mobile_phone %}
+              <div class="text-gray-500">Mobil: {{ r.u.mobile_phone }}</div>
+            {% endif %}
           </td>
 
           <td class="px-4 py-3">
             {% if r.clients %}
               <div class="flex flex-col gap-1">
                 {% for c in r.clients %}
-                  <div class="text-xs">
-                    <span class="text-gray-600">{{ c.email }}</span>
-                    <span class="text-gray-400">—</span>
+                  <div>
                     <span>{{ c.first_name }} {{ c.last_name }}</span>
+                    <span class="text-gray-500"> (</span>
+                    <a href="mailto:{{ c.email }}" class="underline hover:text-[var(--accent)] transition text-gray-600">
+                      {{ c.email }}
+                    </a>
+                    <span class="text-gray-500">)</span>
                   </div>
                 {% endfor %}
               </div>
@@ -77,20 +89,17 @@ function flexxTippgeberActivateConfirm(formEl) {
 
           <td class="px-4 py-3 whitespace-nowrap">
             <a href="{% url 'panel_admin_tippgeber_edit' r.u.id %}"
-               class="underline hover:text-[var(--accent)] transition">Ändern</a>
-          </td>
-
-          <td class="px-4 py-3 whitespace-nowrap">
+               class="underline hover:text-[var(--accent)] transition">Ändern</a><br>
             <form method="post" action="{% url 'panel_admin_tippgeber_delete' r.u.id %}"
                   onsubmit="return confirm('Wirklich löschen?');">
               {% csrf_token %}
-              <button type="submit" class="underline hover:text-red-600 transition">Löschen</button>
+              <button type="submit" class="underline hover:text-red-600 transition mt-1">Löschen</button>
             </form>
           </td>
         </tr>
       {% empty %}
         <tr class="border-t border-gray-200">
-          <td class="px-4 py-6 text-gray-500" colspan="5">Keine Tippgeber gefunden.</td>
+          <td class="px-4 py-6 text-gray-500" colspan="4">Keine Tippgeber gefunden.</td>
         </tr>
       {% endfor %}
     </tbody>

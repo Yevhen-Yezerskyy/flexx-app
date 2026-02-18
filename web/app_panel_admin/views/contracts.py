@@ -5,17 +5,22 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal, InvalidOperation
+import os
 
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from app_users.models import FlexxUser
+from app_users.models import FlexxUser, TippgeberClient
 from flexx.models import BondIssue, Contract
 from flexx.contract_helpers import calc_contract_amounts_from_stueckzins_table
 from flexx.pdf_contract import build_contract_pdf
+from flexx.emailer import (
+    send_contract_paid_received_email,
+    send_contract_signed_received_email,
+)
 
 from .common import admin_only
 
@@ -41,18 +46,116 @@ def _parse_decimal_2(v: str) -> Decimal | None:
         return None
 
 
+def _shorten_middle(name: str, max_len: int = 22) -> str:
+    if len(name) <= max_len:
+        return name
+    keep_left = max_len // 2 - 2
+    keep_right = max_len - keep_left - 3
+    return f"{name[:keep_left]}...{name[-keep_right:]}"
+
+
+def _shorten_middle_keep_ext(name: str, max_len: int = 28) -> str:
+    if len(name) <= max_len:
+        return name
+    base, ext = os.path.splitext(name)
+    if not ext:
+        return _shorten_middle(name, max_len=max_len)
+    budget = max_len - len(ext)
+    if budget <= 3:
+        return f"...{ext}"
+    keep_left = budget // 2 - 1
+    keep_right = budget - keep_left - 3
+    return f"{base[:keep_left]}...{base[-keep_right:]}{ext}"
+
+
 @login_required
 def contracts_list(request: HttpRequest) -> HttpResponse:
     denied = admin_only(request)
     if denied:
         return denied
 
-    contracts = (
+    contracts = list(
         Contract.objects.select_related("client", "issue")
         .all()
         .order_by("-contract_date", "-id")
     )
+    client_ids = [c.client_id for c in contracts if c.client_id]
+    links = (
+        TippgeberClient.objects.filter(client_id__in=client_ids)
+        .select_related("tippgeber")
+        .all()
+    )
+    tip_by_client_id = {l.client_id: l.tippgeber for l in links if l.client_id}
+
+    for c in contracts:
+        c.tippgeber = tip_by_client_id.get(c.client_id)
+        c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
+        c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
+
     return render(request, "app_panel_admin/contracts_list.html", {"contracts": contracts})
+
+
+@login_required
+def contract_toggle_signed_received(request: HttpRequest, contract_id: int) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    c = get_object_or_404(Contract.objects.select_related("client", "issue"), id=contract_id)
+    was_set = c.signed_received_at is not None
+    c.signed_received_at = None if was_set else timezone.localdate()
+    c.save(update_fields=["signed_received_at", "updated_at"])
+
+    if (not was_set) and c.signed_received_at and request.POST.get("notify") == "1":
+        send_contract_signed_received_email(
+            to_email=c.client.email,
+            first_name=c.client.first_name or "",
+            last_name=c.client.last_name or "",
+            contract_id=c.id,
+            issue_title=c.issue.title,
+            signed_date=c.signed_received_at,
+        )
+    return redirect("panel_admin_contracts_list")
+
+
+@login_required
+def contract_toggle_paid(request: HttpRequest, contract_id: int) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    c = get_object_or_404(Contract.objects.select_related("client", "issue"), id=contract_id)
+    was_set = c.paid_at is not None
+    c.paid_at = None if was_set else timezone.localdate()
+    c.save(update_fields=["paid_at", "updated_at"])
+
+    if (not was_set) and c.paid_at and request.POST.get("notify") == "1":
+        send_contract_paid_received_email(
+            to_email=c.client.email,
+            first_name=c.client.first_name or "",
+            last_name=c.client.last_name or "",
+            contract_id=c.id,
+            issue_title=c.issue.title,
+            paid_date=c.paid_at,
+        )
+    return redirect("panel_admin_contracts_list")
+
+
+@login_required
+def contract_delete(request: HttpRequest, contract_id: int) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    c = get_object_or_404(Contract, id=contract_id)
+    c.delete()
+    return redirect("panel_admin_contracts_list")
 
 
 @login_required
@@ -62,7 +165,17 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
         return denied
 
     client = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
-    issues = BondIssue.objects.all().order_by("-issue_date", "-id")
+    tip_link = (
+        TippgeberClient.objects.filter(client=client)
+        .select_related("tippgeber")
+        .first()
+    )
+    tippgeber = tip_link.tippgeber if tip_link and tip_link.tippgeber_id else None
+    issues = BondIssue.objects.prefetch_related("attachments").all().order_by("-issue_date", "-id")
+    for issue in issues:
+        for a in issue.attachments.all():
+            a.short_filename = _shorten_middle_keep_ext(a.filename, max_len=28)
+    pick_error: str | None = None
 
     if request.method == "POST":
         issue_id_raw = (request.POST.get("issue_id") or "").strip()
@@ -72,13 +185,28 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
             issue_id = 0
 
         issue = get_object_or_404(BondIssue, id=issue_id)
+        if request.POST.get(f"receipt_confirm_{issue.id}") != "1":
+            pick_error = "Bitte bestätigen Sie die Empfangsbestätigung für die ausgewählte Emission."
+        else:
+            c = Contract.objects.create(
+                client=client,
+                issue=issue,
+                contract_date=timezone.localdate(),
+            )
+            return redirect("panel_admin_contract_edit", contract_id=c.id)
 
-        c = Contract.objects.create(
-            client=client,
-            issue=issue,
-            contract_date=timezone.localdate(),
+        selected_issue_id = issue.id
+        return render(
+            request,
+            "app_panel_admin/contract_pick_issue.html",
+            {
+                "client": client,
+                "tippgeber": tippgeber,
+                "issues": issues,
+                "selected_issue_id": selected_issue_id,
+                "pick_error": pick_error,
+            },
         )
-        return redirect("panel_admin_contract_edit", contract_id=c.id)
 
     selected_issue_id = issues[0].id if issues else None
     return render(
@@ -86,8 +214,10 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
         "app_panel_admin/contract_pick_issue.html",
         {
             "client": client,
+            "tippgeber": tippgeber,
             "issues": issues,
             "selected_issue_id": selected_issue_id,
+            "pick_error": pick_error,
         },
     )
 

@@ -6,20 +6,31 @@
 
 {% block panel_content %}
 
+<script>
+function flexxContractStatusConfirm(formEl) {
+  if (formEl.dataset.askNotify !== "1") return true;
+  var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
+  var inp = formEl.querySelector('input[name="notify"]');
+  if (inp) inp.value = send ? "1" : "0";
+  return true;
+}
+</script>
+
 <div class="flex items-center mb-10 mt-2">
   <div class="text-2xl">Verträge</div>
   <div class="flex-1"></div>
 </div>
 
-<div class="bg-white border border-[var(--text)] rounded-md overflow-hidden">
+<div class="bg-white border border-gray-400 rounded-md overflow-hidden">
   <table class="w-full text-sm">
-    <thead class="bg-gray-50">
+    <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[18%]">Datum</th>
-        <th class="px-4 py-3 w-[22%]">Kunde</th>
-        <th class="px-4 py-3 w-[20%]">Emission</th>
-        <th class="px-4 py-3 w-[25%]">Daten</th>
-        <th class="px-4 py-3">&nbsp;</th>
+        <th class="px-4 py-3 w-[34%] text-[var(--accent)] font-semibold">Daten zum Vertrag</th>
+        <th class="px-4 py-3 w-[22%] text-[var(--accent)] font-semibold">Kunde</th>
+        <th class="px-4 py-3 w-[18%] text-[var(--accent)] font-semibold">Datei</th>
+        <th class="px-4 py-3 w-[10%] text-[var(--accent)] font-semibold">Vertrag</th>
+        <th class="px-4 py-3 w-[10%] text-[var(--accent)] font-semibold">Zahlung</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
     </thead>
 
@@ -27,60 +38,91 @@
       {% for c in contracts %}
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
-            <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }}</div>
-            {% if c.settlement_date %}
-              <div class="text-xs text-gray-600">Valuta: {{ c.settlement_date|date:"d.m.Y" }}</div>
+            <div class="grid grid-cols-[125px_1fr] gap-x-2 gap-y-1">
+              <div>Unterzeichnet am:</div>
+              <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }}</div>
+              <div>Zahlungsfrist bis:</div>
+              <div class="font-semibold">{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+              <div class="font-semibold col-span-2 mt-2">{{ c.issue.title }}</div>
+              <div>Anzahl:</div>
+              <div>{% if c.bonds_quantity %}{{ c.bonds_quantity }}{% else %}—{% endif %}</div>
+              <div>Nominal:</div>
+              <div>{% if c.nominal_amount %}{{ c.nominal_amount }}{% else %}—{% endif %}</div>
+              <div>Nominal + %:</div>
+              <div>{% if c.nominal_amount_plus_percent %}{{ c.nominal_amount_plus_percent }}{% else %}—{% endif %}</div>
+            </div>
+          </td>
+
+          <td class="px-4 py-3">
+            <div>Kunde:</div>
+            <div class="font-semibold">
+              {{ c.client.first_name }} {{ c.client.last_name }}
+              (<a href="mailto:{{ c.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.client.email }}</a>)
+            </div>
+            {% if c.tippgeber %}
+              <div class="mt-2">Tippgeber:</div>
+              <div>
+                {{ c.tippgeber.first_name }} {{ c.tippgeber.last_name }}
+                (<a href="mailto:{{ c.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.tippgeber.email }}</a>)
+              </div>
             {% endif %}
           </td>
 
           <td class="px-4 py-3">
-            <div class="font-semibold">{{ c.client.first_name }} {{ c.client.last_name }}</div>
-            <div class="text-xs text-gray-600">{{ c.client.email }}</div>
+            {% if c.pdf_file %}
+              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_basename }}">
+                {{ c.pdf_shortname }}
+              </a>
+            {% else %}
+              <span class="text-gray-500">Vertrag nicht erstellt</span>
+            {% endif %}
           </td>
 
           <td class="px-4 py-3">
-            <div class="font-semibold">{{ c.issue.title }}</div>
-            <div class="text-xs text-gray-600">{{ c.issue.issue_date|date:"d.m.Y" }}</div>
+            <div>{% if c.signed_received_at %}Erhalten{% else %}Offen{% endif %}</div>
+            <form method="post"
+                  action="{% url 'panel_admin_contract_toggle_signed' c.id %}"
+                  data-ask-notify="{% if not c.signed_received_at %}1{% else %}0{% endif %}"
+                  onsubmit="return flexxContractStatusConfirm(this);">
+              {% csrf_token %}
+              <input type="hidden" name="notify" value="0">
+              <button type="submit" class="underline hover:text-[var(--accent)] transition mt-1">
+                {% if c.signed_received_at %}Als&nbsp;offen{% else %}Als&nbsp;erhalten{% endif %}
+              </button>
+            </form>
           </td>
 
           <td class="px-4 py-3">
-            <div class="grid grid-cols-2 gap-1">
-              <div>Anzahl:</div>
-              <div>{% if c.bonds_quantity %}{{ c.bonds_quantity }}{% else %}—{% endif %}</div>
-
-              <div>Nominal:</div>
-              <div>{% if c.nominal_amount %}{{ c.nominal_amount }}{% else %}—{% endif %}</div>
-
-              <div>Nominal + %:</div>
-              <div>{% if c.nominal_amount_plus_percent %}{{ c.nominal_amount_plus_percent }}{% else %}—{% endif %}</div>
-
-              <div>Signed:</div>
-              <div>{% if c.signed_received_at %}{{ c.signed_received_at|date:"d.m.Y" }}{% else %}—{% endif %}</div>
-
-              <div>Paid:</div>
-              <div>{% if c.paid_at %}{{ c.paid_at|date:"d.m.Y" }}{% else %}—{% endif %}</div>
-            </div>
-
-            <div class="mt-2">
-              {% if c.pdf_file %}
-                <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}">
-                  {{ c.pdf_file.name }}
-                </a>
-              {% else %}
-                <span class="text-red-600">Vertrag nicht erstellt</span>
-              {% endif %}
-            </div>
+            <div>{% if c.paid_at %}Bezahlt{% else %}Offen{% endif %}</div>
+            <form method="post"
+                  action="{% url 'panel_admin_contract_toggle_paid' c.id %}"
+                  data-ask-notify="{% if not c.paid_at %}1{% else %}0{% endif %}"
+                  onsubmit="return flexxContractStatusConfirm(this);">
+              {% csrf_token %}
+              <input type="hidden" name="notify" value="0">
+              <button type="submit" class="underline hover:text-[var(--accent)] transition mt-1">
+                {% if c.paid_at %}Als&nbsp;offen{% else %}Als&nbsp;bezahlt{% endif %}
+              </button>
+            </form>
           </td>
 
           <td class="px-4 py-3 whitespace-nowrap">
             <a class="underline hover:text-[var(--accent)] transition"
-               href="{% url 'panel_admin_contract_edit' c.id %}">Öffnen</a>
+               href="{% url 'panel_admin_contract_edit' c.id %}">Ändern</a><br>
+            <form method="post"
+                  action="{% url 'panel_admin_contract_delete' c.id %}"
+                  onsubmit="return confirm('Wirklich löschen?');">
+              {% csrf_token %}
+              <button type="submit" class="underline hover:text-red-600 transition mt-1">
+                Löschen
+              </button>
+            </form>
           </td>
         </tr>
 
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="5">Noch keine Verträge.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="6">Noch keine Verträge.</td>
         </tr>
       {% endfor %}
     </tbody>
