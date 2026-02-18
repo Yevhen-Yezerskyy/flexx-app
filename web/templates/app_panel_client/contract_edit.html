@@ -1,12 +1,6 @@
-{% extends "app_panel_admin/base.html" %}
-<!-- FILE: web/templates/app_panel_admin/contract_edit.html  (обновлено — 2026-02-16)
-     PURPOSE: UI state machine:
-       - mode=empty: only Berechnen
-       - mode=calc: show results + Speichern (and hide PDF)
-       - mode=saved: hide Speichern, show “PDF generieren”; re-calc switches back to mode=calc -->
-
+{% extends "app_panel_client/base.html" %}
 {% block panel_where %}Vertrag bearbeiten{% endblock %}
-{% block nav_contracts_class %}text-[var(--accent)] font-semibold{% endblock %}
+{% block nav_my_contracts_class %}text-[var(--accent)] font-semibold{% endblock %}
 
 {% block panel_content %}
 <script>
@@ -26,11 +20,11 @@ function validateContractReceiptForSavePdf(btn) {
   <div class="text-2xl">Vertrag bearbeiten</div>
   <div class="flex-1"></div>
   <div class="flex items-center justify-end gap-4">
-    <a href="{% url 'panel_admin_clients' %}"
+    <a href="{% url 'panel_client_contract_create' %}"
        class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
-      Zurück zu Kunden
+      Zurück zum Formular
     </a>
-    <a href="{% url 'panel_admin_contracts_list' %}"
+    <a href="{% url 'panel_client_contracts_list' %}"
        class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
       Zurück zu Verträgen
     </a>
@@ -38,7 +32,7 @@ function validateContractReceiptForSavePdf(btn) {
 </div>
 
 <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-4">
-  <div class="grid {% if tippgeber %}grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto]{% else %}grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]{% endif %} gap-4 items-start">
+  <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-4 items-start">
     <div>
       <div>Kunde:</div>
       <div class="font-semibold">{{ contract.client.first_name }} {{ contract.client.last_name }}</div>
@@ -46,16 +40,6 @@ function validateContractReceiptForSavePdf(btn) {
         <a href="mailto:{{ contract.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ contract.client.email }}</a>
       </div>
     </div>
-
-    {% if tippgeber %}
-      <div>
-        <div>Tippgeber:</div>
-        <div>{{ tippgeber.first_name }} {{ tippgeber.last_name }}</div>
-        <div>
-          <a href="mailto:{{ tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ tippgeber.email }}</a>
-        </div>
-      </div>
-    {% endif %}
 
     <div class="flex flex-col min-w-0">
       <div class="font-semibold">{{ contract.issue.title }}</div>
@@ -138,7 +122,6 @@ function validateContractReceiptForSavePdf(btn) {
         >
           Berechnen
         </button>
-
       </div>
     </div>
 
@@ -169,12 +152,12 @@ function validateContractReceiptForSavePdf(btn) {
           </div>
         </div>
       </div>
-        {% if mode == "calc" and calc_result %}
-          <input type="hidden" name="calc_settlement_date" value="{{ calc_result.settlement_date|date:'Y-m-d' }}">
-          <input type="hidden" name="calc_nominal_amount" value="{{ calc_result.nominal_amount }}">
-          <input type="hidden" name="calc_accrued_interest" value="{{ calc_result.accrued_interest }}">
-          <input type="hidden" name="calc_total_amount" value="{{ calc_result.total_amount }}">
-        {% endif %}
+      {% if mode == "calc" and calc_result %}
+        <input type="hidden" name="calc_settlement_date" value="{{ calc_result.settlement_date|date:'Y-m-d' }}">
+        <input type="hidden" name="calc_nominal_amount" value="{{ calc_result.nominal_amount }}">
+        <input type="hidden" name="calc_accrued_interest" value="{{ calc_result.accrued_interest }}">
+        <input type="hidden" name="calc_total_amount" value="{{ calc_result.total_amount }}">
+      {% endif %}
       <div class="pt-2">
         <div class="font-semibold">Berechnung der Einzahlsumme</div>
         <div class="mt-2">
@@ -192,7 +175,7 @@ function validateContractReceiptForSavePdf(btn) {
       </div>
       {% if mode == "calc" and calc_result %}
         <div class="pt-2 flex items-center justify-end gap-4">
-          <a href="{% url 'panel_admin_contracts_list' %}"
+          <a href="{% url 'panel_client_contracts_list' %}"
              class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
             Abbrechen
           </a>
@@ -210,7 +193,15 @@ function validateContractReceiptForSavePdf(btn) {
   </form>
 
   {% if saved_pdf_url and saved_pdf_name %}
-    <div class="pt-2 flex items-center justify-between gap-4">
+    <div class="pt-2">
+      <div class="mb-3">
+        Laden Sie den Vertrag herunter, drucken Sie ihn aus und senden Sie ihn per Post.<br>
+        Sie können den Vertrag auch im Bereich
+        "<a href="{% url 'panel_client_contracts_list' %}" class="underline hover:text-[var(--accent)] transition">Meine Verträge</a>"
+        herunterladen.
+      </div>
+    </div>
+    <div class="flex items-center justify-between gap-4">
       <div class="min-w-0">
         <div class="font-semibold">Vertrag gespeichert:</div>
         <div>
@@ -220,11 +211,11 @@ function validateContractReceiptForSavePdf(btn) {
         </div>
       </div>
       <div class="flex items-center justify-end gap-4">
-        <a href="{% url 'panel_admin_clients' %}"
+        <a href="{% url 'panel_client_contract_create' %}"
            class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
-          Zurück zu Kunden
+          Zurück zum Formular
         </a>
-        <a href="{% url 'panel_admin_contracts_list' %}"
+        <a href="{% url 'panel_client_contracts_list' %}"
            class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
           Zurück zu Verträgen
         </a>
@@ -233,4 +224,9 @@ function validateContractReceiptForSavePdf(btn) {
   {% endif %}
 </div>
 
+<div class="mt-6 bg-white border border-gray-400 rounded-md px-7 py-5">
+  Wenn die von Ihnen gewählte Emission für Sie nicht geeignet ist, können Sie diesen Vertrag im Bereich
+  <a href="{% url 'panel_client_contracts_list' %}" class="underline hover:text-[var(--accent)] transition">„Meine Verträge“</a>
+  löschen (sofern der Vertrag noch nicht per Post bei uns eingegangen ist und keine Zahlung erfolgt ist) und einen neuen Vertrag erstellen.
+</div>
 {% endblock %}

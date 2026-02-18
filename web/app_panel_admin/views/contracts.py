@@ -214,6 +214,7 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
         for a in issue.attachments.all():
             a.short_filename = _shorten_middle_keep_ext(a.filename, max_len=28)
     pick_error: str | None = None
+    receipt_confirm_selected = False
 
     if request.method == "POST":
         issue_id_raw = (request.POST.get("issue_id") or "").strip()
@@ -223,7 +224,8 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
             issue_id = 0
 
         issue = get_object_or_404(BondIssue, id=issue_id)
-        if request.POST.get(f"receipt_confirm_{issue.id}") != "1":
+        receipt_confirm_selected = request.POST.get(f"receipt_confirm_{issue.id}") == "1"
+        if not receipt_confirm_selected:
             pick_error = "Bitte bestätigen Sie die Empfangsbestätigung für die ausgewählte Emission."
         else:
             c = Contract.objects.create(
@@ -243,6 +245,7 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
                 "issues": issues,
                 "selected_issue_id": selected_issue_id,
                 "pick_error": pick_error,
+                "receipt_confirm_selected": receipt_confirm_selected,
             },
         )
 
@@ -256,6 +259,7 @@ def contract_pick_issue(request: HttpRequest, user_id: int) -> HttpResponse:
             "issues": issues,
             "selected_issue_id": selected_issue_id,
             "pick_error": pick_error,
+            "receipt_confirm_selected": receipt_confirm_selected,
         },
     )
 
@@ -290,9 +294,11 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
 
     # UI state: empty | calc | saved
     mode = "saved" if (contract.nominal_amount_plus_percent and contract.settlement_date and contract.bonds_quantity) else "empty"
+    receipt_confirm_contract = False
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+        receipt_confirm_contract = request.POST.get("receipt_confirm_contract") == "1"
 
         d = _parse_iso_date(request.POST.get("contract_date") or "")
         if d is None:
@@ -332,7 +338,7 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             mode = "calc"
 
         if not errors and action in {"save", "save_pdf"}:
-            if action == "save_pdf" and request.POST.get("receipt_confirm_contract") != "1":
+            if action == "save_pdf" and not receipt_confirm_contract:
                 errors.append("Bitte bestätigen Sie die Empfangsbestätigung.")
                 mode = "calc"
 
@@ -420,5 +426,6 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             "calc_accrued_display": calc_accrued_display,
             "calc_total_display": calc_total_display,
             "mode": mode,
+            "receipt_confirm_contract": receipt_confirm_contract,
         },
     )

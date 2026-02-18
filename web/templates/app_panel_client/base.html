@@ -1,6 +1,6 @@
 {% load static %}
-<!-- FILE: web/templates/app_panel_client/base.html  (обновлено — 2026-02-13)
-     PURPOSE: Client panel base: title block как в основном base, активное меню через отдельные block-классы. -->
+<!-- FILE: web/templates/app_panel_client/base.html  (обновлено — 2026-02-18)
+     PURPOSE: Client panel canonical layout + menu: "Vertrag erstellen" and "Meine Verträge". -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -12,6 +12,7 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'favicon/icon.svg' %}">
   <link rel="stylesheet" href="{% static 'styles/styles.css' %}">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{% static 'js/interest_modal.js' %}"></script>
 </head>
 <body class="bg-gray-100">
 
@@ -20,16 +21,16 @@
   <header>
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
-    <div class="flex items-center gap-6 px-4 py-2">
-      <a href="/panel/client/" class="block">
+    <div class="flex items-center gap-6 px-8 py-2">
+      <a href="{% url 'panel_client_contract_create' %}" class="block">
         <img src="{% static 'img/logo.svg' %}" class="h-5 w-auto block" alt="FlexxLager">
       </a>
 
       <div class="h-5 w-px bg-gray-300"></div>
 
-      <div class="bg-gray-50 rounded-md px-6 py-3">
+      <div class="bg-gray-100 rounded-md px-6 py-3">
         <div class="text-[23px] text-[var(--text)]">
-          {% block panel_where %}Verträge{% endblock %}
+          {% block panel_where %}Vertrag erstellen{% endblock %}
         </div>
       </div>
 
@@ -37,14 +38,19 @@
 
       <nav class="flex items-center gap-6 text-[var(--text)]">
 
-        <a href="/panel/client/"
-           class="underline {% block nav_contracts_class %}hover:text-[var(--accent)]{% endblock %}">
-          Anlageverträge
+        <a href="{% url 'panel_client_contract_create' %}"
+           class="underline {% block nav_contract_create_class %}hover:text-[var(--accent)]{% endblock %}">
+          Vertrag erstellen
         </a>
 
-        <a href="/panel/client/issues/"
+        <a href="{% url 'panel_client_contracts_list' %}"
+           class="underline {% block nav_my_contracts_class %}hover:text-[var(--accent)]{% endblock %}">
+          Meine Verträge
+        </a>
+
+        <a href="{% url 'panel_client_issues_list' %}"
            class="underline {% block nav_issues_class %}hover:text-[var(--accent)]{% endblock %}">
-          Informationen zu Emissionen
+          Emissionen
         </a>
 
         <div class="h-5 w-px bg-gray-300"></div>
@@ -64,7 +70,7 @@
   </header>
 
   <main class="flex-1 flex flex-col">
-    <div class="flex-1 px-4 py-10">
+    <div class="flex-1 px-8 py-10">
       {% block panel_content %}{% endblock %}
     </div>
   </main>
@@ -72,7 +78,7 @@
   <footer>
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
-    <div class="bg-gray-50 px-4 py-3 flex items-center">
+    <div class="bg-gray-100 px-8 py-3 flex items-center">
       <div class="text-sm text-[var(--text)]">
         {% if user.get_full_name %}
           {{ user.get_full_name }}
@@ -94,6 +100,8 @@
   </footer>
 
 </div>
+
+{% include "app_users/_interest_modal.html" %}
 
 </body>
 </html>

@@ -228,3 +228,55 @@ def send_contract_paid_received_email(
         "FlexxLager Team\n"
     )
     return _send_text(to_email=to_email, subject=subject, body=body)
+
+
+# ---- Client self-service contract flow (notify internal) ----
+
+def send_client_profile_completed_notify_email(
+    *,
+    client_email: str,
+    first_name: str,
+    last_name: str,
+) -> bool:
+    subject = "Kunde hat Profil vervollständigt"
+    body = (
+        "Ein Kunde hat sein Profil vollständig ausgefüllt.\n\n"
+        f"Kunde: {first_name} {last_name} <{client_email}>\n"
+    )
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+
+
+def send_client_contract_created_notify_email(
+    *,
+    client_email: str,
+    first_name: str,
+    last_name: str,
+    contract_id: int,
+    issue_title: str,
+) -> bool:
+    subject = "Kunde hat Vertrag erstellt"
+    body = (
+        "Ein Kunde hat einen Vertrag erstellt.\n\n"
+        f"Kunde: {first_name} {last_name} <{client_email}>\n"
+        f"Vertrag: #{contract_id}\n"
+        f"Emission: {issue_title}\n"
+    )
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+
+
+def send_client_contract_deleted_notify_email(
+    *,
+    client_email: str,
+    first_name: str,
+    last_name: str,
+    contract_id: int,
+    issue_title: str,
+) -> bool:
+    subject = "Kunde hat Vertrag gelöscht"
+    body = (
+        "Ein Kunde hat einen Vertrag gelöscht.\n\n"
+        f"Kunde: {first_name} {last_name} <{client_email}>\n"
+        f"Vertrag: #{contract_id}\n"
+        f"Emission: {issue_title}\n"
+    )
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)

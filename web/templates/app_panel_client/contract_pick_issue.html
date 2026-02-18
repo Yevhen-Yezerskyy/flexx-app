@@ -1,10 +1,8 @@
-{% extends "app_panel_admin/base.html" %}
-<!-- FILE: web/templates/app_panel_admin/contract_pick_issue.html  (новое — 2026-02-15)
-     PURPOSE: Admin: выбрать эмиссию для клиента (radio) и создать контракт. -->
+{% extends "app_panel_client/base.html" %}
 {% block panel_where %}Vertrag erstellen{% endblock %}
+{% block nav_contract_create_class %}text-[var(--accent)] font-semibold{% endblock %}
 
 {% block panel_content %}
-
 <script>
 function validateIssueReceipt(formEl) {
   const selected = formEl.querySelector('input[name="issue_id"]:checked');
@@ -21,7 +19,7 @@ function validateIssueReceipt(formEl) {
 <div class="flex items-center mb-8 mt-2">
   <div class="text-2xl">Vertrag erstellen</div>
   <div class="flex-1"></div>
-  <a href="{% url 'panel_admin_clients' %}"
+  <a href="{% url 'panel_client_contract_create' %}"
      class="w-48 rounded-md bg-gray-100 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
     Zurück
   </a>
@@ -36,15 +34,7 @@ function validateIssueReceipt(formEl) {
         <a href="mailto:{{ client.email }}" class="underline hover:text-[var(--accent)] transition">{{ client.email }}</a>
       </div>
     </div>
-    <div>
-      {% if tippgeber %}
-        <div>Tippgeber:</div>
-        <div>{{ tippgeber.first_name }} {{ tippgeber.last_name }}</div>
-        <div>
-          <a href="mailto:{{ tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ tippgeber.email }}</a>
-        </div>
-      {% endif %}
-    </div>
+    <div></div>
   </div>
 
   <form method="post" class="flex flex-col gap-4" onsubmit="return validateIssueReceipt(this);">
@@ -80,15 +70,15 @@ function validateIssueReceipt(formEl) {
                       <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
                         <div>Zinssatz:</div><div>{{ it.interest_rate }}%</div>
                       </div>
-                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
-                      <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
-                    </div>
-                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
-                      <div>Preis pro Anleihe, €:</div><div>{{ it.bond_price_display }}</div>
-                    </div>
-                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
-                      <div>Volumen, €:</div><div>{{ it.issue_volume_display }}</div>
-                    </div>
+                      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
+                        <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
+                      </div>
+                      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
+                        <div>Preis pro Anleihe, €:</div><div>{{ it.bond_price_display }}</div>
+                      </div>
+                      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
+                        <div>Volumen, €:</div><div>{{ it.issue_volume_display }}</div>
+                      </div>
                       <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1 pr-[10px]">
                         <div>Mindestmenge:</div><div>{% if it.minimal_bonds_quantity %}{{ it.minimal_bonds_quantity }}{% else %}5000{% endif %}</div>
                       </div>
@@ -133,7 +123,7 @@ function validateIssueReceipt(formEl) {
     </div>
 
     <div class="flex items-center gap-4 justify-end">
-      <a href="{% url 'panel_admin_clients' %}"
+      <a href="{% url 'panel_client_contract_create' %}"
          class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
         Abbrechen
       </a>
@@ -146,5 +136,4 @@ function validateIssueReceipt(formEl) {
     </div>
   </form>
 </div>
-
 {% endblock %}

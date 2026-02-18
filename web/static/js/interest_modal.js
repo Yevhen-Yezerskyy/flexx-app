@@ -5,6 +5,7 @@
   const init = () => {
     const modal = document.getElementById("interestModal");
     const body = document.getElementById("interestModalBody");
+    const panel = modal ? modal.querySelector("[data-interest-modal-panel]") : null;
     if (!modal || !body) return;
 
     const openModal = () => {
@@ -53,6 +54,8 @@
         }
         return;
       }
+
+      if (panel && panel.contains(t)) return;
 
       if (t.closest("[data-interest-modal-close]")) {
         ev.preventDefault();
