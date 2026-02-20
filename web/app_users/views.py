@@ -196,7 +196,11 @@ def set_password(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:
         user.save(update_fields=["password", "is_active"])
         return redirect("/")
 
-    return render(request, "app_users/password_set.html", {"form": form, "invalid": False})
+    return render(
+        request,
+        "app_users/password_set.html",
+        {"form": form, "invalid": False, "email": user.email},
+    )
 
 
 # ---------------- PUBLIC INTEREST TABLE ----------------
