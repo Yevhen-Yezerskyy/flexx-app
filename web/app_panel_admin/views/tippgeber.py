@@ -11,7 +11,7 @@ from app_panel_admin.forms import AdminTippgeberForm
 from app_users.models import FlexxUser, TippgeberClient
 from flexx.emailer import send_tippgeber_activated_email
 
-from .common import admin_only
+from .common import admin_only, build_set_password_url
 
 
 @login_required
@@ -76,10 +76,14 @@ def tippgeber_toggle_active(request: HttpRequest, user_id: int) -> HttpResponse:
     user.save(update_fields=["is_active"])
 
     if (not was_active) and user.is_active and request.POST.get("notify") == "1":
+        set_password_url = ""
+        if not user.has_usable_password():
+            set_password_url = build_set_password_url(request, user)
         send_tippgeber_activated_email(
             to_email=user.email,
             first_name=user.first_name or "",
             last_name=user.last_name or "",
+            set_password_url=set_password_url,
         )
 
     return redirect("panel_admin_tippgeber_list")

@@ -84,26 +84,66 @@ def send_registration_notify_email(*, role: str, user_email: str, first_name: st
     return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
 
 
-def send_account_activated_email(*, to_email: str, first_name: str, last_name: str, role: str = "") -> bool:
+def send_account_activated_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    role: str = "",
+    set_password_url: str = "",
+) -> bool:
     """Backward-compatible: role optional (older code called without it)."""
 
     subject = "Konto freigeschaltet"
     role_part = f" ({role})" if (role or "").strip() else ""
+    link_block = ""
+    if (set_password_url or "").strip():
+        link_block = (
+            "Bitte erstellen Sie jetzt Ihr Passwort über den folgenden einmaligen Link:\n"
+            f"{set_password_url}\n\n"
+            "Nach dem Setzen des Passworts können Sie sich direkt anmelden.\n\n"
+        )
+
     body = (
         f"Hallo {first_name} {last_name},\n\n"
         f"Ihr Konto{role_part} wurde freigeschaltet.\n\n"
+        f"{link_block}"
         "Mit freundlichen Grüßen\n"
         "FlexxLager Team\n"
     )
     return _send_text(to_email=to_email, subject=subject, body=body)
 
 
-def send_client_activated_email(*, to_email: str, first_name: str, last_name: str) -> bool:
-    return send_account_activated_email(to_email=to_email, first_name=first_name, last_name=last_name, role="Kunde")
+def send_client_activated_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    set_password_url: str = "",
+) -> bool:
+    return send_account_activated_email(
+        to_email=to_email,
+        first_name=first_name,
+        last_name=last_name,
+        role="Kunde",
+        set_password_url=set_password_url,
+    )
 
 
-def send_tippgeber_activated_email(*, to_email: str, first_name: str, last_name: str) -> bool:
-    return send_account_activated_email(to_email=to_email, first_name=first_name, last_name=last_name, role="Tippgeber")
+def send_tippgeber_activated_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    set_password_url: str = "",
+) -> bool:
+    return send_account_activated_email(
+        to_email=to_email,
+        first_name=first_name,
+        last_name=last_name,
+        role="Tippgeber",
+        set_password_url=set_password_url,
+    )
 
 
 def send_account_deactivated_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:

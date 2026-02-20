@@ -6,6 +6,18 @@
 
 {% block panel_content %}
 
+<script>
+function flexxClientFormNotifyConfirm(formEl) {
+  if (formEl.dataset.askNotify !== "1") return true;
+  var isActiveInput = formEl.querySelector('input[name="is_active"]');
+  if (!isActiveInput || !isActiveInput.checked) return true;
+  var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
+  var notifyInput = formEl.querySelector('input[name="notify"]');
+  if (notifyInput) notifyInput.value = send ? "1" : "0";
+  return true;
+}
+</script>
+
 <div class="flex items-center mb-10 mt-2">
   <div class="text-2xl">
     {% if mode == 'edit' %}Kunde bearbeiten{% else %}Neuen Kunden hinzufügen{% endif %}
@@ -18,8 +30,12 @@
   </a>
 </div>
 
-<form method="post" class="flex flex-col gap-6">
+<form method="post"
+      class="flex flex-col gap-6"
+      data-ask-notify="{% if ask_notify_on_submit %}1{% else %}0{% endif %}"
+      onsubmit="return flexxClientFormNotifyConfirm(this);">
   {% csrf_token %}
+  <input type="hidden" name="notify" value="0">
 
   <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
     <div class="text-xl mb-2">Angaben zum Kunden</div>

@@ -12,7 +12,7 @@ from app_users.models import FlexxUser, TippgeberClient
 from flexx.emailer import send_client_activated_email
 from flexx.models import Contract
 
-from .common import admin_only
+from .common import admin_only, build_set_password_url
 
 
 def _is_contract_ready(u: FlexxUser) -> bool:
@@ -97,7 +97,11 @@ def clients_create(request: HttpRequest) -> HttpResponse:
     else:
         form = AdminClientForm(initial={"is_active": True})
 
-    return render(request, "app_panel_admin/clients_form.html", {"form": form, "mode": "create"})
+    return render(
+        request,
+        "app_panel_admin/clients_form.html",
+        {"form": form, "mode": "create", "ask_notify_on_submit": False},
+    )
 
 
 @login_required
@@ -108,6 +112,8 @@ def clients_edit(request: HttpRequest, user_id: int) -> HttpResponse:
 
     user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
 
+    was_active = bool(user.is_active)
+
     if request.method == "POST":
         form = AdminClientForm(request.POST, instance=user)
         if form.is_valid():
@@ -115,12 +121,27 @@ def clients_edit(request: HttpRequest, user_id: int) -> HttpResponse:
             obj.role = FlexxUser.Role.CLIENT
             obj.save()
 
+            if (not was_active) and obj.is_active and request.POST.get("notify") == "1":
+                set_password_url = ""
+                if not obj.has_usable_password():
+                    set_password_url = build_set_password_url(request, obj)
+                send_client_activated_email(
+                    to_email=obj.email,
+                    first_name=obj.first_name or "",
+                    last_name=obj.last_name or "",
+                    set_password_url=set_password_url,
+                )
+
             _save_tippgeber_link(client=obj, tippgeber_id=form.cleaned_data.get("tippgeber_id"))
             return redirect("panel_admin_clients")
     else:
         form = AdminClientForm(instance=user)
 
-    return render(request, "app_panel_admin/clients_form.html", {"form": form, "mode": "edit", "user": user})
+    return render(
+        request,
+        "app_panel_admin/clients_form.html",
+        {"form": form, "mode": "edit", "user": user, "ask_notify_on_submit": (not was_active)},
+    )
 
 
 @login_required
@@ -138,10 +159,14 @@ def clients_toggle_active(request: HttpRequest, user_id: int) -> HttpResponse:
     user.save(update_fields=["is_active"])
 
     if (not was_active) and user.is_active and request.POST.get("notify") == "1":
+        set_password_url = ""
+        if not user.has_usable_password():
+            set_password_url = build_set_password_url(request, user)
         send_client_activated_email(
             to_email=user.email,
             first_name=user.first_name or "",
             last_name=user.last_name or "",
+            set_password_url=set_password_url,
         )
 
     return redirect("panel_admin_clients")
