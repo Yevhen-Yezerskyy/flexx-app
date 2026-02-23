@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import BondIssue, BondIssueAttachment, Contract
+from .models import BondIssue, BondIssueAttachment, Contract, EmailTemplate
 
 
 @admin.register(BondIssue)
@@ -53,3 +53,11 @@ class ContractAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("client", "issue")
     ordering = ("-contract_date", "-id")
+
+
+@admin.register(EmailTemplate)
+class EmailTemplateAdmin(admin.ModelAdmin):
+    list_display = ("id", "key", "from_role", "to_role", "subject", "is_active", "updated_at")
+    list_filter = ("from_role", "to_role", "is_active")
+    search_fields = ("key", "subject", "body_text", "placeholder")
+    ordering = ("key",)

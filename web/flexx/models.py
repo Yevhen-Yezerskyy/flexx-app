@@ -101,3 +101,29 @@ class Contract(models.Model):
 
     def __str__(self) -> str:
         return f"Contract#{self.id} issue={self.issue_id} client={self.client_id}"
+
+
+class EmailTemplate(models.Model):
+    class Party(models.TextChoices):
+        FLEXXLAGER = "FleXXLager"
+        TIPPGEBER = "Tippgeber"
+        CLIENT = "Client"
+
+    key = models.CharField(max_length=128, unique=True)  # e.g. send_password_reset_email
+    from_role = models.CharField(max_length=20, choices=Party.choices)
+    to_role = models.CharField(max_length=20, choices=Party.choices)
+
+    subject = models.CharField(max_length=255)
+    body_text = models.TextField()
+    placeholder = models.CharField(max_length=128, blank=True)  # format: { placeholder }
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "email_templates"
+        ordering = ["key"]
+
+    def __str__(self) -> str:
+        return self.key
