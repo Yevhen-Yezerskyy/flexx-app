@@ -57,7 +57,13 @@ class ContractAdmin(admin.ModelAdmin):
 
 @admin.register(EmailTemplate)
 class EmailTemplateAdmin(admin.ModelAdmin):
-    list_display = ("id", "key", "from_role", "to_role", "subject", "is_active", "updated_at")
+    list_display = ("id", "key", "from_role", "to_role", "from_text", "subject", "is_active", "updated_at")
     list_filter = ("from_role", "to_role", "is_active")
-    search_fields = ("key", "subject", "body_text", "placeholder")
+    search_fields = ("key", "from_text", "subject", "body_text", "placeholder")
     ordering = ("key",)
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change=change, **kwargs)
+        if "subject" in form.base_fields:
+            form.base_fields["subject"].widget.attrs["style"] = "width: 36em;"
+        return form

@@ -112,6 +112,7 @@ class EmailTemplate(models.Model):
     key = models.CharField(max_length=128, unique=True)  # e.g. send_password_reset_email
     from_role = models.CharField(max_length=20, choices=Party.choices)
     to_role = models.CharField(max_length=20, choices=Party.choices)
+    from_text = models.CharField(max_length=255, blank=True)
 
     subject = models.CharField(max_length=255)
     body_text = models.TextField()
