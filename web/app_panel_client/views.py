@@ -325,11 +325,11 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
                 ])
                 if action == "save_pdf":
                     res = build_contract_pdf(contract.id)
-                    if contract.pdf_file:
-                        contract.pdf_file.delete(save=False)
-                    contract.pdf_file.save(res.filename, ContentFile(res.pdf_bytes), save=True)
+                    if contract.contract_pdf:
+                        contract.contract_pdf.delete(save=False)
+                    contract.contract_pdf.save(res.filename, ContentFile(res.pdf_bytes), save=True)
                     ok_message = "Gespeichert und PDF erstellt."
-                    saved_pdf_url = contract.pdf_file.url
+                    saved_pdf_url = contract.contract_pdf.url
                     saved_pdf_name = res.filename
                 else:
                     ok_message = "Gespeichert."
@@ -399,7 +399,7 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
     )
 
     for c in contracts:
-        c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
+        c.pdf_basename = c.contract_pdf.name.rsplit("/", 1)[-1] if c.contract_pdf else ""
         c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
         c.issue_bond_price_display = _format_decimal_de(c.issue.bond_price, "#,##0.00")
         c.issue_volume_display = _format_decimal_de(c.issue.issue_volume, "#,##0.00")

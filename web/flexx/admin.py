@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import BondIssue, BondIssueAttachment, Contract, EmailTemplate
+from .models import (
+    BondIssue,
+    BondIssueAttachment,
+    Contract,
+    DatenschutzeinwilligungText,
+    EmailTemplate,
+    FlexxlagerSignature,
+)
 
 
 @admin.register(BondIssue)
@@ -41,6 +48,11 @@ class ContractAdmin(admin.ModelAdmin):
         "bonds_quantity",
         "nominal_amount",
         "nominal_amount_plus_percent",
+        "signature",
+        "contract_pdf",
+        "contract_pdf_signed",
+        "datenschutzeinwilligung_pdf",
+        "datenschutzeinwilligung_pdf_signed",
         "signed_received_at",
         "paid_at",
     )
@@ -53,6 +65,34 @@ class ContractAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("client", "issue")
     ordering = ("-contract_date", "-id")
+
+
+@admin.register(FlexxlagerSignature)
+class FlexxlagerSignatureAdmin(admin.ModelAdmin):
+    list_display = ("id", "signature")
+    actions = None
+
+    def has_add_permission(self, request):
+        if FlexxlagerSignature.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DatenschutzeinwilligungText)
+class DatenschutzeinwilligungTextAdmin(admin.ModelAdmin):
+    list_display = ("id",)
+    actions = None
+
+    def has_add_permission(self, request):
+        if DatenschutzeinwilligungText.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(EmailTemplate)
@@ -69,3 +109,8 @@ class EmailTemplateAdmin(admin.ModelAdmin):
         if "subject" in form.base_fields:
             form.base_fields["subject"].widget.attrs["style"] = "width: 36em;"
         return form
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return ("key", "placeholder")
+        return ()

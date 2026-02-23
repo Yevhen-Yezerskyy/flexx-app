@@ -62,7 +62,7 @@ def clients_list(request: HttpRequest) -> HttpResponse:
     )
     contracts_by_client_id: dict[int, list[Contract]] = {}
     for c in contracts:
-        c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
+        c.pdf_basename = c.contract_pdf.name.rsplit("/", 1)[-1] if c.contract_pdf else ""
         contracts_by_client_id.setdefault(c.client_id, []).append(c)
 
     rows = [

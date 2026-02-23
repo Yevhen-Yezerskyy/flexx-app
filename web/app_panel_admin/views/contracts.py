@@ -1,5 +1,5 @@
 # FILE: web/app_panel_admin/views/contracts.py  (обновлено — 2026-02-16)
-# PURPOSE: Добавлена генерация PDF для сохранённого договора (action=pdf): build_contract_pdf → сохранить в Contract.pdf_file.
+# PURPOSE: Добавлена генерация PDF для сохранённого договора (action=pdf): build_contract_pdf → сохранить в Contract.contract_pdf.
 
 from __future__ import annotations
 
@@ -104,7 +104,7 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
 
     for c in contracts:
         c.tippgeber = tip_by_client_id.get(c.client_id)
-        c.pdf_basename = c.pdf_file.name.rsplit("/", 1)[-1] if c.pdf_file else ""
+        c.pdf_basename = c.contract_pdf.name.rsplit("/", 1)[-1] if c.contract_pdf else ""
         c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
         c.bonds_quantity_display = _format_decimal_de(c.bonds_quantity, "#,##0") if c.bonds_quantity is not None else ""
         c.nominal_amount_display = _format_decimal_de(c.nominal_amount, "#,##0.00") if c.nominal_amount is not None else ""
@@ -368,11 +368,11 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
                 ])
                 if action == "save_pdf":
                     res = build_contract_pdf(contract.id)
-                    if contract.pdf_file:
-                        contract.pdf_file.delete(save=False)
-                    contract.pdf_file.save(res.filename, ContentFile(res.pdf_bytes), save=True)
+                    if contract.contract_pdf:
+                        contract.contract_pdf.delete(save=False)
+                    contract.contract_pdf.save(res.filename, ContentFile(res.pdf_bytes), save=True)
                     ok_message = "Gespeichert und PDF erstellt."
-                    saved_pdf_url = contract.pdf_file.url
+                    saved_pdf_url = contract.contract_pdf.url
                     saved_pdf_name = res.filename
                 else:
                     ok_message = "Gespeichert."

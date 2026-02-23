@@ -74,8 +74,8 @@ function flexxContractStatusConfirm(formEl) {
           </td>
 
           <td class="px-4 py-3">
-            {% if c.pdf_file %}
-              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_basename }}">
+            {% if c.contract_pdf %}
+              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
                 {{ c.pdf_shortname }}
               </a>
             {% else %}

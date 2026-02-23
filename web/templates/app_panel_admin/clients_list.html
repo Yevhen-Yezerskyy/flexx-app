@@ -73,10 +73,10 @@ function flexxClientDeleteConfirm(formEl) {
                 {% for c in r.contracts %}
                   <div class="mb-6 last:mb-0">
                     <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }} — {{ c.issue.title }}</div>
-                    {% if c.pdf_file %}
+                    {% if c.contract_pdf %}
                       <div class="mt-1">
                         <a class="underline hover:text-[var(--accent)] transition"
-                           href="{{ c.pdf_file.url }}">
+                           href="{{ c.contract_pdf.url }}">
                           {{ c.pdf_basename }}
                         </a>
                       </div>

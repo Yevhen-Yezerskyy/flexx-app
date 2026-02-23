@@ -39,8 +39,8 @@
           <td class="px-4 py-3">
             <div class="grid grid-cols-[150px_minmax(0,1fr)] gap-x-2 gap-y-2">
               <div class="col-span-2">
-                {% if c.pdf_file %}
-                  <b>Vertrag: <a class="underline hover:text-[var(--accent)] transition" href="{{ c.pdf_file.url }}" title="{{ c.pdf_basename }}"></b>
+                {% if c.contract_pdf %}
+                  <b>Vertrag: <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}"></b>
                     {{ c.pdf_basename }}
                   </a>
                 {% else %}

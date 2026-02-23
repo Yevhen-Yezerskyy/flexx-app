@@ -19,6 +19,35 @@ def contract_pdf_upload_to(instance: "Contract", filename: str) -> str:
     return f"contracts/{instance.issue_id}/{instance.client_id}/{filename}"
 
 
+def contract_signature_upload_to(instance: "Contract", filename: str) -> str:
+    return f"contracts/{instance.issue_id}/{instance.client_id}/signature/{filename}"
+
+
+def contract_pdf_signed_upload_to(instance: "Contract", filename: str) -> str:
+    return f"contracts/{instance.issue_id}/{instance.client_id}/signed/{filename}"
+
+
+def contract_datenschutzeinwilligung_pdf_upload_to(instance: "Contract", filename: str) -> str:
+    return f"contracts/{instance.issue_id}/{instance.client_id}/datenschutzeinwilligung/{filename}"
+
+
+def contract_datenschutzeinwilligung_pdf_signed_upload_to(instance: "Contract", filename: str) -> str:
+    return f"contracts/{instance.issue_id}/{instance.client_id}/datenschutzeinwilligung/signed/{filename}"
+
+
+# Backward-compat for historical migrations that import old function names.
+def contract_signed_upload_to(instance: "Contract", filename: str) -> str:
+    return contract_pdf_signed_upload_to(instance, filename)
+
+
+def contract_datenschutzeinwilligung_upload_to(instance: "Contract", filename: str) -> str:
+    return contract_datenschutzeinwilligung_pdf_upload_to(instance, filename)
+
+
+def flexxlager_signature_upload_to(instance: "FlexxlagerSignature", filename: str) -> str:
+    return f"flexxlager/signature/{filename}"
+
+
 class BondIssue(models.Model):
     title = models.CharField(max_length=255)  # Name der Emission
     issue_date = models.DateField()  # Emissionsdatum
@@ -87,7 +116,17 @@ class Contract(models.Model):
         related_name="contracts_as_client",
     )
 
-    pdf_file = models.FileField(upload_to=contract_pdf_upload_to, blank=True)
+    contract_pdf = models.FileField(upload_to=contract_pdf_upload_to, blank=True)
+    signature = models.ImageField(upload_to=contract_signature_upload_to, blank=True)
+    contract_pdf_signed = models.FileField(upload_to=contract_pdf_signed_upload_to, blank=True)
+    datenschutzeinwilligung_pdf = models.FileField(
+        upload_to=contract_datenschutzeinwilligung_pdf_upload_to,
+        blank=True,
+    )
+    datenschutzeinwilligung_pdf_signed = models.FileField(
+        upload_to=contract_datenschutzeinwilligung_pdf_signed_upload_to,
+        blank=True,
+    )
 
     signed_received_at = models.DateField(null=True, blank=True)
     paid_at = models.DateField(null=True, blank=True)
@@ -101,6 +140,34 @@ class Contract(models.Model):
 
     def __str__(self) -> str:
         return f"Contract#{self.id} issue={self.issue_id} client={self.client_id}"
+
+
+class FlexxlagerSignature(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    signature = models.ImageField(upload_to=flexxlager_signature_upload_to)
+
+    class Meta:
+        db_table = "flexxlager_signature"
+        verbose_name = "FleXXLager Signature"
+        verbose_name_plural = "FleXXLager Signature"
+
+    def save(self, *args, **kwargs):
+        self.id = 1
+        return super().save(*args, **kwargs)
+
+
+class DatenschutzeinwilligungText(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    text = models.TextField()
+
+    class Meta:
+        db_table = "datenschutzeinwilligung_text"
+        verbose_name = "Datenschutzeinwilligung Text"
+        verbose_name_plural = "Datenschutzeinwilligung Text"
+
+    def save(self, *args, **kwargs):
+        self.id = 1
+        return super().save(*args, **kwargs)
 
 
 class EmailTemplate(models.Model):

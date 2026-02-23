@@ -488,11 +488,19 @@ class ContractPdfCreator:
             lower_line_y - 3.0 - self.FONT_SIZE_SMALL,
             "(nur von der FleXXLager GmbH & Co. KG auszufüllen)",
         )
+        if self.contract.bonds_quantity is None:
+            qty_text = "_____________________________"
+        else:
+            qty_text = f"{int(self.contract.bonds_quantity):,}".replace(",", ".")
         c.setFont(self.FONT_FAMILY, self.FONT_SIZE_TEXT)
         c.drawString(
             x,
             lower_line_y - 29.0 - self.FONT_SIZE_TEXT,
-            "Zeichnung in Höhe von __________________ Inhaber-Teilschuldverschreibungen angenommen.",
+            (
+                "Zeichnung in Höhe von "
+                f"{qty_text} "
+                "Inhaber-Teilschuldverschreibungen angenommen."
+            ),
         )
 
         self.y = label_y - self.BLOCK_GAP_LG
