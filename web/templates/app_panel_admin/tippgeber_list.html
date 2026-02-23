@@ -14,6 +14,14 @@ function flexxTippgeberActivateConfirm(formEl) {
   if (inp) inp.value = send ? "1" : "0";
   return true;
 }
+
+function flexxTippgeberDeleteConfirm(formEl) {
+  if (!confirm("Wirklich löschen?")) return false;
+  var send = confirm("Möchten Sie dem Tippgeber eine Benachrichtigung senden?");
+  var inp = formEl.querySelector('input[name="notify"]');
+  if (inp) inp.value = send ? "1" : "0";
+  return true;
+}
 </script>
 
 <div class="flex items-center mb-10 mt-2">
@@ -91,8 +99,9 @@ function flexxTippgeberActivateConfirm(formEl) {
             <a href="{% url 'panel_admin_tippgeber_edit' r.u.id %}"
                class="underline hover:text-[var(--accent)] transition">Ändern</a><br>
             <form method="post" action="{% url 'panel_admin_tippgeber_delete' r.u.id %}"
-                  onsubmit="return confirm('Wirklich löschen?');">
+                  onsubmit="return flexxTippgeberDeleteConfirm(this);">
               {% csrf_token %}
+              <input type="hidden" name="notify" value="0">
               <button type="submit" class="underline hover:text-red-600 transition mt-1">Löschen</button>
             </form>
           </td>

@@ -20,8 +20,10 @@ from flexx.models import BondIssue
 from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
 from flexx.emailer import (
     send_password_reset_email,
-    send_registration_notify_email,
-    send_registration_pending_email,
+    send_registration_notify_client_email,
+    send_registration_notify_tippgeber_email,
+    send_registration_pending_client_email,
+    send_registration_pending_tippgeber_email,
 )
 
 from .forms import (
@@ -82,15 +84,13 @@ def register_client(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         user = form.save()
 
-        send_registration_pending_email(
+        send_registration_pending_client_email(
             to_email=user.email,
-            role=user.role,
             first_name=user.first_name,
             last_name=user.last_name,
         )
 
-        send_registration_notify_email(
-            role=user.role,
+        send_registration_notify_client_email(
             user_email=user.email,
             first_name=user.first_name,
             last_name=user.last_name,
@@ -107,15 +107,13 @@ def register_agent(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         user = form.save()
 
-        send_registration_pending_email(
+        send_registration_pending_tippgeber_email(
             to_email=user.email,
-            role=user.role,
             first_name=user.first_name,
             last_name=user.last_name,
         )
 
-        send_registration_notify_email(
-            role=user.role,
+        send_registration_notify_tippgeber_email(
             user_email=user.email,
             first_name=user.first_name,
             last_name=user.last_name,

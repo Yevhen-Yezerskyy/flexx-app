@@ -3,11 +3,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
+from email.utils import formataddr, parseaddr
 import logging
 import os
+import re
 
 from django.core.mail import EmailMultiAlternatives, get_connection
+from django.utils import timezone
+from .models import EmailTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +31,11 @@ class EmailSendError(RuntimeError):
     pass
 
 
+EMAIL_TEMPLATE_NOT_FOUND = "NOT_FOUND"
+EMAIL_TEMPLATE_SEND_ERROR = "SEND_ERROR"
+EMAIL_TEMPLATE_SENT = "SENT"
+
+
 def _conn():
     return get_connection(
         host=SMTP_HOST,
@@ -38,12 +48,13 @@ def _conn():
     )
 
 
-def _send_text(*, to_email: str, subject: str, body: str) -> bool:
+def _send_text(*, to_email: str, subject: str, body: str, from_email: str | None = None) -> bool:
     try:
+        effective_from_email = from_email or FROM_EMAIL
         msg = EmailMultiAlternatives(
             subject=subject,
             body=body,
-            from_email=FROM_EMAIL,
+            from_email=effective_from_email,
             to=[to_email],
             connection=_conn(),
         )
@@ -59,59 +70,331 @@ def _send_text(*, to_email: str, subject: str, body: str) -> bool:
         raise EmailSendError(f"Email send error: to={to_email} subject={subject}") from e
 
 
+def send_email_from_template(
+    *,
+    key: str,
+    to_email: str,
+    context: Mapping[str, object] | None = None,
+) -> str:
+    template = (
+        EmailTemplate.objects.filter(key=key, is_active=True)
+        .only("subject", "body_text", "from_text")
+        .first()
+    )
+    if template is None:
+        logger.warning("EMAIL_TEMPLATE_NOT_FOUND key=%s to=%s", key, to_email)
+        return EMAIL_TEMPLATE_NOT_FOUND
+
+    ctx = context or {}
+    placeholder_re = re.compile(r"\{\s*([a-zA-Z0-9_]+)\s*\}")
+
+    subject = placeholder_re.sub(
+        lambda m: (
+            m.group(0)
+            if m.group(1) not in ctx
+            else ("" if ctx[m.group(1)] is None else str(ctx[m.group(1)]))
+        ),
+        template.subject,
+    )
+    body = placeholder_re.sub(
+        lambda m: (
+            m.group(0)
+            if m.group(1) not in ctx
+            else ("" if ctx[m.group(1)] is None else str(ctx[m.group(1)]))
+        ),
+        template.body_text,
+    )
+
+    display_name = (template.from_text or "").strip()
+    from_email = FROM_EMAIL
+    if display_name:
+        _, base_email = parseaddr(FROM_EMAIL)
+        if base_email:
+            from_email = formataddr((display_name, base_email))
+
+    try:
+        _send_text(
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            from_email=from_email,
+        )
+        return EMAIL_TEMPLATE_SENT
+    except EmailSendError:
+        logger.error("EMAIL_TEMPLATE_SEND_ERROR key=%s to=%s", key, to_email)
+        return EMAIL_TEMPLATE_SEND_ERROR
+
+
 # ---- registration / admin activation ----
 
-def send_registration_pending_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:
-    subject = "Registrierung erhalten – Konto wartet auf Freischaltung"
+def send_registration_pending_client_email(*, to_email: str, first_name: str, last_name: str) -> bool:
+    client_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_registration_pending_client_email.__name__,
+        to_email=to_email,
+        context={"client_name": client_name},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_registration_pending_client_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihre Registrierung bei FleXXLager – Konto in Prüfung"
     body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        f"wir haben Ihre Registrierung ({role}) erhalten.\n"
-        "Ihr Konto wartet auf Freischaltung. Wir melden uns, sobald es aktiviert ist.\n\n"
+        f"Sehr geehrte/r {client_name},\n\n"
+        "vielen Dank für Ihre Registrierung als Kunde bei FleXXLager.\n"
+        "Ihr Benutzerkonto wurde erfolgreich erstellt und befindet sich derzeit in Prüfung.\n"
+        "Sobald die Freischaltung erfolgt ist, erhalten Sie eine separate Benachrichtigung.\n\n"
         "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+        "Ihr FleXXLager Team\n"
     )
-    return _send_text(to_email=to_email, subject=subject, body=body)
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
 
 
-def send_registration_notify_email(*, role: str, user_email: str, first_name: str, last_name: str) -> bool:
-    subject = "Neue Registrierung"
+def send_registration_pending_tippgeber_email(*, to_email: str, first_name: str, last_name: str) -> bool:
+    tippgeber_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_registration_pending_tippgeber_email.__name__,
+        to_email=to_email,
+        context={"tippgeber_name": tippgeber_name},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_registration_pending_tippgeber_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihre Registrierung bei FleXXLager – Konto in Prüfung"
     body = (
-        "Neue Registrierung im System.\n\n"
-        f"Name: {first_name} {last_name}\n"
-        f"E-Mail: {user_email}\n"
-        f"Rolle: {role}\n"
+        f"Sehr geehrte/r {tippgeber_name},\n\n"
+        "vielen Dank für Ihre Registrierung als Tippgeber bei FleXXLager.\n"
+        "Ihr Benutzerkonto wurde erfolgreich erstellt und befindet sich derzeit in Prüfung.\n"
+        "Sobald die Freischaltung erfolgt ist, erhalten Sie eine separate Benachrichtigung.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
     )
-    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
 
 
-def send_account_activated_email(
+def send_registration_notify_client_email(*, user_email: str, first_name: str, last_name: str) -> bool:
+    client_name = f"{first_name} {last_name}".strip()
+    registered_at = timezone.localtime(timezone.now()).strftime("%d.%m.%Y %H:%M")
+    client = (
+        f"Name: {client_name}\n"
+        f"Mail: {user_email}\n"
+        f"Registrierung: {registered_at}"
+    )
+
+    status = send_email_from_template(
+        key=send_registration_notify_client_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"client": client},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_registration_notify_client_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Neuer Kunde registriert – Bitte prüfen"
+    body = (
+        "Guten Tag,\n\n"
+        "im System hat sich ein neuer Kunde registriert:\n"
+        f"{client}\n\n"
+        "Bitte prüfen Sie die Registrierung und aktivieren Sie den Kunden, sofern alles passt.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Client)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
+
+
+def send_registration_notify_tippgeber_email(*, user_email: str, first_name: str, last_name: str) -> bool:
+    tippgeber_name = f"{first_name} {last_name}".strip()
+    registered_at = timezone.localtime(timezone.now()).strftime("%d.%m.%Y %H:%M")
+    tippgeber = (
+        f"Name: {tippgeber_name}\n"
+        f"Mail: {user_email}\n"
+        f"Registrierung: {registered_at}"
+    )
+
+    status = send_email_from_template(
+        key=send_registration_notify_tippgeber_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"tippgeber": tippgeber},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_registration_notify_tippgeber_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Neuer Tippgeber registriert – Bitte prüfen"
+    body = (
+        "Guten Tag,\n\n"
+        "im System hat sich ein neuer Tippgeber registriert:\n"
+        f"{tippgeber}\n\n"
+        "Bitte prüfen Sie die Registrierung und aktivieren Sie den Tippgeber, sofern alles passt.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Tippgeber)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
+
+
+def send_client_activated_with_password_email(
     *,
     to_email: str,
     first_name: str,
     last_name: str,
-    role: str = "",
-    set_password_url: str = "",
+    set_password_url: str,
 ) -> bool:
-    """Backward-compatible: role optional (older code called without it)."""
-
-    subject = "Konto freigeschaltet"
-    role_part = f" ({role})" if (role or "").strip() else ""
-    link_block = ""
-    if (set_password_url or "").strip():
-        link_block = (
-            "Bitte erstellen Sie jetzt Ihr Passwort über den folgenden einmaligen Link:\n"
-            f"{set_password_url}\n\n"
-            "Nach dem Setzen des Passworts können Sie sich direkt anmelden.\n\n"
+    status = send_email_from_template(
+        key=send_client_activated_with_password_email.__name__,
+        to_email=to_email,
+        context={"link": set_password_url},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_client_activated_with_password_email.__name__} to={to_email}"
         )
 
+    subject = "Ihr Zugang zu FleXXLager"
     body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        f"Ihr Konto{role_part} wurde freigeschaltet.\n\n"
-        f"{link_block}"
+        "Sehr geehrte/r Kunde/Kundin,\n\n"
+        "Sie wurden im System FleXXLager registriert. Ihr Benutzerkonto wurde bereits aktiviert.\n"
+        "Bitte nutzen Sie folgenden Link, um Ihr persönliches Passwort festzulegen:\n\n"
+        f"{set_password_url}\n\n"
+        "Der Link zur Einrichtung Ihres Passworts ist 7 Tage gültig. Sollten Sie die E-Mail verlieren "
+        "oder Ihr Passwort nicht rechtzeitig festlegen, können Sie jederzeit die Funktion "
+        "„Passwort vergessen“ nutzen, um einen neuen Link anzufordern.\n\n"
+        "Anschließend können Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort im FleXXLager-System anmelden.\n\n"
+        "Sollten Sie kein Interesse an einer Zusammenarbeit haben oder irrtümlich registriert worden sein, "
+        "bitten wir um Entschuldigung. Antworten Sie in diesem Fall bitte kurz auf diese E-Mail mit "
+        "„Nicht interessiert“ oder „Fehler“, und wir werden Ihre personenbezogenen Daten umgehend löschen.\n\n"
         "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+        "Ihr FleXXLager Team\n"
     )
-    return _send_text(to_email=to_email, subject=subject, body=body)
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
+
+
+def send_client_activated_without_password_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+) -> bool:
+    client_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_client_activated_without_password_email.__name__,
+        to_email=to_email,
+        context={"client_name": client_name},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_client_activated_without_password_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihr Konto wurde aktiviert"
+    body = (
+        f"Sehr geehrte/r {client_name},\n\n"
+        "Ihr Benutzerkonto wurde erfolgreich aktiviert.\n"
+        "Bitte verwenden Sie Ihre Zugangsdaten (E-Mail und Passwort), um sich anzumelden.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
+
+
+def send_tippgeber_activated_with_password_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    set_password_url: str,
+) -> bool:
+    status = send_email_from_template(
+        key=send_tippgeber_activated_with_password_email.__name__,
+        to_email=to_email,
+        context={"link": set_password_url},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_tippgeber_activated_with_password_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihr Zugang zu FleXXLager"
+    body = (
+        "Sehr geehrte/r Tippgeber/in,\n\n"
+        "Sie wurden im System FleXXLager registriert. Ihr Benutzerkonto wurde bereits aktiviert.\n"
+        "Bitte nutzen Sie folgenden Link, um Ihr persönliches Passwort festzulegen:\n\n"
+        f"{set_password_url}\n\n"
+        "Der Link zur Einrichtung Ihres Passworts ist 7 Tage gültig. Sollten Sie die E-Mail verlieren "
+        "oder Ihr Passwort nicht rechtzeitig festlegen, können Sie jederzeit die Funktion "
+        "„Passwort vergessen“ nutzen, um einen neuen Link anzufordern.\n\n"
+        "Anschließend können Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort im FleXXLager-System anmelden.\n\n"
+        "Sollten Sie kein Interesse an einer Zusammenarbeit haben oder irrtümlich registriert worden sein, "
+        "bitten wir um Entschuldigung. Antworten Sie in diesem Fall bitte kurz auf diese E-Mail mit "
+        "„Nicht interessiert“ oder „Fehler“, und wir werden Ihre personenbezogenen Daten umgehend löschen.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
+
+
+def send_tippgeber_activated_without_password_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+) -> bool:
+    tippgeber_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_tippgeber_activated_without_password_email.__name__,
+        to_email=to_email,
+        context={"client_name": tippgeber_name},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_tippgeber_activated_without_password_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihr Konto wurde aktiviert"
+    body = (
+        f"Sehr geehrte/r {tippgeber_name},\n\n"
+        "Ihr Benutzerkonto wurde erfolgreich aktiviert.\n"
+        "Bitte verwenden Sie Ihre Zugangsdaten (E-Mail und Passwort), um sich anzumelden.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
 
 
 def send_client_activated_email(
@@ -121,12 +404,17 @@ def send_client_activated_email(
     last_name: str,
     set_password_url: str = "",
 ) -> bool:
-    return send_account_activated_email(
+    if (set_password_url or "").strip():
+        return send_client_activated_with_password_email(
+            to_email=to_email,
+            first_name=first_name,
+            last_name=last_name,
+            set_password_url=set_password_url,
+        )
+    return send_client_activated_without_password_email(
         to_email=to_email,
         first_name=first_name,
         last_name=last_name,
-        role="Kunde",
-        set_password_url=set_password_url,
     )
 
 
@@ -137,51 +425,99 @@ def send_tippgeber_activated_email(
     last_name: str,
     set_password_url: str = "",
 ) -> bool:
-    return send_account_activated_email(
+    if (set_password_url or "").strip():
+        return send_tippgeber_activated_with_password_email(
+            to_email=to_email,
+            first_name=first_name,
+            last_name=last_name,
+            set_password_url=set_password_url,
+        )
+    return send_tippgeber_activated_without_password_email(
         to_email=to_email,
         first_name=first_name,
         last_name=last_name,
-        role="Tippgeber",
-        set_password_url=set_password_url,
     )
 
 
-def send_account_deactivated_email(*, to_email: str, role: str, first_name: str, last_name: str) -> bool:
-    subject = "Konto deaktiviert"
+def send_client_deleted_email(*, to_email: str, first_name: str, last_name: str) -> bool:
+    client_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_client_deleted_email.__name__,
+        to_email=to_email,
+        context={"client_name": client_name},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_client_deleted_email.__name__} to={to_email}"
+        )
+
+    subject = "Bestätigung der Kontoschließung bei FleXXLager"
     body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        f"Ihr Konto ({role}) wurde deaktiviert.\n"
-        "Bitte kontaktieren Sie uns bei Fragen.\n\n"
+        "Sehr geehrte/r Kunde/Kundin,\n\n"
+        "Ihr Benutzerkonto bei FleXXLager wurde geschlossen.\n"
+        "Ihre personenbezogenen Daten wurden vollständig aus unserem System gelöscht.\n\n"
         "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+        "Ihr FleXXLager Team\n"
     )
-    return _send_text(to_email=to_email, subject=subject, body=body)
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
+
+
+def send_tippgeber_deleted_email(*, to_email: str, first_name: str, last_name: str) -> bool:
+    tippgeber_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_tippgeber_deleted_email.__name__,
+        to_email=to_email,
+        context={"tippgeber_name": tippgeber_name},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_tippgeber_deleted_email.__name__} to={to_email}"
+        )
+
+    subject = "Bestätigung der Kontoschließung bei FleXXLager"
+    body = (
+        "Sehr geehrte/r Tippgeber/in,\n\n"
+        "Ihr Benutzerkonto bei FleXXLager wurde geschlossen.\n"
+        "Ihre personenbezogenen Daten wurden vollständig aus unserem System gelöscht.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
 
 
 # ---- password flows ----
 
 def send_password_reset_email(*, to_email: str, first_name: str, last_name: str, reset_url: str) -> bool:
-    subject = "Passwort zurücksetzen"
-    body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        "Sie haben eine Passwort-Zurücksetzung angefordert.\n"
-        f"Link: {reset_url}\n\n"
-        "Wenn Sie das nicht waren, ignorieren Sie diese E-Mail.\n\n"
-        "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+    status = send_email_from_template(
+        key=send_password_reset_email.__name__,
+        to_email=to_email,
+        context={"link": reset_url},
     )
-    return _send_text(to_email=to_email, subject=subject, body=body)
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_password_reset_email.__name__} to={to_email}"
+        )
 
-
-def send_set_password_email(*, to_email: str, first_name: str, last_name: str, set_url: str) -> bool:
-    subject = "Passwort festlegen"
+    subject = "Passwortänderung bei FleXXLager"
     body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        "Bitte legen Sie Ihr Passwort fest.\n"
-        f"Link: {set_url}\n\n"
-        "Dieser Link ist nur einmal nutzbar.\n\n"
+        "Sehr geehrte/r Nutzer/in,\n\n"
+        "wir haben eine Anfrage zur Änderung Ihres Passworts erhalten.\n"
+        "Bitte nutzen Sie den folgenden Link, um Ihr Passwort neu festzulegen:\n\n"
+        f"{reset_url}\n\n"
+        "Der Link ist 7 Tage gültig.\n"
+        "Falls Sie keine Passwortänderung angefordert haben, können Sie diese E-Mail ignorieren und löschen.\n\n"
         "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+        "Ihr FleXXLager Team\n"
     )
     return _send_text(to_email=to_email, subject=subject, body=body)
 
@@ -197,13 +533,35 @@ def send_tippgeber_added_interessent_email(
     client_first_name: str,
     client_last_name: str,
 ) -> bool:
-    subject = "Neuer Interessent durch Tippgeber"
-    body = (
-        "Ein Tippgeber hat einen Interessenten übermittelt.\n\n"
-        f"Tippgeber: {tippgeber_first_name} {tippgeber_last_name} <{tippgeber_email}>\n"
-        f"Interessent: {client_first_name} {client_last_name} <{client_email}>\n"
+    tipgeber_client = (
+        f"Kunde: {client_last_name} {client_first_name} {client_email}\n"
+        f"Tippgeber: {tippgeber_last_name} {tippgeber_first_name} {tippgeber_email}"
     )
-    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+    status = send_email_from_template(
+        key=send_tippgeber_added_interessent_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"tipgeber_client": tipgeber_client},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_tippgeber_added_interessent_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Neuer Kunde durch Tippgeber – Aktivierung erforderlich"
+    body = (
+        "Guten Tag,\n\n"
+        "ein Tippgeber hat einen neuen Kunden hinzugefügt:\n"
+        f"{tipgeber_client}\n\n"
+        "Bitte aktivieren Sie diesen Kunden, damit er eine Benachrichtigung erhält und sich im FleXXLager-System "
+        "registrieren kann.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Tippgeber)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
 
 
 def send_tippgeber_link_conflict_email(
@@ -215,13 +573,35 @@ def send_tippgeber_link_conflict_email(
     client_first_name: str,
     client_last_name: str,
 ) -> bool:
-    subject = "Konflikt: Kunde existiert bereits"
-    body = (
-        "Ein Tippgeber wollte einen bereits vorhandenen Kunden zuordnen (Zuordnung wurde NICHT erstellt).\n\n"
-        f"Tippgeber: {tippgeber_first_name} {tippgeber_last_name} <{tippgeber_email}>\n"
-        f"Kunde: {client_first_name} {client_last_name} <{client_email}>\n"
+    tipgeber_client = (
+        f"Kunde: {client_last_name} {client_first_name} {client_email}\n"
+        f"Tippgeber: {tippgeber_last_name} {tippgeber_first_name} {tippgeber_email}"
     )
-    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+    status = send_email_from_template(
+        key=send_tippgeber_link_conflict_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"tipgeber_client": tipgeber_client},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_tippgeber_link_conflict_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Zuordnung nicht erstellt – Kunde bereits vorhanden"
+    body = (
+        "Guten Tag,\n\n"
+        "ein Tippgeber hat versucht, einen bereits bestehenden Kunden zuzuordnen. "
+        "Die Zuordnung wurde nicht erstellt.\n\n"
+        f"{tipgeber_client}\n\n"
+        "Dieser Konflikt muss geklärt werden. Bitte setzen Sie sich mit dem Tippgeber in Verbindung.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Tippgeber)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
 
 
 # ---- Contract status flows ----
@@ -235,17 +615,30 @@ def send_contract_signed_received_email(
     issue_title: str,
     signed_date: date,
 ) -> bool:
-    subject = "Vertrag erhalten"
-    body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        "wir bestätigen den Eingang Ihres unterzeichneten Vertrags.\n"
-        f"Vertrag: #{contract_id}\n"
-        f"Emission: {issue_title}\n"
-        f"Eingang am: {signed_date:%d.%m.%Y}\n\n"
-        "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+    client_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_contract_signed_received_email.__name__,
+        to_email=to_email,
+        context={"client_name": client_name},
     )
-    return _send_text(to_email=to_email, subject=subject, body=body)
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_contract_signed_received_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihr unterzeichneter Vertrag ist bei FleXXLager eingegangen"
+    body = (
+        f"Sehr geehrte/r {client_name},\n\n"
+        "wir haben den von Ihnen unterzeichneten Vertrag per Post erhalten.\n"
+        "Vielen Dank dafür!\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
 
 
 def send_contract_paid_received_email(
@@ -257,17 +650,31 @@ def send_contract_paid_received_email(
     issue_title: str,
     paid_date: date,
 ) -> bool:
-    subject = "Zahlung erhalten"
-    body = (
-        f"Hallo {first_name} {last_name},\n\n"
-        "wir bestätigen den Eingang Ihrer Zahlung.\n"
-        f"Vertrag: #{contract_id}\n"
-        f"Emission: {issue_title}\n"
-        f"Eingang am: {paid_date:%d.%m.%Y}\n\n"
-        "Mit freundlichen Grüßen\n"
-        "FlexxLager Team\n"
+    client_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_contract_paid_received_email.__name__,
+        to_email=to_email,
+        context={"client_name": client_name},
     )
-    return _send_text(to_email=to_email, subject=subject, body=body)
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_contract_paid_received_email.__name__} to={to_email}"
+        )
+
+    subject = "Zahlungseingang bei FleXXLager bestätigt"
+    body = (
+        f"Sehr geehrte/r {client_name},\n\n"
+        "wir haben die Zahlung zu Ihrem Vertrag erhalten.\n"
+        "Die Anleihen wurden dem im Vertrag angegebenen Depotkonto gutgeschrieben.\n\n"
+        "Vielen Dank für Ihr Vertrauen.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=to_email, subject=subject, body=body, from_email=from_email)
 
 
 # ---- Client self-service contract flow (notify internal) ----
@@ -278,12 +685,30 @@ def send_client_profile_completed_notify_email(
     first_name: str,
     last_name: str,
 ) -> bool:
-    subject = "Kunde hat Profil vervollständigt"
-    body = (
-        "Ein Kunde hat sein Profil vollständig ausgefüllt.\n\n"
-        f"Kunde: {first_name} {last_name} <{client_email}>\n"
+    client_data = f"Kunde: {first_name} {last_name} {client_email}".strip()
+    status = send_email_from_template(
+        key=send_client_profile_completed_notify_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"client_data": client_data},
     )
-    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_client_profile_completed_notify_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Profil vollständig ausgefüllt – Vertragsunterzeichnung möglich"
+    body = (
+        "Guten Tag,\n\n"
+        "ein Kunde hat sein Profil vollständig ausgefüllt und kann nun den Vertrag unterzeichnen:\n\n"
+        f"{client_data}\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Client)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
 
 
 def send_client_contract_created_notify_email(
@@ -294,14 +719,35 @@ def send_client_contract_created_notify_email(
     contract_id: int,
     issue_title: str,
 ) -> bool:
-    subject = "Kunde hat Vertrag erstellt"
-    body = (
-        "Ein Kunde hat einen Vertrag erstellt.\n\n"
-        f"Kunde: {first_name} {last_name} <{client_email}>\n"
+    client_contract = (
+        f"Kunde: {first_name} {last_name} {client_email}\n"
         f"Vertrag: #{contract_id}\n"
-        f"Emission: {issue_title}\n"
+        f"Emission: {issue_title}"
     )
-    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+    status = send_email_from_template(
+        key=send_client_contract_created_notify_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"client_contract": client_contract},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_client_contract_created_notify_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Neuer Vertrag durch Kunde – Bitte prüfen"
+    body = (
+        "Guten Tag,\n\n"
+        "ein Kunde hat einen neuen Vertrag erstellt:\n\n"
+        f"{client_contract}\n\n"
+        "Bitte prüfen Sie den Vorgang im FleXXLager-System.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Client)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
 
 
 def send_client_contract_deleted_notify_email(
@@ -312,11 +758,32 @@ def send_client_contract_deleted_notify_email(
     contract_id: int,
     issue_title: str,
 ) -> bool:
-    subject = "Kunde hat Vertrag gelöscht"
-    body = (
-        "Ein Kunde hat einen Vertrag gelöscht.\n\n"
-        f"Kunde: {first_name} {last_name} <{client_email}>\n"
+    client_contract = (
+        f"Kunde: {first_name} {last_name} {client_email}\n"
         f"Vertrag: #{contract_id}\n"
-        f"Emission: {issue_title}\n"
+        f"Emission: {issue_title}"
     )
-    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body)
+    status = send_email_from_template(
+        key=send_client_contract_deleted_notify_email.__name__,
+        to_email=NOTIFY_EMAIL,
+        context={"client_contract": client_contract},
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_client_contract_deleted_notify_email.__name__} to={NOTIFY_EMAIL}"
+        )
+
+    subject = "Vertrag durch Kunde gelöscht – Bitte prüfen"
+    body = (
+        "Guten Tag,\n\n"
+        "ein Kunde hat einen Vertrag gelöscht:\n\n"
+        f"{client_contract}\n\n"
+        "Bitte prüfen Sie den Vorgang im FleXXLager-System.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "FleXXLager CRM\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager CRM (Client)", base_email)) if base_email else FROM_EMAIL
+    return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)

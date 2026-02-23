@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from app_panel_admin.forms import AdminClientForm
 from app_users.models import FlexxUser, TippgeberClient
-from flexx.emailer import send_client_activated_email
+from flexx.emailer import send_client_activated_email, send_client_deleted_email
 from flexx.models import Contract
 
 from .common import admin_only, build_set_password_url
@@ -182,6 +182,12 @@ def clients_delete(request: HttpRequest, user_id: int) -> HttpResponse:
         return HttpResponseNotAllowed(["POST"])
 
     user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
+    if request.POST.get("notify") == "1":
+        send_client_deleted_email(
+            to_email=user.email,
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
     TippgeberClient.objects.filter(client=user).delete()
     user.delete()
     return redirect("panel_admin_clients")
