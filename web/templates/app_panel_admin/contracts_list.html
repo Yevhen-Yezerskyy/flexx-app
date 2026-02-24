@@ -30,11 +30,10 @@ function flexxContractStatusConfirm(formEl) {
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[34%] text-[var(--accent)] font-semibold">Daten zum Vertrag</th>
-        <th class="px-4 py-3 w-[22%] text-[var(--accent)] font-semibold">Kunde</th>
-        <th class="px-4 py-3 w-[18%] text-[var(--accent)] font-semibold">Datei</th>
-        <th class="px-4 py-3 w-[10%] text-[var(--accent)] font-semibold">Vertrag</th>
-        <th class="px-4 py-3 w-[10%] text-[var(--accent)] font-semibold">Zahlung</th>
+        <th class="px-4 py-3 w-[45%] text-[var(--accent)] font-semibold">Daten zum Vertrag</th>
+        <th class="px-4 py-3 w-[45%] text-[var(--accent)] font-semibold">Kunde</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Datei</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Zahlung</th>
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
     </thead>
@@ -74,27 +73,44 @@ function flexxContractStatusConfirm(formEl) {
           </td>
 
           <td class="px-4 py-3">
-            {% if c.contract_pdf %}
-              <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
-                {{ c.pdf_shortname }}
-              </a>
+            {% if c.contract_pdf_signed or c.datenschutzeinwilligung_pdf_signed %}
+              {% if c.contract_pdf_signed %}
+                <div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
+                    {{ c.signed_pdf_basename }}
+                  </a>
+                </div>
+              {% endif %}
+              {% if c.datenschutzeinwilligung_pdf_signed %}
+                <div class="mt-1">
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.datenschutzeinwilligung_pdf_signed.url }}" title="{{ c.signed_dsgvo_pdf_basename }}">
+                    {{ c.signed_dsgvo_pdf_basename }}
+                  </a>
+                </div>
+              {% endif %}
+            {% elif c.contract_pdf or c.datenschutzeinwilligung_pdf %}
+              {% if c.contract_pdf %}
+                <div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
+                    {{ c.pdf_basename }}
+                  </a>
+                </div>
+              {% endif %}
+              {% if c.datenschutzeinwilligung_pdf %}
+                <div class="mt-1">
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.datenschutzeinwilligung_pdf.url }}" title="{{ c.dsgvo_pdf_basename }}">
+                    {{ c.dsgvo_pdf_basename }}
+                  </a>
+                </div>
+              {% endif %}
+              <div class="mt-2">
+                <a class="underline hover:text-[var(--accent)] transition" href="{% url 'panel_admin_contract_unterschreiben' c.id %}">
+                  Vertrag unterschreiben
+                </a>
+              </div>
             {% else %}
               <span class="text-gray-500">Vertrag nicht erstellt</span>
             {% endif %}
-          </td>
-
-          <td class="px-4 py-3">
-            <div>{% if c.signed_received_at %}Erhalten{% else %}Offen{% endif %}</div>
-            <form method="post"
-                  action="{% url 'panel_admin_contract_toggle_signed' c.id %}"
-                  data-ask-notify="{% if not c.signed_received_at %}1{% else %}0{% endif %}"
-                  onsubmit="return flexxContractStatusConfirm(this);">
-              {% csrf_token %}
-              <input type="hidden" name="notify" value="0">
-              <button type="submit" class="underline hover:text-[var(--accent)] transition mt-1">
-                {% if c.signed_received_at %}Als&nbsp;offen{% else %}Als&nbsp;erhalten{% endif %}
-              </button>
-            </form>
           </td>
 
           <td class="px-4 py-3">
@@ -127,7 +143,7 @@ function flexxContractStatusConfirm(formEl) {
 
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="6">Noch keine Verträge.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="5">Noch keine Verträge.</td>
         </tr>
       {% endfor %}
     </tbody>

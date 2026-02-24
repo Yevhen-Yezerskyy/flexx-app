@@ -168,6 +168,30 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
         c.tippgeber = tip_by_client_id.get(c.client_id)
         c.pdf_basename = c.contract_pdf.name.rsplit("/", 1)[-1] if c.contract_pdf else ""
         c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
+        c.dsgvo_pdf_basename = (
+            c.datenschutzeinwilligung_pdf.name.rsplit("/", 1)[-1]
+            if c.datenschutzeinwilligung_pdf else ""
+        )
+        c.dsgvo_pdf_shortname = (
+            _shorten_middle(c.dsgvo_pdf_basename)
+            if c.dsgvo_pdf_basename else ""
+        )
+        c.signed_pdf_basename = (
+            c.contract_pdf_signed.name.rsplit("/", 1)[-1]
+            if c.contract_pdf_signed else ""
+        )
+        c.signed_pdf_shortname = (
+            _shorten_middle(c.signed_pdf_basename)
+            if c.signed_pdf_basename else ""
+        )
+        c.signed_dsgvo_pdf_basename = (
+            c.datenschutzeinwilligung_pdf_signed.name.rsplit("/", 1)[-1]
+            if c.datenschutzeinwilligung_pdf_signed else ""
+        )
+        c.signed_dsgvo_pdf_shortname = (
+            _shorten_middle(c.signed_dsgvo_pdf_basename)
+            if c.signed_dsgvo_pdf_basename else ""
+        )
         c.bonds_quantity_display = _format_decimal_de(c.bonds_quantity, "#,##0") if c.bonds_quantity is not None else ""
         c.nominal_amount_display = _format_decimal_de(c.nominal_amount, "#,##0.00") if c.nominal_amount is not None else ""
         c.nominal_amount_plus_percent_display = (
@@ -440,6 +464,10 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
                 if action == "save_pdf":
                     res = build_contract_pdf(contract.id)
                     dsgvo_res = build_datenschutzeinwilligung_pdf(contract.id)
+                    if contract.contract_pdf_signed:
+                        contract.contract_pdf_signed.delete(save=False)
+                    if contract.datenschutzeinwilligung_pdf_signed:
+                        contract.datenschutzeinwilligung_pdf_signed.delete(save=False)
                     if contract.contract_pdf:
                         contract.contract_pdf.delete(save=False)
                     if contract.datenschutzeinwilligung_pdf:
@@ -486,6 +514,22 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
         calc_accrued_display = _format_decimal_de(calc_result["accrued_interest"], "#,##0.00")
         calc_total_display = _format_decimal_de(calc_result["total_amount"], "#,##0.00")
 
+    signed_pdf_url: str | None = (
+        contract.contract_pdf_signed.url if contract.contract_pdf_signed else None
+    )
+    signed_pdf_name: str | None = (
+        contract.contract_pdf_signed.name.rsplit("/", 1)[-1]
+        if contract.contract_pdf_signed else None
+    )
+    signed_dsgvo_pdf_url: str | None = (
+        contract.datenschutzeinwilligung_pdf_signed.url
+        if contract.datenschutzeinwilligung_pdf_signed else None
+    )
+    signed_dsgvo_pdf_name: str | None = (
+        contract.datenschutzeinwilligung_pdf_signed.name.rsplit("/", 1)[-1]
+        if contract.datenschutzeinwilligung_pdf_signed else None
+    )
+
     return render(
         request,
         "app_panel_admin/contract_edit.html",
@@ -498,6 +542,10 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             "saved_pdf_name": saved_pdf_name,
             "saved_dsgvo_pdf_url": saved_dsgvo_pdf_url,
             "saved_dsgvo_pdf_name": saved_dsgvo_pdf_name,
+            "signed_pdf_url": signed_pdf_url,
+            "signed_pdf_name": signed_pdf_name,
+            "signed_dsgvo_pdf_url": signed_dsgvo_pdf_url,
+            "signed_dsgvo_pdf_name": signed_dsgvo_pdf_name,
             "form_contract_date": form_contract_date,
             "form_qty": form_qty,
             "calc_result": calc_result,

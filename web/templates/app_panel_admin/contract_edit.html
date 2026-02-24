@@ -175,21 +175,23 @@ function validateContractReceiptForSavePdf(btn) {
           <input type="hidden" name="calc_accrued_interest" value="{{ calc_result.accrued_interest }}">
           <input type="hidden" name="calc_total_amount" value="{{ calc_result.total_amount }}">
         {% endif %}
-      <div class="pt-2">
-        <div class="font-semibold">Berechnung der Einzahlsumme</div>
-        <div class="mt-2">
-          Die Einzahlsumme wird auf Grundlage des Datums der Unterzeichnung zuzüglich 10 Bankarbeitstage berechnet. Auf diesen Stichtag werden der Nennbetrag sowie die aufgelaufenen Stückzinsen ermittelt.
+      {% if mode == "calc" %}
+        <div class="pt-2">
+          <div class="font-semibold">Berechnung der Einzahlsumme</div>
+          <div class="mt-2">
+            Die Einzahlsumme wird auf Grundlage des Datums der Unterzeichnung zuzüglich 10 Bankarbeitstage berechnet. Auf diesen Stichtag werden der Nennbetrag sowie die aufgelaufenen Stückzinsen ermittelt.
+          </div>
+          <div class="mt-2">
+            Geht der Zahlungsbetrag vor oder nach diesem Termin ein, können die Stückzinsen auf Basis des tatsächlichen Zahlungseingangsdatums neu berechnet werden.
+          </div>
+          <label class="mt-3 flex items-start gap-2">
+            <input type="checkbox" name="receipt_confirm_contract" value="1" class="mt-1 accent-[var(--accent)]" {% if receipt_confirm_contract %}checked{% endif %}>
+            <span>
+              <strong>Empfangsbestätigung.</strong> Ich bestätige, das Private Placement Memorandum und das Produktinformationsblatt der FleXXLager GmbH & Co. KG erhalten zu haben. Ich bestätige, die Informationen für den Verbraucher mit der dort enthaltenen Widerrufsbelehrung erhalten zu haben.
+            </span>
+          </label>
         </div>
-        <div class="mt-2">
-          Geht der Zahlungsbetrag vor oder nach diesem Termin ein, können die Stückzinsen auf Basis des tatsächlichen Zahlungseingangsdatums neu berechnet werden.
-        </div>
-        <label class="mt-3 flex items-start gap-2">
-          <input type="checkbox" name="receipt_confirm_contract" value="1" class="mt-1 accent-[var(--accent)]" {% if receipt_confirm_contract %}checked{% endif %}>
-          <span>
-            <strong>Empfangsbestätigung.</strong> Ich bestätige, das Private Placement Memorandum und das Produktinformationsblatt der FleXXLager GmbH & Co. KG erhalten zu haben. Ich bestätige, die Informationen für den Verbraucher mit der dort enthaltenen Widerrufsbelehrung erhalten zu haben.
-          </span>
-        </label>
-      </div>
+      {% endif %}
       {% if mode == "calc" and calc_result %}
         <div class="pt-2 flex items-center justify-end">
           <button
@@ -206,7 +208,39 @@ function validateContractReceiptForSavePdf(btn) {
   </form>
 
   {% if mode != "calc" %}
-  {% if saved_pdf_url or saved_dsgvo_pdf_url %}
+  {% if signed_pdf_url or signed_dsgvo_pdf_url %}
+    <div class="pt-2">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <div class="font-semibold">Signierte Verträge:</div>
+          {% if signed_pdf_url and signed_pdf_name %}
+            <div>
+              <a href="{{ signed_pdf_url }}" class="underline hover:text-[var(--accent)] transition">
+                {{ signed_pdf_name }}
+              </a>
+            </div>
+          {% endif %}
+          {% if signed_dsgvo_pdf_url and signed_dsgvo_pdf_name %}
+            <div class="mt-1">
+              <a href="{{ signed_dsgvo_pdf_url }}" class="underline hover:text-[var(--accent)] transition">
+                {{ signed_dsgvo_pdf_name }}
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="mt-10 flex items-center justify-end gap-4 flex-wrap">
+        <a href="{% url 'panel_admin_clients' %}"
+           class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
+          Zurück zu Kunden
+        </a>
+        <a href="{% url 'panel_admin_contracts_list' %}"
+           class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
+          Zurück zu Verträgen
+        </a>
+      </div>
+    </div>
+  {% elif saved_pdf_url or saved_dsgvo_pdf_url %}
     <div class="pt-2">
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
