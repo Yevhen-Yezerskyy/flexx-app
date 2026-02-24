@@ -3,23 +3,34 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 import os
+import re
 from urllib.parse import urlencode
 
 from babel.numbers import format_decimal
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image, UnidentifiedImageError
 
 from app_users.models import FlexxUser, TippgeberClient
 from flexx.models import BondIssue, Contract
 from flexx.contract_helpers import calc_contract_amounts_from_stueckzins_table
-from flexx.pdf_contract import build_contract_pdf
+from flexx.pdf_contract import (
+    build_contract_pdf,
+    build_contract_pdf_signed,
+    build_datenschutzeinwilligung_pdf,
+    build_datenschutzeinwilligung_pdf_signed,
+)
 from flexx.emailer import (
     send_contract_paid_received_email,
     send_contract_signed_received_email,
@@ -81,6 +92,57 @@ def _format_decimal_de(value, fmt: str) -> str:
 def _redirect_contracts_list_with_notice(code: str) -> HttpResponse:
     base = reverse("panel_admin_contracts_list")
     return redirect(f"{base}?{urlencode({'notice': code})}")
+
+
+def _extract_signature_template_text(issue_contract: dict) -> str:
+    raw = str((issue_contract or {}).get("text_zwischen_3") or "")
+    if not raw:
+        return (
+            "Ich bestätige, das Private Placement Memorandum und das "
+            "Produktinformationsblatt erhalten zu haben. Ich bestätige, die "
+            "Informationen für den Verbraucher mit der enthaltenen "
+            "Widerrufsbelehrung erhalten zu haben."
+        )
+
+    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+    parts = [re.sub(r"\s+", " ", p).strip() for p in raw.split("\n") if p.strip()]
+    confirm_parts = [p for p in parts if p.lower().startswith("ich bestätige")]
+    if len(confirm_parts) >= 2:
+        selected = confirm_parts[:2]
+    elif confirm_parts:
+        selected = confirm_parts
+    else:
+        selected = parts[-2:] if len(parts) >= 2 else parts
+    return " ".join(selected).strip()
+
+
+def _decode_image_data_url(data_url: str) -> bytes | None:
+    raw = (data_url or "").strip()
+    if not raw:
+        return None
+    m = re.match(
+        r"^data:image/(?:png|jpe?g|webp);base64,(?P<data>[A-Za-z0-9+/=\s]+)$",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+    b64 = re.sub(r"\s+", "", m.group("data"))
+    try:
+        return base64.b64decode(b64, validate=True)
+    except (binascii.Error, ValueError):
+        return None
+
+
+def _normalize_signature_png(raw_bytes: bytes) -> bytes | None:
+    try:
+        with Image.open(BytesIO(raw_bytes)) as image:
+            rgba = image.convert("RGBA")
+            out = BytesIO()
+            rgba.save(out, format="PNG")
+            return out.getvalue()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return None
 
 
 @login_required
@@ -284,8 +346,17 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
 
     errors: list[str] = []
     ok_message: str | None = None
-    saved_pdf_url: str | None = None
-    saved_pdf_name: str | None = None
+    saved_pdf_url: str | None = contract.contract_pdf.url if contract.contract_pdf else None
+    saved_pdf_name: str | None = (
+        contract.contract_pdf.name.rsplit("/", 1)[-1] if contract.contract_pdf else None
+    )
+    saved_dsgvo_pdf_url: str | None = (
+        contract.datenschutzeinwilligung_pdf.url if contract.datenschutzeinwilligung_pdf else None
+    )
+    saved_dsgvo_pdf_name: str | None = (
+        contract.datenschutzeinwilligung_pdf.name.rsplit("/", 1)[-1]
+        if contract.datenschutzeinwilligung_pdf else None
+    )
 
     form_contract_date = contract.contract_date
     form_qty = contract.bonds_quantity or issue.minimal_bonds_quantity
@@ -368,12 +439,22 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
                 ])
                 if action == "save_pdf":
                     res = build_contract_pdf(contract.id)
+                    dsgvo_res = build_datenschutzeinwilligung_pdf(contract.id)
                     if contract.contract_pdf:
                         contract.contract_pdf.delete(save=False)
+                    if contract.datenschutzeinwilligung_pdf:
+                        contract.datenschutzeinwilligung_pdf.delete(save=False)
                     contract.contract_pdf.save(res.filename, ContentFile(res.pdf_bytes), save=True)
+                    contract.datenschutzeinwilligung_pdf.save(
+                        dsgvo_res.filename,
+                        ContentFile(dsgvo_res.pdf_bytes),
+                        save=True,
+                    )
                     ok_message = "Gespeichert und PDF erstellt."
                     saved_pdf_url = contract.contract_pdf.url
                     saved_pdf_name = res.filename
+                    saved_dsgvo_pdf_url = contract.datenschutzeinwilligung_pdf.url
+                    saved_dsgvo_pdf_name = dsgvo_res.filename
                 else:
                     ok_message = "Gespeichert."
                 calc_result = {
@@ -415,6 +496,8 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             "ok_message": ok_message,
             "saved_pdf_url": saved_pdf_url,
             "saved_pdf_name": saved_pdf_name,
+            "saved_dsgvo_pdf_url": saved_dsgvo_pdf_url,
+            "saved_dsgvo_pdf_name": saved_dsgvo_pdf_name,
             "form_contract_date": form_contract_date,
             "form_qty": form_qty,
             "calc_result": calc_result,
@@ -427,5 +510,137 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             "calc_total_display": calc_total_display,
             "mode": mode,
             "receipt_confirm_contract": receipt_confirm_contract,
+        },
+    )
+
+
+@login_required
+def contract_unterschreiben(request: HttpRequest, contract_id: int) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+
+    contract = get_object_or_404(
+        Contract.objects.select_related("client", "issue"),
+        id=contract_id,
+    )
+    tip_link = (
+        TippgeberClient.objects.filter(client=contract.client)
+        .select_related("tippgeber")
+        .first()
+    )
+    tippgeber = tip_link.tippgeber if tip_link and tip_link.tippgeber_id else None
+
+    issue = contract.issue
+    issue_contract = issue.contract if isinstance(issue.contract, dict) else {}
+    signature_template_text = _extract_signature_template_text(issue_contract)
+    issue_bond_price_display = _format_decimal_de(issue.bond_price, "#,##0.00")
+    issue_volume_display = _format_decimal_de(issue.issue_volume, "#,##0.00")
+
+    calc_nominal_display = "—"
+    calc_accrued_display = "—"
+    calc_total_display = "—"
+    sign_errors: list[str] = []
+    sign_ok_message: str | None = None
+
+    if contract.nominal_amount is not None:
+        calc_nominal_display = _format_decimal_de(contract.nominal_amount, "#,##0.00")
+    if contract.nominal_amount_plus_percent is not None:
+        calc_total_display = _format_decimal_de(contract.nominal_amount_plus_percent, "#,##0.00")
+    if contract.nominal_amount is not None and contract.nominal_amount_plus_percent is not None:
+        accrued_interest = (
+            Decimal(contract.nominal_amount_plus_percent) - Decimal(contract.nominal_amount)
+        ).quantize(Decimal("0.01"))
+        calc_accrued_display = _format_decimal_de(accrued_interest, "#,##0.00")
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action != "sign":
+            sign_errors.append("Ungültige Aktion.")
+        else:
+            signature_data_url = request.POST.get("signature_png") or ""
+            signature_raw = _decode_image_data_url(signature_data_url)
+            if not signature_raw:
+                sign_errors.append("Bitte laden Sie eine gültige Signatur hoch oder zeichnen Sie eine.")
+            signature_png = _normalize_signature_png(signature_raw) if signature_raw else None
+            if signature_raw and not signature_png:
+                sign_errors.append("Signaturbild konnte nicht verarbeitet werden.")
+
+            if not sign_errors and signature_png:
+                try:
+                    with transaction.atomic():
+                        if contract.signature:
+                            contract.signature.delete(save=False)
+                        contract.signature.save(
+                            f"signature-IN{contract.id}.png",
+                            ContentFile(signature_png),
+                            save=True,
+                        )
+
+                        signed_contract_res = build_contract_pdf_signed(contract.id)
+                        signed_dsgvo_res = build_datenschutzeinwilligung_pdf_signed(contract.id)
+
+                        if contract.contract_pdf_signed:
+                            contract.contract_pdf_signed.delete(save=False)
+                        if contract.datenschutzeinwilligung_pdf_signed:
+                            contract.datenschutzeinwilligung_pdf_signed.delete(save=False)
+
+                        contract.contract_pdf_signed.save(
+                            signed_contract_res.filename,
+                            ContentFile(signed_contract_res.pdf_bytes),
+                            save=False,
+                        )
+                        contract.datenschutzeinwilligung_pdf_signed.save(
+                            signed_dsgvo_res.filename,
+                            ContentFile(signed_dsgvo_res.pdf_bytes),
+                            save=False,
+                        )
+                        contract.save(update_fields=[
+                            "contract_pdf_signed",
+                            "datenschutzeinwilligung_pdf_signed",
+                            "updated_at",
+                        ])
+                except Exception as exc:
+                    sign_errors.append(f"Signatur konnte nicht gespeichert werden: {exc}")
+                else:
+                    sign_ok_message = "Signierte Verträge wurden erfolgreich gespeichert."
+                    contract.refresh_from_db()
+
+    signed_contract_pdf_url: str | None = (
+        contract.contract_pdf_signed.url if contract.contract_pdf_signed else None
+    )
+    signed_contract_pdf_name: str | None = (
+        contract.contract_pdf_signed.name.rsplit("/", 1)[-1]
+        if contract.contract_pdf_signed else None
+    )
+    signed_dsgvo_pdf_url: str | None = (
+        contract.datenschutzeinwilligung_pdf_signed.url
+        if contract.datenschutzeinwilligung_pdf_signed else None
+    )
+    signed_dsgvo_pdf_name: str | None = (
+        contract.datenschutzeinwilligung_pdf_signed.name.rsplit("/", 1)[-1]
+        if contract.datenschutzeinwilligung_pdf_signed else None
+    )
+    show_signature_form = not (signed_contract_pdf_url or signed_dsgvo_pdf_url)
+
+    return render(
+        request,
+        "app_panel_admin/contract_unterschreiben.html",
+        {
+            "contract": contract,
+            "tippgeber": tippgeber,
+            "issue_bond_price_display": issue_bond_price_display,
+            "issue_volume_display": issue_volume_display,
+            "signature_template_text": signature_template_text,
+            "calc_nominal_display": calc_nominal_display,
+            "calc_accrued_display": calc_accrued_display,
+            "calc_total_display": calc_total_display,
+            "sign_errors": sign_errors,
+            "sign_ok_message": sign_ok_message,
+            "signed_contract_pdf_url": signed_contract_pdf_url,
+            "signed_contract_pdf_name": signed_contract_pdf_name,
+            "signed_dsgvo_pdf_url": signed_dsgvo_pdf_url,
+            "signed_dsgvo_pdf_name": signed_dsgvo_pdf_name,
+            "show_signature_form": show_signature_form,
         },
     )

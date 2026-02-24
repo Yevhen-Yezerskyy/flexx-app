@@ -25,6 +25,8 @@ from flexx.settings import (  # noqa: E402
     USE_X_FORWARDED_HOST,
     CSRF_COOKIE_SECURE,
     SESSION_COOKIE_SECURE,
+    MEDIA_URL,
+    MEDIA_ROOT,
     LOGGING as WEB_LOGGING,
 )
 

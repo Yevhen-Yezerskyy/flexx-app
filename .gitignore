@@ -42,6 +42,7 @@ logs/
 pgdata/
 data/
 volumes/
+backups/
 
 # -------------------------
 # Nginx / Certbot (если вдруг появятся bind-папки)

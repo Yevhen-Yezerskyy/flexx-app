@@ -13,6 +13,7 @@ from .views.clients import (
 from .views.contracts import (
     contract_pick_issue,
     contract_edit,
+    contract_unterschreiben,
     contracts_list,
     contract_toggle_signed_received,
     contract_toggle_paid,
@@ -36,6 +37,7 @@ urlpatterns = [
     path("contracts/<int:contract_id>/delete/", contract_delete, name="panel_admin_contract_delete"),
     path("clients/<int:user_id>/contract/new/", contract_pick_issue, name="panel_admin_contract_pick_issue"),
     path("contracts/<int:contract_id>/edit/", contract_edit, name="panel_admin_contract_edit"),
+    path("contracts/<int:contract_id>/unterschreiben/", contract_unterschreiben, name="panel_admin_contract_unterschreiben"),
 
     path("tippgeber/", tippgeber_list, name="panel_admin_tippgeber_list"),
     path("tippgeber/<int:user_id>/edit/", tippgeber_edit, name="panel_admin_tippgeber_edit"),

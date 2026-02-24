@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import math
 from io import BytesIO
 from dataclasses import dataclass
 from decimal import Decimal
@@ -11,12 +12,15 @@ from babel.dates import format_date
 from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph
+from django.utils import timezone
+from PIL import Image
 
 from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
-from flexx.models import Contract
+from flexx.models import Contract, DatenschutzeinwilligungText, FlexxlagerSignature
 
 
 def _format_text(value) -> str:
@@ -26,6 +30,83 @@ def _format_text(value) -> str:
     txt = re.sub(r"\*\*(?=\S)([\s\S]+?)(?<=\S)\*\*", r"<b>\1</b>", txt)
     txt = re.sub(r"\n{3,}", "\n\n", txt)
     return txt
+
+
+def _has_real_transparency(rgba_image: Image.Image) -> bool:
+    alpha = rgba_image.getchannel("A")
+    min_alpha, _ = alpha.getextrema()
+    return min_alpha < 250
+
+
+def _convert_white_to_transparent(rgba_image: Image.Image) -> Image.Image:
+    converted = rgba_image.copy()
+    px = converted.load()
+    w, h = converted.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+
+            light = (int(r) + int(g) + int(b)) / 3.0
+            next_alpha = 0
+            if light >= 245:
+                next_alpha = 0
+            elif light >= 210:
+                t = (245 - light) / 35.0
+                next_alpha = int(round(255 * t * 0.55))
+            else:
+                darkness = 1.0 - (light / 255.0)
+                next_alpha = int(round(max(110, min(255, 255 * darkness * 1.7))))
+
+            if next_alpha <= 2:
+                px[x, y] = (r, g, b, 0)
+            else:
+                px[x, y] = (r, g, b, min(int(a), next_alpha))
+    return converted
+
+
+def _count_visible_alpha_pixels(rgba_image: Image.Image, alpha_threshold: int = 8) -> int:
+    alpha = rgba_image.getchannel("A")
+    data = alpha.getdata()
+    return sum(1 for a in data if int(a) > alpha_threshold)
+
+
+def _trim_visible_rgba(
+    rgba_image: Image.Image,
+    *,
+    alpha_threshold: int = 12,
+    padding: int = 2,
+) -> Image.Image | None:
+    alpha = rgba_image.getchannel("A")
+    bbox = alpha.point(lambda a: 255 if int(a) > alpha_threshold else 0).getbbox()
+    if not bbox:
+        return None
+    left, top, right, bottom = bbox
+    left = max(0, left - padding)
+    top = max(0, top - padding)
+    right = min(rgba_image.width, right + padding)
+    bottom = min(rgba_image.height, bottom + padding)
+    if left >= right or top >= bottom:
+        return None
+    return rgba_image.crop((left, top, right, bottom))
+
+
+def _prepare_signature_image(raw_bytes: bytes) -> Image.Image | None:
+    if not raw_bytes:
+        return None
+    with Image.open(BytesIO(raw_bytes)) as img:
+        rgba = img.convert("RGBA")
+
+    if not _has_real_transparency(rgba):
+        rgba = _convert_white_to_transparent(rgba)
+
+    visible_pixels = _count_visible_alpha_pixels(rgba, alpha_threshold=8)
+    min_visible_pixels = max(24, math.floor((rgba.width * rgba.height) * 0.0002))
+    if visible_pixels < min_visible_pixels:
+        return None
+
+    return _trim_visible_rgba(rgba, alpha_threshold=12, padding=2)
 
 @dataclass(frozen=True)
 class ContractPdfBuildResult:
@@ -49,11 +130,12 @@ class ContractPdfCreator:
     MARGIN_LEFT = 28
     MARGIN_RIGHT = 28
     MARGIN_TOP = 30
-    MARGIN_BOTTOM = 36
+    MARGIN_BOTTOM = 13
 
     BLOCK_GAP_MD = 8
     BLOCK_GAP_LG = 10
     BLOCK_GAP_XXL = 16
+    SIGNATURE_SHIFT_Y = 23.0
 
     def __init__(self, contract_id: int):
         self.contract = Contract.objects.select_related("issue", "client").get(id=int(contract_id))
@@ -453,12 +535,11 @@ class ContractPdfCreator:
         self.y = y_bottom
         return y_bottom
 
-    def draw_signature_block(
+    def _signature_layout(
         self,
-        c: Canvas,
         y_top: float | None = None,
         gap_between_lines: float = 40.0,
-    ) -> float:
+    ) -> dict[str, float]:
         y = self.y if y_top is None else y_top
         y -= 20.0
         x = self.MARGIN_LEFT
@@ -472,47 +553,190 @@ class ContractPdfCreator:
         left_x2 = left_x1 + line_w
         right_x1 = left_x2 + gap_between_lines
         right_x2 = right_x1 + line_w
+        return {
+            "x": x,
+            "width": width,
+            "line_y": line_y,
+            "label_y": label_y,
+            "left_x1": left_x1,
+            "left_x2": left_x2,
+            "right_x1": right_x1,
+            "right_x2": right_x2,
+        }
+
+    def _get_buyer_signature_image(self) -> Image.Image | None:
+        return None
+
+    def _get_company_signature_image(self) -> Image.Image | None:
+        return None
+
+    def _draw_signature_image(
+        self,
+        c: Canvas,
+        signature_image: Image.Image,
+        *,
+        area_x: float,
+        area_y: float,
+        area_w: float,
+        area_h: float,
+        align_left: bool = True,
+    ) -> None:
+        img_w = float(signature_image.width)
+        img_h = float(signature_image.height)
+        if img_w <= 0 or img_h <= 0 or area_w <= 0 or area_h <= 0:
+            return
+        scale = min(area_w / img_w, area_h / img_h)
+        draw_w = img_w * scale
+        draw_h = img_h * scale
+        draw_x = area_x if align_left else area_x + ((area_w - draw_w) / 2.0)
+        draw_y = area_y + ((area_h - draw_h) / 2.0) + self.SIGNATURE_SHIFT_Y
+        c.drawImage(
+            ImageReader(signature_image),
+            draw_x,
+            draw_y,
+            width=draw_w,
+            height=draw_h,
+            mask="auto",
+        )
+
+    def draw_buyer_signature_block(
+        self,
+        c: Canvas,
+        y_top: float | None = None,
+        gap_between_lines: float = 40.0,
+    ) -> float:
+        p = self._signature_layout(y_top=y_top, gap_between_lines=gap_between_lines)
+        line_y = p["line_y"]
+        label_y = p["label_y"]
+        left_x1 = p["left_x1"]
+        left_x2 = p["left_x2"]
+        right_x1 = p["right_x1"]
+        right_x2 = p["right_x2"]
 
         c.setLineWidth(0.7)
         c.line(left_x1, line_y, left_x2, line_y)
         c.line(right_x1, line_y, right_x2, line_y)
-        lower_line_y = line_y - 35.0
-        c.line(x, lower_line_y, x + width, lower_line_y)
+
+        city = (self.client.city or "").strip()
+        today = format_date(timezone.localdate(), format="dd.MM.yyyy", locale="de_DE")
+        city_date_text = ", ".join([v for v in [city, today] if v])
+        full_name = f"{(self.client.first_name or '').strip()} {(self.client.last_name or '').strip()}".strip()
+        sign_name_text = f"({full_name})" if full_name else ""
+        top_text_y = line_y + 3.0
+        c.setFont(self.FONT_FAMILY, self.FONT_SIZE_TEXT)
+        if city_date_text:
+            c.drawString(left_x1, top_text_y, city_date_text)
+        if sign_name_text:
+            sign_name_w = c.stringWidth(sign_name_text, self.FONT_FAMILY, self.FONT_SIZE_TEXT)
+            c.drawString(max(right_x2 - sign_name_w, right_x1), top_text_y, sign_name_text)
+
+        buyer_signature_image = self._get_buyer_signature_image()
+        if buyer_signature_image is not None:
+            self._draw_signature_image(
+                c,
+                buyer_signature_image,
+                area_x=right_x1 + 8.0,
+                area_y=line_y - 35.0,
+                area_w=max((right_x2 - right_x1) - 16.0, 1.0),
+                area_h=48.0,
+                align_left=True,
+            )
 
         c.setFont(self.FONT_FAMILY, self.FONT_SIZE_SMALL)
         c.drawString(left_x1, label_y, "Ort, Datum")
-        c.drawString(right_x1, label_y, "Unterschrift des Käufers / Zeichners")
-        c.setFont(self.FONT_FAMILY, self.FONT_SIZE_SMALL)
-        c.drawString(
-            x,
-            lower_line_y - 3.0 - self.FONT_SIZE_SMALL,
-            "(nur von der FleXXLager GmbH & Co. KG auszufüllen)",
-        )
-        if self.contract.bonds_quantity is None:
-            qty_text = "_____________________________"
-        else:
-            qty_text = f"{int(self.contract.bonds_quantity):,}".replace(",", ".")
+        c.drawString(right_x1, label_y, "Unterschrift")
+
+        self.y = label_y - self.BLOCK_GAP_LG
+        return self.y
+
+    def draw_company_acceptance_block(
+        self,
+        c: Canvas,
+        y_top: float | None = None,
+        gap_between_lines: float = 40.0,
+    ) -> float:
+        y = self.y if y_top is None else y_top
+        x = self.MARGIN_LEFT
+        qty_value = self.contract.bonds_quantity
+        if qty_value is None:
+            qty_value = getattr(self.issue, "minimal_bonds_quantity", None)
+        if qty_value is None:
+            qty_value = 0
+        qty_text = f"{int(qty_value):,}".replace(",", ".")
         c.setFont(self.FONT_FAMILY, self.FONT_SIZE_TEXT)
+        text_y = y - self.FONT_SIZE_TEXT - 25.0
         c.drawString(
             x,
-            lower_line_y - 29.0 - self.FONT_SIZE_TEXT,
+            text_y,
             (
                 "Zeichnung in Höhe von "
                 f"{qty_text} "
                 "Inhaber-Teilschuldverschreibungen angenommen."
             ),
         )
+        block_bottom = text_y - self.BLOCK_GAP_MD
+        self.y = min(self.y, block_bottom)
+        return self.y
+
+    def draw_signature_block(
+        self,
+        c: Canvas,
+        y_top: float | None = None,
+        gap_between_lines: float = 40.0,
+        include_company_acceptance: bool = True,
+    ) -> float:
+        self.draw_buyer_signature_block(c, y_top=y_top, gap_between_lines=gap_between_lines)
+        if include_company_acceptance:
+            self.draw_company_acceptance_block(c, gap_between_lines=gap_between_lines)
+        return self.y
+
+    def draw_bottom_company_footer(self, c: Canvas, y_top: float | None = None) -> float:
+        y = self.y if y_top is None else y_top
+        needed_h = 62.0
+        if y - needed_h < self.MARGIN_BOTTOM:
+            c.showPage()
+            self._cursor_reset()
+            y = self.y
+
+        p = self._signature_layout(y_top=y - 10.0, gap_between_lines=40.0)
+        line_y = p["line_y"]
+        label_y = p["label_y"]
+        left_x1 = p["left_x1"]
+        left_x2 = p["left_x2"]
+        right_x1 = p["right_x1"]
+        right_x2 = p["right_x2"]
+
+        city_date_text = f"Siegen, {format_date(timezone.localdate(), format='dd.MM.yyyy', locale='de_DE')}"
+        sign_name_text = "(FleXXLager GmbH & Co. KG)"
+        top_text_y = line_y + 3.0
+
+        c.setLineWidth(0.7)
+        c.line(left_x1, line_y, left_x2, line_y)
+        c.line(right_x1, line_y, right_x2, line_y)
+
+        c.setFont(self.FONT_FAMILY, self.FONT_SIZE_TEXT)
+        c.drawString(left_x1, top_text_y, city_date_text)
+        sign_name_w = c.stringWidth(sign_name_text, self.FONT_FAMILY, self.FONT_SIZE_TEXT)
+        c.drawString(max(right_x2 - sign_name_w, right_x1), top_text_y, sign_name_text)
+
+        company_signature_image = self._get_company_signature_image()
+        if company_signature_image is not None:
+            self._draw_signature_image(
+                c,
+                company_signature_image,
+                area_x=right_x1 + 8.0,
+                area_y=line_y - 35.0,
+                area_w=max((right_x2 - right_x1) - 16.0, 1.0),
+                area_h=48.0,
+                align_left=True,
+            )
+
+        c.setFont(self.FONT_FAMILY, self.FONT_SIZE_SMALL)
+        c.drawString(left_x1, label_y, "Ort, Datum")
+        c.drawString(right_x1, label_y, "Unterschrift")
 
         self.y = label_y - self.BLOCK_GAP_LG
         return self.y
-
-    def draw_bottom_company_footer(self, c: Canvas) -> None:
-        c.setFont(self.FONT_FAMILY, self.FONT_SIZE_TEXT)
-        c.drawString(
-            self.MARGIN_LEFT,
-            self.MARGIN_BOTTOM + 2.0,
-            "Siegen, den _______________      _______________________ / FleXXLager GmbH & Co. KG",
-        )
 
     def draw_interest_tables_headers(self, c: Canvas, y_top: float | None = None) -> float:
         y = self.y if y_top is None else y_top
@@ -882,7 +1106,8 @@ class ContractPdfCreator:
 
         self.draw_text(c, self.content.get("text_block_6", ""))
         self._cursor_gap(self.BLOCK_GAP_XXL)
-        self.draw_signature_block(c, gap_between_lines=40.0)
+        self.draw_buyer_signature_block(c, gap_between_lines=40.0)
+        self.draw_company_acceptance_block(c, gap_between_lines=40.0)
         self.draw_bottom_company_footer(c)
 
         c.showPage()
@@ -914,4 +1139,136 @@ class ContractPdfCreator:
 
 def build_contract_pdf(contract_id: int) -> ContractPdfBuildResult:
     creator = ContractPdfCreator(contract_id)
+    return creator.build()
+
+
+class SignedContractPdfCreator(ContractPdfCreator):
+    def __init__(self, contract_id: int):
+        super().__init__(contract_id)
+        self._buyer_signature_image = self._load_signature_from_field(self.contract.signature)
+        if self._buyer_signature_image is None:
+            raise ValueError("Kunden-Signatur fehlt.")
+
+        flexxlager_signature = FlexxlagerSignature.objects.first()
+        self._company_signature_image = None
+        if flexxlager_signature and flexxlager_signature.signature:
+            self._company_signature_image = self._load_signature_from_field(flexxlager_signature.signature)
+        if self._company_signature_image is None:
+            raise ValueError("FleXXLager-Signatur fehlt.")
+
+    @staticmethod
+    def _load_signature_from_field(file_field) -> Image.Image | None:
+        if not file_field:
+            return None
+        try:
+            file_field.open("rb")
+            raw = file_field.read()
+        except Exception:
+            return None
+        finally:
+            try:
+                file_field.close()
+            except Exception:
+                pass
+        return _prepare_signature_image(raw)
+
+    def _get_buyer_signature_image(self) -> Image.Image | None:
+        return self._buyer_signature_image
+
+    def _get_company_signature_image(self) -> Image.Image | None:
+        return self._company_signature_image
+
+    def build(self) -> ContractPdfBuildResult:
+        result = super().build()
+        return ContractPdfBuildResult(
+            pdf_bytes=result.pdf_bytes,
+            filename=f"FleXXLager-Vertrag-IN{self.contract.id}-signed.pdf",
+        )
+
+
+class DatenschutzeinwilligungPdfCreator(ContractPdfCreator):
+    MARGIN_LEFT = 36
+    MARGIN_RIGHT = 36
+    MARGIN_TOP = 40
+
+    def _build_client_data_text(self) -> str:
+        c = self.client
+        full_name = f"{(c.first_name or '').strip()} {(c.last_name or '').strip()}".strip()
+        zip_city = f"{(c.zip_code or '').strip()} {(c.city or '').strip()}".strip()
+        address_line = ", ".join([v for v in [(c.street or "").strip(), zip_city] if v])
+        out = "\n".join([v for v in [full_name, address_line] if v])
+        company = (c.company or "").strip()
+        if company:
+            out = f"{out}\n\n{company}" if out else company
+        return out
+
+    def _load_text(self) -> str:
+        row = DatenschutzeinwilligungText.objects.first()
+        text = (row.text if row else "") or ""
+        return re.sub(r"\{\s*client_data\s*\}", self._build_client_data_text(), text)
+
+    def _draw_body(self, c: Canvas, text: str) -> None:
+        parts = self._split_paragraphs(text)
+        for idx, part in enumerate(parts):
+            if idx > 0:
+                self._cursor_gap(self.PARAGRAPH_TOP_GAP)
+
+            paragraph = self._build_paragraph(part, self.FONT_SIZE_TEXT)
+            _, h = paragraph.wrap(self.content_width, self.PAGE_SIZE[1])
+            if self.y - h < self.MARGIN_BOTTOM:
+                c.showPage()
+                self._cursor_reset()
+
+            paragraph.drawOn(c, self.MARGIN_LEFT, self.y - h)
+            self.y -= h
+
+    def _draw_footer(self, c: Canvas) -> None:
+        needed_h = 95.0
+        self._cursor_gap(self.BLOCK_GAP_LG)
+        self._ensure_space(c, needed_h)
+        self.draw_buyer_signature_block(c, y_top=self.y - 30.0, gap_between_lines=40.0)
+
+    def build(self) -> ContractPdfBuildResult:
+        buffer = BytesIO()
+        c = rl_canvas.Canvas(buffer, pagesize=self.PAGE_SIZE)
+        self._cursor_reset()
+        self._draw_body(c, self._load_text())
+        self._draw_footer(c)
+        c.save()
+        return ContractPdfBuildResult(
+            pdf_bytes=buffer.getvalue(),
+            filename=f"FleXXLager-DSGVO-IN{self.contract.id}.pdf",
+        )
+
+
+def build_datenschutzeinwilligung_pdf(contract_id: int) -> ContractPdfBuildResult:
+    creator = DatenschutzeinwilligungPdfCreator(contract_id)
+    return creator.build()
+
+
+class SignedDatenschutzeinwilligungPdfCreator(DatenschutzeinwilligungPdfCreator):
+    def __init__(self, contract_id: int):
+        super().__init__(contract_id)
+        self._buyer_signature_image = SignedContractPdfCreator._load_signature_from_field(self.contract.signature)
+        if self._buyer_signature_image is None:
+            raise ValueError("Kunden-Signatur fehlt.")
+
+    def _get_buyer_signature_image(self) -> Image.Image | None:
+        return self._buyer_signature_image
+
+    def build(self) -> ContractPdfBuildResult:
+        result = super().build()
+        return ContractPdfBuildResult(
+            pdf_bytes=result.pdf_bytes,
+            filename=f"FleXXLager-DSGVO-IN{self.contract.id}-signed.pdf",
+        )
+
+
+def build_contract_pdf_signed(contract_id: int) -> ContractPdfBuildResult:
+    creator = SignedContractPdfCreator(contract_id)
+    return creator.build()
+
+
+def build_datenschutzeinwilligung_pdf_signed(contract_id: int) -> ContractPdfBuildResult:
+    creator = SignedDatenschutzeinwilligungPdfCreator(contract_id)
     return creator.build()

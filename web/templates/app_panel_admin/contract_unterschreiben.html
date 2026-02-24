@@ -1,0 +1,652 @@
+{% extends "app_panel_admin/base.html" %}
+{% load static %}
+
+{% block panel_where %}Vertrag unterschreiben{% endblock %}
+{% block nav_contracts_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+<div class="flex items-center mb-8 mt-2">
+  <div class="text-2xl">Vertrag unterschreiben</div>
+  <div class="flex-1"></div>
+  <div class="flex items-center justify-end gap-4">
+    <a href="{% url 'panel_admin_clients' %}"
+       class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
+      Zurück zu Kunden
+    </a>
+    <a href="{% url 'panel_admin_contracts_list' %}"
+       class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
+      Zurück zu Verträgen
+    </a>
+  </div>
+</div>
+
+<div class="bg-white border border-gray-400 rounded-md px-7 py-5">
+  <div class="grid {% if tippgeber %}grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto]{% else %}grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]{% endif %} gap-4 items-start">
+    <div>
+      <div>Kunde:</div>
+      <div class="font-semibold">{{ contract.client.first_name }} {{ contract.client.last_name }}</div>
+      <div>
+        <a href="mailto:{{ contract.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ contract.client.email }}</a>
+      </div>
+    </div>
+
+    {% if tippgeber %}
+      <div>
+        <div>Tippgeber:</div>
+        <div>{{ tippgeber.first_name }} {{ tippgeber.last_name }}</div>
+        <div>
+          <a href="mailto:{{ tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ tippgeber.email }}</a>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="flex flex-col min-w-0">
+      <div class="font-semibold">{{ contract.issue.title }}</div>
+      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1">
+        <div>Ausgabedatum:</div><div>{{ contract.issue.issue_date|date:"d.m.Y" }}</div>
+      </div>
+      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1">
+        <div>Zinssatz:</div><div>{{ contract.issue.interest_rate }}%</div>
+      </div>
+      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1">
+        <div>Laufzeit:</div><div>{{ contract.issue.term_months }} Monate</div>
+      </div>
+      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1">
+        <div>Preis pro Anleihe, €:</div><div>{{ issue_bond_price_display }}</div>
+      </div>
+      <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2 py-1">
+        <div>Volumen, €:</div><div>{{ issue_volume_display }}</div>
+      </div>
+    </div>
+
+    <div>
+      <a href="#"
+         data-interest-modal-open
+         data-issue-id="{{ contract.issue.id }}"
+         class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+        Stückzinstabelle
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 bg-white border border-gray-400 rounded-md px-7 py-5">
+  <div class="text-lg">Berechnung</div>
+  <div class="grid grid-cols-4 gap-4 pt-4">
+    <div class="bg-gray-100 rounded-md px-4 py-3 min-h-[88px]">
+      <div>Zahlungsfrist bis</div>
+      <div class="font-semibold">
+        {% if contract.settlement_date %}{{ contract.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}
+      </div>
+    </div>
+    <div class="bg-gray-100 rounded-md px-4 py-3 min-h-[88px]">
+      <div>Nominalbetrag, €</div>
+      <div class="font-semibold">{{ calc_nominal_display }}</div>
+    </div>
+    <div class="bg-gray-100 rounded-md px-4 py-3 min-h-[88px]">
+      <div>Aufgelaufene Zinsen, €</div>
+      <div class="font-semibold">{{ calc_accrued_display }}</div>
+    </div>
+    <div class="bg-gray-100 rounded-md px-4 py-3 min-h-[88px]">
+      <div>Gesamtbetrag, €</div>
+      <div class="font-semibold">{{ calc_total_display }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 bg-white border border-gray-400 rounded-md px-7 py-5">
+  <div class="text-lg">Unterschrift</div>
+
+  {% if sign_errors %}
+    <div class="mt-4 bg-red-50 border border-red-200 text-red-700 rounded-md px-4 py-3">
+      {% for e in sign_errors %}
+        <div>{{ e }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if sign_ok_message %}
+    <div class="mt-4 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3">
+      {{ sign_ok_message }}
+    </div>
+  {% endif %}
+
+  {% if show_signature_form %}
+  <form id="signContractForm" method="post" class="mt-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="sign">
+    <input type="hidden" name="signature_png" id="signaturePngField">
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+      <div class="border border-gray-300 rounded-md p-4 flex flex-col gap-3 min-h-[390px]">
+        <div class="font-semibold text-lg">Unterschrift hochladen</div>
+        <div class="text-sm text-gray-600 min-h-[42px]">
+          Unterstützte Formate: PNG, JPG, JPEG, WEBP.
+        </div>
+
+        <input
+          id="signatureUpload"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          class="block w-full text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:font-semibold hover:file:bg-gray-200"
+        />
+
+        <div class="h-10">
+          <button
+            id="clearUploadBtn"
+            type="button"
+            class="w-fit rounded-md bg-gray-100 text-[var(--text)] px-4 py-2 hover:bg-gray-200 transition font-semibold text-sm opacity-0 pointer-events-none"
+          >
+            Hochgeladene Signatur entfernen
+          </button>
+        </div>
+
+        <div id="uploadState" class="text-sm text-gray-600 min-h-[24px]">
+          Keine Datei ausgewählt.
+        </div>
+      </div>
+
+      <div class="border border-gray-300 rounded-md p-4 flex flex-col gap-3 min-h-[390px]">
+        <div class="flex items-center justify-between gap-3 min-h-[40px]">
+          <div class="font-semibold text-lg">Direkt unterschreiben</div>
+          <button
+            id="clearDrawBtn"
+            type="button"
+            class="rounded-md bg-gray-100 text-[var(--text)] px-4 py-2 hover:bg-gray-200 transition font-semibold text-sm opacity-0 pointer-events-none"
+          >
+            Zeichnung löschen
+          </button>
+        </div>
+
+        <div class="flex-1">
+          <div class="relative border border-gray-400 rounded-md bg-gray-50 overflow-hidden w-full max-w-[446px] h-[320px] mx-auto">
+            <canvas
+              id="signatureCanvas"
+              width="446"
+              height="320"
+              class="w-full h-full block"
+              style="touch-action: none;"
+            ></canvas>
+            <div
+              id="canvasHint"
+              class="pointer-events-none absolute inset-0 flex items-center justify-center text-gray-500 text-sm transition-opacity duration-150 opacity-100"
+            >
+              Mit Maus, Stift oder Finger unterschreiben
+            </div>
+          </div>
+        </div>
+
+        <div class="text-sm text-gray-600 min-h-[24px]"></div>
+      </div>
+    </div>
+
+    <div class="mt-4 flex justify-end">
+      <button
+        id="submitSignBtn"
+        type="button"
+        disabled
+        class="w-72 rounded-md py-3 transition font-semibold text-center bg-[var(--accent)] text-white hover:brightness-110 disabled:bg-gray-200 disabled:text-gray-500 disabled:hover:brightness-100 disabled:cursor-not-allowed"
+      >
+        Vertrag unterschreiben
+      </button>
+    </div>
+  </form>
+  {% else %}
+    <div class="mt-4">
+      <div class="font-semibold">Signierte Verträge:</div>
+      {% if signed_contract_pdf_url and signed_contract_pdf_name %}
+        <div class="mt-1">
+          <a href="{{ signed_contract_pdf_url }}" class="underline hover:text-[var(--accent)] transition">
+            {{ signed_contract_pdf_name }}
+          </a>
+        </div>
+      {% endif %}
+      {% if signed_dsgvo_pdf_url and signed_dsgvo_pdf_name %}
+        <div class="mt-1">
+          <a href="{{ signed_dsgvo_pdf_url }}" class="underline hover:text-[var(--accent)] transition">
+            {{ signed_dsgvo_pdf_name }}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="mt-8 flex items-center justify-end gap-4 flex-wrap">
+    <a href="{% url 'panel_admin_clients' %}"
+       class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
+      Zurück zu Kunden
+    </a>
+    <a href="{% url 'panel_admin_contracts_list' %}"
+       class="w-72 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center">
+      Zurück zu Verträgen
+    </a>
+  </div>
+</div>
+
+<script>
+(() => {
+  const signForm = document.getElementById("signContractForm");
+  if (!signForm) {
+    return;
+  }
+
+  const uploadInput = document.getElementById("signatureUpload");
+  const clearUploadBtn = document.getElementById("clearUploadBtn");
+  const uploadState = document.getElementById("uploadState");
+  const canvas = document.getElementById("signatureCanvas");
+  const canvasHint = document.getElementById("canvasHint");
+  const clearDrawBtn = document.getElementById("clearDrawBtn");
+  const submitSignBtn = document.getElementById("submitSignBtn");
+  const signaturePngField = document.getElementById("signaturePngField");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const drawLayerCanvas = document.createElement("canvas");
+  drawLayerCanvas.width = canvas.width;
+  drawLayerCanvas.height = canvas.height;
+  const drawLayerCtx = drawLayerCanvas.getContext("2d", { willReadFrequently: true });
+  const signatureBackgroundUrl = "{% static 'img/bg.jpg' %}";
+  const clientFullName = "{{ contract.client.first_name|default_if_none:''|escapejs }} {{ contract.client.last_name|default_if_none:''|escapejs }}".trim();
+  const signatureNameText = clientFullName ? `(${clientFullName})` : "(Unterschrift)";
+  const signatureBgImage = new Image();
+  signatureBgImage.src = signatureBackgroundUrl;
+  const nameRightPadding = 14;
+  const nameBaselineY = 188;
+  const templateLineY = 194;
+
+  let drawing = false;
+  let hasDrawing = false;
+  let hasUploadedSignature = false;
+  let drawEnabled = true;
+  let uploadedSignaturePngDataUrl = "";
+
+  function setUploadState(text, isError) {
+    uploadState.textContent = text;
+    uploadState.className = isError ? "text-sm text-red-700 min-h-[24px]" : "text-sm text-gray-600 min-h-[24px]";
+  }
+
+  function setActionVisible(el, visible) {
+    el.classList.toggle("opacity-0", !visible);
+    el.classList.toggle("pointer-events-none", !visible);
+  }
+
+  function setHintVisible(visible) {
+    canvasHint.classList.toggle("opacity-0", !visible);
+    canvasHint.classList.toggle("opacity-100", visible);
+  }
+
+  function updateSubmitState() {
+    submitSignBtn.disabled = !(hasDrawing || hasUploadedSignature);
+  }
+
+  function updateUiState() {
+    setActionVisible(clearUploadBtn, hasUploadedSignature);
+    setActionVisible(clearDrawBtn, drawEnabled && hasDrawing);
+    setHintVisible(!hasDrawing && !hasUploadedSignature);
+    updateSubmitState();
+  }
+
+  function drawSignatureName() {
+    ctx.save();
+    ctx.fillStyle = "rgb(188, 188, 188)";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "17px Helvetica";
+    const nameW = ctx.measureText(signatureNameText).width;
+    ctx.fillText(signatureNameText, canvas.width - nameRightPadding - nameW, nameBaselineY);
+    ctx.restore();
+  }
+
+  function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (signatureBgImage.complete && signatureBgImage.naturalWidth > 0) {
+      ctx.drawImage(signatureBgImage, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = "#f9fafb";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    drawSignatureName();
+  }
+
+  function clearDrawLayer() {
+    drawLayerCtx.clearRect(0, 0, drawLayerCanvas.width, drawLayerCanvas.height);
+  }
+
+  function getCanvasPos(event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function beginDraw(event) {
+    if (!drawEnabled) {
+      return;
+    }
+    drawing = true;
+    hasDrawing = true;
+    const p = getCanvasPos(event);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+
+    drawLayerCtx.lineCap = "round";
+    drawLayerCtx.lineJoin = "round";
+    drawLayerCtx.strokeStyle = "#111827";
+    drawLayerCtx.lineWidth = 2.5;
+    drawLayerCtx.beginPath();
+    drawLayerCtx.moveTo(p.x, p.y);
+
+    updateUiState();
+  }
+
+  function continueDraw(event) {
+    if (!drawing || !drawEnabled) {
+      return;
+    }
+    const p = getCanvasPos(event);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    drawLayerCtx.lineTo(p.x, p.y);
+    drawLayerCtx.stroke();
+  }
+
+  function endDraw() {
+    drawing = false;
+  }
+
+  function hasTransparentPixels(imageData) {
+    const data = imageData.data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 250) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function convertWhiteToTransparent(imageData) {
+    const data = imageData.data;
+    let visible = 0;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+      if (a === 0) {
+        continue;
+      }
+
+      const light = (r + g + b) / 3;
+      let nextAlpha = 0;
+
+      if (light >= 245) {
+        nextAlpha = 0;
+      } else if (light >= 210) {
+        const t = (245 - light) / 35;
+        nextAlpha = Math.round(255 * t * 0.55);
+      } else {
+        const darkness = 1 - light / 255;
+        nextAlpha = Math.round(Math.max(110, Math.min(255, 255 * darkness * 1.7)));
+      }
+
+      if (nextAlpha <= 2) {
+        data[i + 3] = 0;
+        continue;
+      }
+
+      data[i + 3] = Math.min(a, nextAlpha);
+      visible += 1;
+    }
+    return visible > 0;
+  }
+
+  function countVisiblePixels(imageData) {
+    const data = imageData.data;
+    let count = 0;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 8) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  function trimCanvasToVisible(sourceCanvas, alphaThreshold = 12, padding = 2) {
+    const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const width = sourceCanvas.width;
+    const height = sourceCanvas.height;
+    const data = sourceCtx.getImageData(0, 0, width, height).data;
+
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const alpha = data[((y * width + x) * 4) + 3];
+        if (alpha <= alphaThreshold) {
+          continue;
+        }
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      return null;
+    }
+
+    minX = Math.max(0, minX - padding);
+    minY = Math.max(0, minY - padding);
+    maxX = Math.min(width - 1, maxX + padding);
+    maxY = Math.min(height - 1, maxY + padding);
+
+    const cropW = maxX - minX + 1;
+    const cropH = maxY - minY + 1;
+    const trimmedCanvas = document.createElement("canvas");
+    trimmedCanvas.width = cropW;
+    trimmedCanvas.height = cropH;
+    const trimmedCtx = trimmedCanvas.getContext("2d");
+    trimmedCtx.drawImage(sourceCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+    return trimmedCanvas;
+  }
+
+  function isSupportedImageFile(file) {
+    const mime = (file.type || "").toLowerCase();
+    if (mime === "image/png" || mime === "image/jpeg" || mime === "image/webp") {
+      return true;
+    }
+    const name = (file.name || "").toLowerCase();
+    return /\.(png|jpe?g|webp)$/.test(name);
+  }
+
+  function drawSourceOnPreview(source) {
+    clearCanvas();
+    const sourceW = source.naturalWidth || source.width;
+    const sourceH = source.naturalHeight || source.height;
+    const area = {
+      x: 40,
+      y: templateLineY - 78,
+      w: 320,
+      h: 120,
+    };
+    const scale = Math.min(area.w / sourceW, area.h / sourceH);
+    const w = sourceW * scale;
+    const h = sourceH * scale;
+    const x = area.x;
+    const y = area.y + ((area.h - h) / 2);
+    ctx.drawImage(source, x, y, w, h);
+  }
+
+  async function handleUpload(file) {
+    if (!file) {
+      throw new Error("Bitte wählen Sie eine Bilddatei aus.");
+    }
+    if (!isSupportedImageFile(file)) {
+      throw new Error("Ungültiges Format. Erlaubt sind PNG, JPG/JPEG und WEBP.");
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Die Bilddatei konnte nicht gelesen werden."));
+      img.src = imageUrl;
+    });
+
+    const workCanvas = document.createElement("canvas");
+    workCanvas.width = image.naturalWidth;
+    workCanvas.height = image.naturalHeight;
+    const workCtx = workCanvas.getContext("2d", { willReadFrequently: true });
+    workCtx.drawImage(image, 0, 0);
+
+    const imageData = workCtx.getImageData(0, 0, workCanvas.width, workCanvas.height);
+    const hasAlpha = hasTransparentPixels(imageData);
+
+    let visiblePixels = 0;
+    if (!hasAlpha) {
+      const converted = convertWhiteToTransparent(imageData);
+      workCtx.putImageData(imageData, 0, 0);
+      visiblePixels = converted ? countVisiblePixels(imageData) : 0;
+    } else {
+      visiblePixels = countVisiblePixels(imageData);
+    }
+
+    URL.revokeObjectURL(imageUrl);
+
+    const minVisiblePixels = Math.max(24, Math.floor(workCanvas.width * workCanvas.height * 0.0002));
+    if (visiblePixels < minVisiblePixels) {
+      throw new Error("Das Bild ist nicht geeignet. Bitte laden Sie eine echte Signatur hoch.");
+    }
+
+    const trimmedCanvas = trimCanvasToVisible(workCanvas);
+    if (!trimmedCanvas) {
+      throw new Error("Die Signatur konnte nicht erkannt werden.");
+    }
+
+    uploadedSignaturePngDataUrl = trimmedCanvas.toDataURL("image/png");
+    const previewImage = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Das PNG-Vorschaubild konnte nicht erstellt werden."));
+      img.src = uploadedSignaturePngDataUrl;
+    });
+
+    hasUploadedSignature = true;
+    drawEnabled = false;
+    hasDrawing = false;
+    clearDrawLayer();
+    drawSourceOnPreview(previewImage);
+    setUploadState(
+      "Signaturbild erfolgreich geladen.",
+      false
+    );
+    updateUiState();
+  }
+
+  uploadInput.addEventListener("change", async () => {
+    const file = uploadInput.files && uploadInput.files[0];
+    if (!file) {
+      setUploadState("Keine Datei ausgewählt.", false);
+      return;
+    }
+    try {
+      await handleUpload(file);
+    } catch (error) {
+      uploadedSignaturePngDataUrl = "";
+      hasUploadedSignature = false;
+      drawEnabled = true;
+      hasDrawing = false;
+      clearDrawLayer();
+      clearCanvas();
+      const message = (error && error.message) ? error.message : "Fehler bei der Bildverarbeitung.";
+      setUploadState(message, true);
+      alert(message);
+      updateUiState();
+    } finally {
+      uploadInput.value = "";
+    }
+  });
+
+  clearUploadBtn.addEventListener("click", () => {
+    uploadInput.value = "";
+    uploadedSignaturePngDataUrl = "";
+    hasUploadedSignature = false;
+    drawEnabled = true;
+    hasDrawing = false;
+    clearDrawLayer();
+    clearCanvas();
+    setUploadState("Keine Datei ausgewählt.", false);
+    updateUiState();
+  });
+
+  clearDrawBtn.addEventListener("click", () => {
+    hasDrawing = false;
+    clearDrawLayer();
+    clearCanvas();
+    updateUiState();
+  });
+
+  canvas.addEventListener("pointerdown", (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    beginDraw(event);
+  });
+  canvas.addEventListener("pointermove", continueDraw);
+  canvas.addEventListener("pointerup", endDraw);
+  canvas.addEventListener("pointercancel", endDraw);
+  canvas.addEventListener("pointerleave", endDraw);
+
+  submitSignBtn.addEventListener("click", () => {
+    if (submitSignBtn.disabled) {
+      return;
+    }
+
+    let signaturePayload = "";
+    if (hasUploadedSignature && uploadedSignaturePngDataUrl) {
+      signaturePayload = uploadedSignaturePngDataUrl;
+    } else if (hasDrawing) {
+      const trimmedDrawn = trimCanvasToVisible(drawLayerCanvas);
+      if (!trimmedDrawn) {
+        alert("Bitte zeichnen Sie zuerst eine gültige Signatur.");
+        return;
+      }
+      signaturePayload = trimmedDrawn.toDataURL("image/png");
+    }
+
+    if (!signaturePayload) {
+      alert("Bitte laden Sie eine gültige Signatur hoch oder zeichnen Sie eine.");
+      return;
+    }
+
+    signaturePngField.value = signaturePayload;
+    submitSignBtn.disabled = true;
+    submitSignBtn.textContent = "Wird gespeichert...";
+    signForm.submit();
+  });
+
+  signatureBgImage.onload = () => {
+    if (hasUploadedSignature && uploadedSignaturePngDataUrl) {
+      const previewImage = new Image();
+      previewImage.onload = () => {
+        drawSourceOnPreview(previewImage);
+        updateUiState();
+      };
+      previewImage.src = uploadedSignaturePngDataUrl;
+      return;
+    }
+    clearCanvas();
+    updateUiState();
+  };
+
+  clearDrawLayer();
+  clearCanvas();
+  updateUiState();
+})();
+</script>
+{% endblock %}
