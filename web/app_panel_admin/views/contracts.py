@@ -28,8 +28,6 @@ from flexx.contract_helpers import calc_contract_amounts_from_stueckzins_table
 from flexx.pdf_contract import (
     build_contract_pdf,
     build_contract_pdf_signed,
-    build_datenschutzeinwilligung_pdf,
-    build_datenschutzeinwilligung_pdf_signed,
 )
 from flexx.emailer import (
     send_contract_paid_received_email,
@@ -168,14 +166,6 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
         c.tippgeber = tip_by_client_id.get(c.client_id)
         c.pdf_basename = c.contract_pdf.name.rsplit("/", 1)[-1] if c.contract_pdf else ""
         c.pdf_shortname = _shorten_middle(c.pdf_basename) if c.pdf_basename else ""
-        c.dsgvo_pdf_basename = (
-            c.datenschutzeinwilligung_pdf.name.rsplit("/", 1)[-1]
-            if c.datenschutzeinwilligung_pdf else ""
-        )
-        c.dsgvo_pdf_shortname = (
-            _shorten_middle(c.dsgvo_pdf_basename)
-            if c.dsgvo_pdf_basename else ""
-        )
         c.signed_pdf_basename = (
             c.contract_pdf_signed.name.rsplit("/", 1)[-1]
             if c.contract_pdf_signed else ""
@@ -183,14 +173,6 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
         c.signed_pdf_shortname = (
             _shorten_middle(c.signed_pdf_basename)
             if c.signed_pdf_basename else ""
-        )
-        c.signed_dsgvo_pdf_basename = (
-            c.datenschutzeinwilligung_pdf_signed.name.rsplit("/", 1)[-1]
-            if c.datenschutzeinwilligung_pdf_signed else ""
-        )
-        c.signed_dsgvo_pdf_shortname = (
-            _shorten_middle(c.signed_dsgvo_pdf_basename)
-            if c.signed_dsgvo_pdf_basename else ""
         )
         c.bonds_quantity_display = _format_decimal_de(c.bonds_quantity, "#,##0") if c.bonds_quantity is not None else ""
         c.nominal_amount_display = _format_decimal_de(c.nominal_amount, "#,##0.00") if c.nominal_amount is not None else ""
@@ -374,13 +356,6 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
     saved_pdf_name: str | None = (
         contract.contract_pdf.name.rsplit("/", 1)[-1] if contract.contract_pdf else None
     )
-    saved_dsgvo_pdf_url: str | None = (
-        contract.datenschutzeinwilligung_pdf.url if contract.datenschutzeinwilligung_pdf else None
-    )
-    saved_dsgvo_pdf_name: str | None = (
-        contract.datenschutzeinwilligung_pdf.name.rsplit("/", 1)[-1]
-        if contract.datenschutzeinwilligung_pdf else None
-    )
 
     form_contract_date = contract.contract_date
     form_qty = contract.bonds_quantity or issue.minimal_bonds_quantity
@@ -463,26 +438,14 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
                 ])
                 if action == "save_pdf":
                     res = build_contract_pdf(contract.id)
-                    dsgvo_res = build_datenschutzeinwilligung_pdf(contract.id)
                     if contract.contract_pdf_signed:
                         contract.contract_pdf_signed.delete(save=False)
-                    if contract.datenschutzeinwilligung_pdf_signed:
-                        contract.datenschutzeinwilligung_pdf_signed.delete(save=False)
                     if contract.contract_pdf:
                         contract.contract_pdf.delete(save=False)
-                    if contract.datenschutzeinwilligung_pdf:
-                        contract.datenschutzeinwilligung_pdf.delete(save=False)
                     contract.contract_pdf.save(res.filename, ContentFile(res.pdf_bytes), save=True)
-                    contract.datenschutzeinwilligung_pdf.save(
-                        dsgvo_res.filename,
-                        ContentFile(dsgvo_res.pdf_bytes),
-                        save=True,
-                    )
                     ok_message = "Gespeichert und PDF erstellt."
                     saved_pdf_url = contract.contract_pdf.url
                     saved_pdf_name = res.filename
-                    saved_dsgvo_pdf_url = contract.datenschutzeinwilligung_pdf.url
-                    saved_dsgvo_pdf_name = dsgvo_res.filename
                 else:
                     ok_message = "Gespeichert."
                 calc_result = {
@@ -521,14 +484,6 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
         contract.contract_pdf_signed.name.rsplit("/", 1)[-1]
         if contract.contract_pdf_signed else None
     )
-    signed_dsgvo_pdf_url: str | None = (
-        contract.datenschutzeinwilligung_pdf_signed.url
-        if contract.datenschutzeinwilligung_pdf_signed else None
-    )
-    signed_dsgvo_pdf_name: str | None = (
-        contract.datenschutzeinwilligung_pdf_signed.name.rsplit("/", 1)[-1]
-        if contract.datenschutzeinwilligung_pdf_signed else None
-    )
 
     return render(
         request,
@@ -540,12 +495,8 @@ def contract_edit(request: HttpRequest, contract_id: int) -> HttpResponse:
             "ok_message": ok_message,
             "saved_pdf_url": saved_pdf_url,
             "saved_pdf_name": saved_pdf_name,
-            "saved_dsgvo_pdf_url": saved_dsgvo_pdf_url,
-            "saved_dsgvo_pdf_name": saved_dsgvo_pdf_name,
             "signed_pdf_url": signed_pdf_url,
             "signed_pdf_name": signed_pdf_name,
-            "signed_dsgvo_pdf_url": signed_dsgvo_pdf_url,
-            "signed_dsgvo_pdf_name": signed_dsgvo_pdf_name,
             "form_contract_date": form_contract_date,
             "form_qty": form_qty,
             "calc_result": calc_result,
@@ -626,26 +577,17 @@ def contract_unterschreiben(request: HttpRequest, contract_id: int) -> HttpRespo
                         )
 
                         signed_contract_res = build_contract_pdf_signed(contract.id)
-                        signed_dsgvo_res = build_datenschutzeinwilligung_pdf_signed(contract.id)
 
                         if contract.contract_pdf_signed:
                             contract.contract_pdf_signed.delete(save=False)
-                        if contract.datenschutzeinwilligung_pdf_signed:
-                            contract.datenschutzeinwilligung_pdf_signed.delete(save=False)
 
                         contract.contract_pdf_signed.save(
                             signed_contract_res.filename,
                             ContentFile(signed_contract_res.pdf_bytes),
                             save=False,
                         )
-                        contract.datenschutzeinwilligung_pdf_signed.save(
-                            signed_dsgvo_res.filename,
-                            ContentFile(signed_dsgvo_res.pdf_bytes),
-                            save=False,
-                        )
                         contract.save(update_fields=[
                             "contract_pdf_signed",
-                            "datenschutzeinwilligung_pdf_signed",
                             "updated_at",
                         ])
                 except Exception as exc:
@@ -661,15 +603,7 @@ def contract_unterschreiben(request: HttpRequest, contract_id: int) -> HttpRespo
         contract.contract_pdf_signed.name.rsplit("/", 1)[-1]
         if contract.contract_pdf_signed else None
     )
-    signed_dsgvo_pdf_url: str | None = (
-        contract.datenschutzeinwilligung_pdf_signed.url
-        if contract.datenschutzeinwilligung_pdf_signed else None
-    )
-    signed_dsgvo_pdf_name: str | None = (
-        contract.datenschutzeinwilligung_pdf_signed.name.rsplit("/", 1)[-1]
-        if contract.datenschutzeinwilligung_pdf_signed else None
-    )
-    show_signature_form = not (signed_contract_pdf_url or signed_dsgvo_pdf_url)
+    show_signature_form = not signed_contract_pdf_url
 
     return render(
         request,
@@ -687,8 +621,6 @@ def contract_unterschreiben(request: HttpRequest, contract_id: int) -> HttpRespo
             "sign_ok_message": sign_ok_message,
             "signed_contract_pdf_url": signed_contract_pdf_url,
             "signed_contract_pdf_name": signed_contract_pdf_name,
-            "signed_dsgvo_pdf_url": signed_dsgvo_pdf_url,
-            "signed_dsgvo_pdf_name": signed_dsgvo_pdf_name,
             "show_signature_form": show_signature_form,
         },
     )

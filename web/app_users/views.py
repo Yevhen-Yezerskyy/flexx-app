@@ -33,6 +33,7 @@ from .forms import (
     ResetPasswordForm,
     LoginForm,
 )
+from .models import TippgeberClient
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -45,7 +46,13 @@ def _redirect_by_role(user) -> HttpResponse:
     if role == "admin":
         return redirect("/panel/admin/")
     if role == "agent":
-        return redirect("/panel/tippgeber/")
+        has_clients = TippgeberClient.objects.filter(
+            tippgeber=user,
+            client__isnull=False,
+        ).exists()
+        if has_clients:
+            return redirect("/panel/tippgeber/")
+        return redirect("/panel/tippgeber/add-client/")
     has_contracts = user.contracts_as_client.exists()
     if has_contracts:
         return redirect("/panel/client/contracts/")
@@ -172,9 +179,17 @@ def reset_password(request: HttpRequest, uidb64: str, token: str) -> HttpRespons
     if request.method == "POST" and form.is_valid():
         user.set_password(form.cleaned_data["password1"])
         user.save(update_fields=["password"])
-        return render(request, "app_users/password_reset.html", {"valid": True, "done": True})
+        return render(
+            request,
+            "app_users/password_reset.html",
+            {"valid": True, "done": True, "email": user.email},
+        )
 
-    return render(request, "app_users/password_reset.html", {"valid": True, "form": form})
+    return render(
+        request,
+        "app_users/password_reset.html",
+        {"valid": True, "form": form, "email": user.email},
+    )
 
 
 def set_password(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:

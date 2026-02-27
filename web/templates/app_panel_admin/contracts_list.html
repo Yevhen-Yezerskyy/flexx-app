@@ -73,36 +73,18 @@ function flexxContractStatusConfirm(formEl) {
           </td>
 
           <td class="px-4 py-3">
-            {% if c.contract_pdf_signed or c.datenschutzeinwilligung_pdf_signed %}
-              {% if c.contract_pdf_signed %}
-                <div>
-                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
-                    {{ c.signed_pdf_basename }}
-                  </a>
-                </div>
-              {% endif %}
-              {% if c.datenschutzeinwilligung_pdf_signed %}
-                <div class="mt-1">
-                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.datenschutzeinwilligung_pdf_signed.url }}" title="{{ c.signed_dsgvo_pdf_basename }}">
-                    {{ c.signed_dsgvo_pdf_basename }}
-                  </a>
-                </div>
-              {% endif %}
-            {% elif c.contract_pdf or c.datenschutzeinwilligung_pdf %}
-              {% if c.contract_pdf %}
-                <div>
-                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
-                    {{ c.pdf_basename }}
-                  </a>
-                </div>
-              {% endif %}
-              {% if c.datenschutzeinwilligung_pdf %}
-                <div class="mt-1">
-                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.datenschutzeinwilligung_pdf.url }}" title="{{ c.dsgvo_pdf_basename }}">
-                    {{ c.dsgvo_pdf_basename }}
-                  </a>
-                </div>
-              {% endif %}
+            {% if c.contract_pdf_signed %}
+              <div>
+                <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
+                  {{ c.signed_pdf_basename }}
+                </a>
+              </div>
+            {% elif c.contract_pdf %}
+              <div>
+                <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
+                  {{ c.pdf_basename }}
+                </a>
+              </div>
               <div class="mt-2">
                 <a class="underline hover:text-[var(--accent)] transition" href="{% url 'panel_admin_contract_unterschreiben' c.id %}">
                   Vertrag unterschreiben

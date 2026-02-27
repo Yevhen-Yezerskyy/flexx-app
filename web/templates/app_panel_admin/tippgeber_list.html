@@ -1,4 +1,5 @@
 {% extends "app_panel_admin/base.html" %}
+{% load phone_filters %}
 <!-- FILE: web/templates/app_panel_admin/tippgeber_list.html  (обновлено — 2026-02-15)
      PURPOSE: Admin: Tippgeber список: Tippgeber (имя/фамилия/email), его Kunden, Status + Aktivieren/Deaktivieren с confirm+email при активации, Ändern/Löschen. -->
 {% block panel_where %}Tippgeber{% endblock %}
@@ -50,10 +51,10 @@ function flexxTippgeberDeleteConfirm(formEl) {
               </a>
             </div>
             {% if r.u.phone %}
-              <div class="text-gray-500">Telefon: {{ r.u.phone }}</div>
+              <div class="text-gray-500">Telefon: {{ r.u.phone|phone_intl }}</div>
             {% endif %}
             {% if r.u.mobile_phone %}
-              <div class="text-gray-500">Mobil: {{ r.u.mobile_phone }}</div>
+              <div class="text-gray-500">Mobil: {{ r.u.mobile_phone|phone_intl }}</div>
             {% endif %}
           </td>
 

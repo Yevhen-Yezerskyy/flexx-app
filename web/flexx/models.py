@@ -72,7 +72,7 @@ class BondIssue(models.Model):
         ordering = ["-issue_date", "-id"]
 
     def __str__(self) -> str:
-        return f"{self.title} ({self.issue_date})"
+        return f"{self.issue_date:%d.%m.%Y} - {self.title}"
 
 
 class BondIssueAttachment(models.Model):
@@ -119,14 +119,7 @@ class Contract(models.Model):
     contract_pdf = models.FileField(upload_to=contract_pdf_upload_to, blank=True)
     signature = models.ImageField(upload_to=contract_signature_upload_to, blank=True)
     contract_pdf_signed = models.FileField(upload_to=contract_pdf_signed_upload_to, blank=True)
-    datenschutzeinwilligung_pdf = models.FileField(
-        upload_to=contract_datenschutzeinwilligung_pdf_upload_to,
-        blank=True,
-    )
-    datenschutzeinwilligung_pdf_signed = models.FileField(
-        upload_to=contract_datenschutzeinwilligung_pdf_signed_upload_to,
-        blank=True,
-    )
+    contract_pdf_signed_signed = models.FileField(upload_to=contract_pdf_signed_upload_to, blank=True)
 
     signed_received_at = models.DateField(null=True, blank=True)
     paid_at = models.DateField(null=True, blank=True)

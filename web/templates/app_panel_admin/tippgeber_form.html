@@ -1,4 +1,5 @@
 {% extends "app_panel_admin/base.html" %}
+{% load phone_filters %}
 {% block panel_where %}Tippgeber{% endblock %}
 {% block nav_tippgebers_class %}text-[var(--accent)] font-semibold{% endblock %}
 
@@ -108,7 +109,7 @@
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Telefon*</label>
-        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:'' }}" type="text"
+        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:''|phone_intl }}" type="text"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.phone.errors %}
           <div class="text-sm text-red-600">{{ form.phone.errors|join:", " }}</div>
@@ -116,7 +117,7 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Mobiltelefon</label>
-        <input name="{{ form.mobile_phone.html_name }}" value="{{ form.mobile_phone.value|default:'' }}" type="text"
+        <input name="{{ form.mobile_phone.html_name }}" value="{{ form.mobile_phone.value|default:''|phone_intl }}" type="text"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.mobile_phone.errors %}
           <div class="text-sm text-red-600">{{ form.mobile_phone.errors|join:", " }}</div>

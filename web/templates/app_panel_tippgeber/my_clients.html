@@ -2,7 +2,7 @@
 <!-- FILE: web/templates/app_panel_tippgeber/my_clients.html  (обновлено — 2026-02-15)
      PURPOSE: "Meine Kunden" = дефолтная страница; кнопка "+ Neu" справа (как в эмиссиях) ведёт на форму добавления клиента. -->
 {% block panel_where %}
-Meine Kunden
+Kunden/Verträge
 {% endblock %}
 {% block nav_my_clients_class %}
 text-[var(--accent)] font-semibold
@@ -11,7 +11,7 @@ text-[var(--accent)] font-semibold
 {% block panel_content %}
 
 <div class="flex items-center mb-10 mt-2">
-  <div class="text-2xl">Meine Kunden</div>
+  <div class="text-2xl">Kunden/Verträge</div>
   <div class="flex-1"></div>
 
   <a href="{% url 'panel_tippgeber_send_client' %}"
@@ -24,51 +24,39 @@ text-[var(--accent)] font-semibold
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[30%]">Kunde</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[26%]">Vertrag</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[14%]">Vertrag erstellt?</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[14%]">Vertrag erhalten?</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Vertrag bezahlt?</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[40%]">Kunde</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[30%]">Emission</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[15%]">Vertrag unterschrieben</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[15%]">Vertrag bezahlt</th>
       </tr>
     </thead>
     <tbody>
       {% for r in rows %}
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
-            {{ r.client.last_name }} {{ r.client.first_name }}<br>
-            <a href="mailto:{{ r.client.email }}" class="underline hover:text-[var(--accent)] transition">
-              {{ r.client.email }}
-            </a>
+            <div>
+              {{ r.client.first_name }} {{ r.client.last_name }}
+              (<a href="mailto:{{ r.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ r.client.email }}</a>)
+            </div>
+            <div class="mt-1">
+              <a href="{% url 'panel_tippgeber_send_client' %}?client_id={{ r.client.id }}"
+                 class="underline hover:text-[var(--accent)] transition">
+                Neuen Vertrag erstellen
+              </a>
+            </div>
           </td>
           <td class="px-4 py-3">
-            {% if r.contract %}
-              {{ r.contract.issue.title }}<br>
-              <div class="grid grid-cols-[95px_1fr] gap-x-2 mt-1">
-                <div>Zahlbar bis:</div>
-                <div>{% if r.contract.settlement_date %}{{ r.contract.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
-                <div>Betrag, €:</div>
-                <div>{{ r.contract_total_display }}</div>
-              </div>
-            {% else %}
-              Kein Vertrag
-            {% endif %}
+            {{ r.contract.issue.issue_date|date:"d.m.Y" }} - {{ r.contract.issue.title }}
           </td>
           <td class="px-4 py-3">
-            {% if r.contract %}
-              Ja<br>{{ r.contract.contract_date|date:"d.m.Y" }}
-            {% else %}
-              Nein
-            {% endif %}
-          </td>
-          <td class="px-4 py-3">
-            {% if r.contract and r.contract.signed_received_at %}
+            {% if r.contract.signed_received_at %}
               Ja<br>{{ r.contract.signed_received_at|date:"d.m.Y" }}
             {% else %}
               Nein
             {% endif %}
           </td>
           <td class="px-4 py-3">
-            {% if r.contract and r.contract.paid_at %}
+            {% if r.contract.paid_at %}
               Ja<br>{{ r.contract.paid_at|date:"d.m.Y" }}
             {% else %}
               Nein
@@ -77,7 +65,7 @@ text-[var(--accent)] font-semibold
         </tr>
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="5">Keine Kunden.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="4">Keine Verträge.</td>
         </tr>
       {% endfor %}
     </tbody>

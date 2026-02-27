@@ -20,7 +20,7 @@ from django.utils import timezone
 from PIL import Image
 
 from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
-from flexx.models import Contract, DatenschutzeinwilligungText, FlexxlagerSignature
+from flexx.models import Contract, FlexxlagerSignature
 
 
 def _format_text(value) -> str:
@@ -1186,89 +1186,6 @@ class SignedContractPdfCreator(ContractPdfCreator):
         )
 
 
-class DatenschutzeinwilligungPdfCreator(ContractPdfCreator):
-    MARGIN_LEFT = 36
-    MARGIN_RIGHT = 36
-    MARGIN_TOP = 40
-
-    def _build_client_data_text(self) -> str:
-        c = self.client
-        full_name = f"{(c.first_name or '').strip()} {(c.last_name or '').strip()}".strip()
-        zip_city = f"{(c.zip_code or '').strip()} {(c.city or '').strip()}".strip()
-        address_line = ", ".join([v for v in [(c.street or "").strip(), zip_city] if v])
-        out = "\n".join([v for v in [full_name, address_line] if v])
-        company = (c.company or "").strip()
-        if company:
-            out = f"{out}\n\n{company}" if out else company
-        return out
-
-    def _load_text(self) -> str:
-        row = DatenschutzeinwilligungText.objects.first()
-        text = (row.text if row else "") or ""
-        return re.sub(r"\{\s*client_data\s*\}", self._build_client_data_text(), text)
-
-    def _draw_body(self, c: Canvas, text: str) -> None:
-        parts = self._split_paragraphs(text)
-        for idx, part in enumerate(parts):
-            if idx > 0:
-                self._cursor_gap(self.PARAGRAPH_TOP_GAP)
-
-            paragraph = self._build_paragraph(part, self.FONT_SIZE_TEXT)
-            _, h = paragraph.wrap(self.content_width, self.PAGE_SIZE[1])
-            if self.y - h < self.MARGIN_BOTTOM:
-                c.showPage()
-                self._cursor_reset()
-
-            paragraph.drawOn(c, self.MARGIN_LEFT, self.y - h)
-            self.y -= h
-
-    def _draw_footer(self, c: Canvas) -> None:
-        needed_h = 95.0
-        self._cursor_gap(self.BLOCK_GAP_LG)
-        self._ensure_space(c, needed_h)
-        self.draw_buyer_signature_block(c, y_top=self.y - 30.0, gap_between_lines=40.0)
-
-    def build(self) -> ContractPdfBuildResult:
-        buffer = BytesIO()
-        c = rl_canvas.Canvas(buffer, pagesize=self.PAGE_SIZE)
-        self._cursor_reset()
-        self._draw_body(c, self._load_text())
-        self._draw_footer(c)
-        c.save()
-        return ContractPdfBuildResult(
-            pdf_bytes=buffer.getvalue(),
-            filename=f"FleXXLager-DSGVO-IN{self.contract.id}.pdf",
-        )
-
-
-def build_datenschutzeinwilligung_pdf(contract_id: int) -> ContractPdfBuildResult:
-    creator = DatenschutzeinwilligungPdfCreator(contract_id)
-    return creator.build()
-
-
-class SignedDatenschutzeinwilligungPdfCreator(DatenschutzeinwilligungPdfCreator):
-    def __init__(self, contract_id: int):
-        super().__init__(contract_id)
-        self._buyer_signature_image = SignedContractPdfCreator._load_signature_from_field(self.contract.signature)
-        if self._buyer_signature_image is None:
-            raise ValueError("Kunden-Signatur fehlt.")
-
-    def _get_buyer_signature_image(self) -> Image.Image | None:
-        return self._buyer_signature_image
-
-    def build(self) -> ContractPdfBuildResult:
-        result = super().build()
-        return ContractPdfBuildResult(
-            pdf_bytes=result.pdf_bytes,
-            filename=f"FleXXLager-DSGVO-IN{self.contract.id}-signed.pdf",
-        )
-
-
 def build_contract_pdf_signed(contract_id: int) -> ContractPdfBuildResult:
     creator = SignedContractPdfCreator(contract_id)
-    return creator.build()
-
-
-def build_datenschutzeinwilligung_pdf_signed(contract_id: int) -> ContractPdfBuildResult:
-    creator = SignedDatenschutzeinwilligungPdfCreator(contract_id)
     return creator.build()

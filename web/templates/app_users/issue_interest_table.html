@@ -1,54 +1,85 @@
 <!-- FILE: web/templates/app_users/issue_interest_table.html  (обновлено — 2026-02-16)
      PURPOSE: Partial HTML для Stückzinstabelle: если период > 1 года — вывод блоками по годам (3 колонки на блок). -->
 
-<div class="flex items-start gap-4">
-  <div class="flex-1">
-    <div class="text-lg font-semibold">Stückzinstabelle</div>
-    <div class="text-sm text-gray-600 mt-1">
-      {{ issue.title }} · EUR {{ issue.bond_price }} · {{ issue.issue_date|date:"d.m.Y" }}
+<div class="h-full min-h-0 flex flex-col">
+  <div class="shrink-0 bg-white pb-4 border-b border-gray-200">
+    <div class="flex items-start">
+      <div class="flex-1">
+        <div class="text-lg font-semibold">Stückzinstabelle</div>
+        <div class="text-sm text-gray-600 mt-1">
+          {{ issue.issue_date|date:"d.m.Y" }} - {{ issue.title }} · EUR {{ issue.bond_price }}
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="button"
+                data-interest-modal-close
+                class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+          Schließen
+        </button>
+        <button type="button"
+                data-interest-modal-close
+                aria-label="Schließen"
+                class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+          &#x2715;
+        </button>
+      </div>
     </div>
   </div>
 
-  <button type="button"
-          data-interest-modal-close
-          class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
-    Schließen
-  </button>
-</div>
-
-{% for g in groups %}
-  {% if g.range_label %}
-    <div class="mt-6 text-sm font-semibold text-[var(--text)]">
-      {{ g.range_label }}
+  {% if groups %}
+    <div class="mt-4 shrink-0 grid gap-7" style="grid-template-columns: repeat(3, 325px);">
+      {% for _ in groups.0.cols %}
+        <table class="border border-[var(--text)] text-sm border-separate border-spacing-0 table-fixed" style="width: 320px;">
+          <colgroup>
+            <col style="width: 150px;">
+            <col style="width: 150px;">
+          </colgroup>
+          <thead class="bg-white">
+            <tr>
+              <th class="border border-[var(--text)] px-2 py-2 text-center text-xs font-semibold leading-tight bg-white align-middle">
+                Stückzinsen je Teilschuld-<br>
+                verschreibung zu EUR {{ issue.bond_price }}<br>
+                in EUR
+              </th>
+              <th class="border border-[var(--text)] px-2 py-2 text-center text-xs font-semibold leading-tight bg-white align-middle">
+                Datum der Einzahlung
+              </th>
+            </tr>
+          </thead>
+        </table>
+      {% endfor %}
     </div>
-  {% else %}
-    <div class="mt-4"></div>
   {% endif %}
 
-  <div class="mt-3 grid grid-cols-3 gap-4">
-    {% for col in g.cols %}
-      <table class="w-full border border-[var(--text)] text-sm">
-        <thead>
-          <tr>
-            <th class="border border-[var(--text)] px-2 py-2 text-center text-xs font-semibold leading-tight">
-              Stückzinsen je Teilschuld-<br>
-              verschreibung zu EUR {{ issue.bond_price }}<br>
-              in EUR
-            </th>
-            <th class="border border-[var(--text)] px-2 py-2 text-center text-xs font-semibold leading-tight">
-              Datum der Einzahlung
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in col %}
-            <tr class="{% if r.pay_date < today %}bg-gray-100{% elif r.is_holiday %}bg-red-100{% elif r.is_weekend %}bg-yellow-100{% endif %}">
-              <td class="border border-[var(--text)] px-2 py-1 text-center">{{ r.stueckzins_de }}</td>
-              <td class="border border-[var(--text)] px-2 py-1 text-center">{{ r.pay_date|date:"d. M y" }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="mt-2 flex-1 min-h-0 overflow-y-scroll" style="scrollbar-gutter: stable;">
+    {% for g in groups %}
+      {% if g.range_label %}
+        <div class="mt-2 text-sm font-semibold text-[var(--text)]">
+          {{ g.range_label }}
+        </div>
+      {% else %}
+        <div class="mt-1"></div>
+      {% endif %}
+
+      <div class="mt-2 grid gap-7" style="grid-template-columns: repeat(3, 325px);">
+        {% for col in g.cols %}
+          <table class="border border-[var(--text)] text-sm border-separate border-spacing-0 table-fixed" style="width: 320px;">
+            <colgroup>
+              <col style="width: 150px;">
+              <col style="width: 150px;">
+            </colgroup>
+            <tbody>
+              {% for r in col %}
+                <tr class="{% if r.pay_date < today %}bg-gray-100{% elif r.is_holiday %}bg-red-100{% elif r.is_weekend %}bg-yellow-100{% endif %}">
+                  <td class="border border-[var(--text)] px-2 py-1 text-center align-middle">{{ r.stueckzins_de }}</td>
+                  <td class="border border-[var(--text)] px-2 py-1 text-center align-middle">{{ r.pay_date|date:"d. M y" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endfor %}
+      </div>
     {% endfor %}
   </div>
-{% endfor %}
+</div>

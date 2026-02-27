@@ -12,6 +12,7 @@ _DATE_WIDGET = forms.DateInput(
     format="%Y-%m-%d",
     attrs={
         "type": "date",
+        "placeholder": "Geburtsdatum*",
         "class": "border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white",
     },
 )
@@ -58,9 +59,7 @@ class TippgeberProfileForm(forms.ModelForm):
         self.fields["contact_person"].required = False
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
-
-        if "birth_date" in self.fields:
-            self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+        self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
@@ -76,7 +75,6 @@ class ClientCreateForm(forms.ModelForm):
             "email",
             "last_name",
             "first_name",
-            "birth_date",
             "company",
             "street",
             "zip_code",
@@ -88,7 +86,6 @@ class ClientCreateForm(forms.ModelForm):
             "handelsregister_number",
             "contact_person",
         ]
-        widgets = {"birth_date": _DATE_WIDGET}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -96,16 +93,12 @@ class ClientCreateForm(forms.ModelForm):
         for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):
             self.fields[f].required = True
 
-        self.fields["birth_date"].required = False
         self.fields["mobile_phone"].required = False
         self.fields["fax"].required = False
         self.fields["company"].required = False
         self.fields["contact_person"].required = False
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
-
-        if "birth_date" in self.fields:
-            self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()

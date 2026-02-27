@@ -1,0 +1,86 @@
+{% extends "app_panel_tippgeber/base.html" %}
+<!-- FILE: web/templates/app_panel_tippgeber/issues_list.html  (новое — 2026-02-27)
+     PURPOSE: Tippgeber: read-only список активных Platzierungen (без Ändern/Kopieren/Löschen). -->
+{% block panel_where %}Emissionen{% endblock %}
+{% block nav_issues_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_content %}
+
+<div class="flex items-center mb-10 mt-2">
+  <div class="text-2xl">Emissionen</div>
+  <div class="flex-1"></div>
+</div>
+
+<div class="bg-white border border-gray-400 rounded-md overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-100">
+      <tr class="text-left">
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Titel</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Kennzahlen</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Wert</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold w-[30%]">Dateien</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for it in issues %}
+        <tr class="border-t border-gray-200 align-top">
+          <td class="px-4 py-3">
+            <div class="font-semibold">{{ it.title }}</div>
+          </td>
+
+          <td class="px-4 py-3">
+            <div class="grid grid-cols-[105px_70px] gap-1">
+              <div>Ausgabedatum:</div>
+              <div>{{ it.issue_date|date:"d.m.Y" }}</div>
+              <div>Laufzeit:</div>
+              <div>{{ it.term_months }} Monate</div>
+              <div>Volumen, €:</div>
+              <div>{{ it.issue_volume_fmt }}</div>
+            </div>
+          </td>
+
+          <td class="px-4 py-3">
+            <div class="grid grid-cols-[125px_80px] gap-1">
+              <div>Preis pro Anleihe, €:</div>
+              <div>{{ it.bond_price_fmt }}</div>
+              <div>Zinssatz:</div>
+              <div>{{ it.interest_rate }}%</div>
+              <div>Mindestmenge:</div>
+              <div>{{ it.minimal_bonds_quantity_fmt }}</div>
+              <div class="col-span-2">
+                <a href="#"
+                   data-interest-modal-open
+                   data-issue-id="{{ it.id }}"
+                   class="underline hover:text-[var(--accent)] transition">
+                  Stückzinstabelle
+                </a>
+              </div>
+            </div>
+          </td>
+
+          <td class="px-4 py-3">
+            {% if it.sorted_attachments %}
+              <div class="flex flex-col gap-1">
+                {% for a in it.sorted_attachments %}
+                  <a href="{{ a.file.url }}"
+                     target="_blank"
+                     class="underline hover:text-[var(--accent)] transition"
+                     title="{{ a.short_filename }}">
+                    {{ a.short_filename }}
+                  </a>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td class="px-4 py-10 text-gray-500" colspan="4">Noch keine Platzierungen.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

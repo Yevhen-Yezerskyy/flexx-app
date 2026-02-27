@@ -1,4 +1,5 @@
 {% extends "app_panel_admin/base.html" %}
+{% load phone_filters %}
 <!-- FILE: web/templates/app_panel_admin/clients_form.html  (обновлено — 2026-02-15)
      PURPOSE: Admin: Kunden create/edit: Tippgeber-select, Aktiv-Checkbox сверху, Depot-Bank над Bank клиента, кнопки справа (Speichern/Abbrechen). -->
 {% block panel_where %}Kunden{% endblock %}
@@ -150,7 +151,7 @@ function flexxClientFormNotifyConfirm(formEl) {
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Telefon*</label>
-        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:'' }}" type="text"
+        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:''|phone_intl }}" type="text"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.phone.errors %}
           <div class="text-sm text-red-600">{{ form.phone.errors|join:", " }}</div>
@@ -159,7 +160,7 @@ function flexxClientFormNotifyConfirm(formEl) {
 
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Mobiltelefon</label>
-        <input name="{{ form.mobile_phone.html_name }}" value="{{ form.mobile_phone.value|default:'' }}" type="text"
+        <input name="{{ form.mobile_phone.html_name }}" value="{{ form.mobile_phone.value|default:''|phone_intl }}" type="text"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.mobile_phone.errors %}
           <div class="text-sm text-red-600">{{ form.mobile_phone.errors|join:", " }}</div>

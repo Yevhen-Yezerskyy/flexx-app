@@ -42,6 +42,13 @@
       const t = ev.target;
       if (!(t instanceof Element)) return;
 
+      const closeEl = t.closest("[data-interest-modal-close]");
+      if (closeEl) {
+        ev.preventDefault();
+        closeModal();
+        return;
+      }
+
       const openEl = t.closest("[data-interest-modal-open]");
       if (openEl) {
         ev.preventDefault();
@@ -55,11 +62,9 @@
         return;
       }
 
-      if (panel && panel.contains(t)) return;
-
-      if (t.closest("[data-interest-modal-close]")) {
-        ev.preventDefault();
+      if (!modal.classList.contains("hidden") && panel && !panel.contains(t) && t.closest("#interestModal")) {
         closeModal();
+        return;
       }
     });
 

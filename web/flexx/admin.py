@@ -51,8 +51,6 @@ class ContractAdmin(admin.ModelAdmin):
         "signature",
         "contract_pdf",
         "contract_pdf_signed",
-        "datenschutzeinwilligung_pdf",
-        "datenschutzeinwilligung_pdf_signed",
         "signed_received_at",
         "paid_at",
     )

@@ -11,6 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'favicon/icon.svg' %}">
   <link rel="stylesheet" href="{% static 'styles/styles.css' %}">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{% static 'js/interest_modal.js' %}"></script>
 </head>
 <body class="bg-gray-100">
 
@@ -43,7 +44,12 @@
 
         <a href="{% url 'panel_tippgeber_my_clients' %}"
            class="underline {% block nav_my_clients_class %}hover:text-[var(--accent)]{% endblock %}">
-          Meine Kunden
+          Meine Kunden/Verträge
+        </a>
+
+        <a href="{% url 'panel_tippgeber_issues_list' %}"
+           class="underline {% block nav_issues_class %}hover:text-[var(--accent)]{% endblock %}">
+          Emissionen
         </a>
 
         <div class="h-5 w-px bg-gray-300"></div>
@@ -92,6 +98,8 @@
   </footer>
 
 </div>
+
+{% include "app_users/_interest_modal.html" %}
 
 </body>
 </html>
