@@ -199,15 +199,24 @@
   </div>
 
   <div class="flex justify-end gap-6">
-    <button type="submit"
-            class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center">
-      Speichern
-    </button>
-
     <a href="{% url 'panel_admin_issues_list' %}"
        class="w-48 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
       Abbrechen
     </a>
+
+    {% if mode == "edit" %}
+      <button type="submit"
+              formaction="{% url 'panel_admin_issues_delete' issue.id %}"
+              class="w-48 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center"
+              onclick="return confirm('Wirklich löschen?');">
+        Löschen
+      </button>
+    {% endif %}
+
+    <button type="submit"
+            class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center">
+      Speichern
+    </button>
   </div>
 </form>
 

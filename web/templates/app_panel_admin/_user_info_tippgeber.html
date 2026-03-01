@@ -4,9 +4,6 @@
     <div class="flex items-start">
       <div class="flex-1">
         <div class="text-lg font-semibold">Tippgeber</div>
-        <div class="text-sm text-gray-600 mt-1">
-          {{ target.first_name }} {{ target.last_name }} ({{ target.email }})
-        </div>
       </div>
 
       <div class="flex items-center gap-2">
@@ -27,76 +24,19 @@
 
   <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-[10px] flex flex-col gap-4">
     <div class="bg-white border border-gray-300 rounded-md p-4">
-      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
-        <div>E-Mail / Login:</div>
-        <div>
-          <a href="mailto:{{ target.email }}" class="underline hover:text-[var(--accent)] transition">{{ target.email }}</a>
+      <div class="grid grid-cols-[120px_minmax(0,1fr)] gap-x-3 gap-y-2">
+        <div>Tippgeber:</div>
+        <div class="font-semibold">
+          {{ target.first_name }} {{ target.last_name }}
+          (<a href="mailto:{{ target.email }}" class="underline hover:text-[var(--accent)] transition">{{ target.email }}</a>)
         </div>
-        <div>Name:</div>
-        <div>{{ target.first_name|default:"—" }} {{ target.last_name|default:"" }}</div>
-        <div>Status:</div>
-        <div>{% if target.is_active %}Aktiv{% else %}Inaktiv{% endif %}</div>
-        <div>Geburtsdatum:</div>
-        <div>{% if target.birth_date %}{{ target.birth_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
       </div>
     </div>
 
     <div class="bg-white border border-gray-300 rounded-md p-4">
-      <div class="font-semibold mb-3">Adresse</div>
-      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
-        <div>Straße, Hausnummer:</div>
-        <div>{{ target.street|default:"—" }}</div>
-        <div>PLZ:</div>
-        <div>{{ target.zip_code|default:"—" }}</div>
-        <div>Ort:</div>
-        <div>{{ target.city|default:"—" }}</div>
-      </div>
-    </div>
-
-    <div class="bg-white border border-gray-300 rounded-md p-4">
-      <div class="font-semibold mb-3">Kontakt</div>
-      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
-        <div>Telefon:</div>
-        <div>{% if target.phone %}{{ target.phone|phone_intl }}{% else %}—{% endif %}</div>
-        <div>Mobiltelefon:</div>
-        <div>{% if target.mobile_phone %}{{ target.mobile_phone|phone_intl }}{% else %}—{% endif %}</div>
-        <div>Fax:</div>
-        <div>{{ target.fax|default:"—" }}</div>
-      </div>
-    </div>
-
-    <div class="bg-white border border-gray-300 rounded-md p-4">
-      <div class="font-semibold mb-3">Firma</div>
-      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
-        <div>Firma:</div>
-        <div>{{ target.company|default:"—" }}</div>
-        <div>Handelsregister:</div>
-        <div>{{ target.handelsregister|default:"—" }}</div>
-        <div>Handelsregister-Nummer:</div>
-        <div>{{ target.handelsregister_number|default:"—" }}</div>
-        <div>Ansprechpartner:</div>
-        <div>{{ target.contact_person|default:"—" }}</div>
-      </div>
-    </div>
-
-    <div class="bg-white border border-gray-300 rounded-md p-4">
-      <div class="font-semibold mb-3">Bankverbindung</div>
-      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
-        <div>Kontoinhaber:</div>
-        <div>{{ target.bank_account_holder|default:"—" }}</div>
-        <div>IBAN:</div>
-        <div>{{ target.bank_iban|default:"—" }}</div>
-        <div>Bank / Kreditinstitut:</div>
-        <div>{{ target.bank_name|default:"—" }}</div>
-        <div>BIC:</div>
-        <div>{{ target.bank_bic|default:"—" }}</div>
-      </div>
-    </div>
-
-    <div class="bg-white border border-gray-300 rounded-md p-4">
-      <div class="font-semibold mb-3">Kunden</div>
+      <div class="font-semibold mb-4">Kunden</div>
       {% if clients %}
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-2">
           {% for client in clients %}
             <div>
               {{ client.first_name }} {{ client.last_name }}
@@ -105,8 +45,62 @@
           {% endfor %}
         </div>
       {% else %}
-        <div>—</div>
+        <div class="text-gray-500">Keine Kunden</div>
       {% endif %}
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-white border border-gray-300 rounded-md p-4">
+        <div class="font-semibold mb-4">Kontaktdaten</div>
+        <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-2">
+          <div>E-Mail / Login:</div>
+          <div>
+            <a href="mailto:{{ target.email }}" class="underline hover:text-[var(--accent)] transition">{{ target.email }}</a>
+          </div>
+          <div>Vorname:</div>
+          <div>{{ target.first_name|default:"—" }}</div>
+          <div>Nachname:</div>
+          <div>{{ target.last_name|default:"—" }}</div>
+          <div>Status:</div>
+          <div>{% if target.is_active %}Aktiv{% else %}Inaktiv{% endif %}</div>
+          <div>Geburtsdatum:</div>
+          <div>{% if target.birth_date %}{{ target.birth_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+          <div>Firma:</div>
+          <div>{{ target.company|default:"—" }}</div>
+          <div>Straße, Hausnummer:</div>
+          <div>{{ target.street|default:"—" }}</div>
+          <div>PLZ:</div>
+          <div>{{ target.zip_code|default:"—" }}</div>
+          <div>Ort:</div>
+          <div>{{ target.city|default:"—" }}</div>
+          <div>Telefon:</div>
+          <div>{% if target.phone %}{{ target.phone|phone_intl }}{% else %}—{% endif %}</div>
+          <div>Mobiltelefon:</div>
+          <div>{% if target.mobile_phone %}{{ target.mobile_phone|phone_intl }}{% else %}—{% endif %}</div>
+          <div>Fax:</div>
+          <div>{{ target.fax|default:"—" }}</div>
+          <div>Handelsregister:</div>
+          <div>{{ target.handelsregister|default:"—" }}</div>
+          <div>Handelsregister-Nummer:</div>
+          <div>{{ target.handelsregister_number|default:"—" }}</div>
+          <div>Ansprechpartner:</div>
+          <div>{{ target.contact_person|default:"—" }}</div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-gray-300 rounded-md p-4">
+        <div class="font-semibold mb-4">Bankverbindung</div>
+        <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-2">
+          <div>Kontoinhaber:</div>
+          <div>{{ target.bank_account_holder|default:"—" }}</div>
+          <div>IBAN:</div>
+          <div>{{ target.bank_iban|default:"—" }}</div>
+          <div>Bank / Kreditinstitut:</div>
+          <div>{{ target.bank_name|default:"—" }}</div>
+          <div>BIC:</div>
+          <div>{{ target.bank_bic|default:"—" }}</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

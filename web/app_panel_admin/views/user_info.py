@@ -5,8 +5,19 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from app_users.models import FlexxUser, TippgeberClient
+from flexx.models import Contract
 
 from .common import admin_only
+
+
+def _client_contract_status(contract: Contract) -> tuple[str, str, object | None]:
+    if contract.paid_at:
+        return "Bezahlt", "Zahlungsdatum", contract.paid_at
+    if contract.signed_received_at:
+        return "Signiert", "Eingangsdatum", contract.signed_received_at
+    if contract.contract_pdf:
+        return "Erstellt", "Vertragsdatum", contract.contract_date
+    return "Unbekannt", "", None
 
 
 def _render_client_user_info(request: HttpRequest, target: FlexxUser) -> HttpResponse:
@@ -15,12 +26,21 @@ def _render_client_user_info(request: HttpRequest, target: FlexxUser) -> HttpRes
         .select_related("tippgeber")
         .first()
     )
+    contracts = list(
+        Contract.objects.select_related("issue")
+        .filter(client=target)
+        .order_by("-id")
+    )
+    for contract in contracts:
+        contract.status_label, contract.status_date_label, contract.status_date = _client_contract_status(contract)
+        contract.total_amount = contract.nominal_amount_plus_percent
     return render(
         request,
         "app_panel_admin/_user_info_client.html",
         {
             "target": target,
             "tippgeber": link.tippgeber if link and link.tippgeber_id else None,
+            "contracts": contracts,
         },
     )
 

@@ -176,6 +176,7 @@ class AdminClientForm(forms.ModelForm):
             self.fields[f].required = False
 
         self.fields["birth_date"].required = False
+        self.fields["birth_date"].widget.attrs["placeholder"] = "dd/mm/yyyy"
         self.fields["mobile_phone"].required = False
         self.fields["fax"].required = False
         self.fields["company"].required = False

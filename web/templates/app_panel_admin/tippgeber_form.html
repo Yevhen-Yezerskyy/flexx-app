@@ -24,7 +24,7 @@
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">E-Mail*</label>
-        <input name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" type="email"
+        <input name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" type="email" required placeholder="E-Mail*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.email.errors %}
           <div class="text-sm text-red-600">{{ form.email.errors|join:", " }}</div>
@@ -44,7 +44,7 @@
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Nachname*</label>
-        <input name="{{ form.last_name.html_name }}" value="{{ form.last_name.value|default:'' }}" type="text"
+        <input name="{{ form.last_name.html_name }}" value="{{ form.last_name.value|default:'' }}" type="text" required placeholder="Nachname*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.last_name.errors %}
           <div class="text-sm text-red-600">{{ form.last_name.errors|join:", " }}</div>
@@ -52,7 +52,7 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Vorname*</label>
-        <input name="{{ form.first_name.html_name }}" value="{{ form.first_name.value|default:'' }}" type="text"
+        <input name="{{ form.first_name.html_name }}" value="{{ form.first_name.value|default:'' }}" type="text" required placeholder="Vorname*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.first_name.errors %}
           <div class="text-sm text-red-600">{{ form.first_name.errors|join:", " }}</div>
@@ -70,7 +70,7 @@
     <div class="grid grid-cols-3 gap-4 mb-8 mt-8">
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">Firma</label>
-        <input name="{{ form.company.html_name }}" value="{{ form.company.value|default:'' }}" type="text"
+        <input name="{{ form.company.html_name }}" value="{{ form.company.value|default:'' }}" type="text" placeholder="Firma"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.company.errors %}
           <div class="text-sm text-red-600">{{ form.company.errors|join:", " }}</div>
@@ -82,7 +82,7 @@
     <div class="grid grid-cols-4 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">Straße, Hausnummer*</label>
-        <input name="{{ form.street.html_name }}" value="{{ form.street.value|default:'' }}" type="text"
+        <input name="{{ form.street.html_name }}" value="{{ form.street.value|default:'' }}" type="text" required placeholder="Straße, Hausnummer*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.street.errors %}
           <div class="text-sm text-red-600">{{ form.street.errors|join:", " }}</div>
@@ -90,7 +90,7 @@
       </div>
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">PLZ*</label>
-        <input name="{{ form.zip_code.html_name }}" value="{{ form.zip_code.value|default:'' }}" type="text"
+        <input name="{{ form.zip_code.html_name }}" value="{{ form.zip_code.value|default:'' }}" type="text" required placeholder="PLZ*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.zip_code.errors %}
           <div class="text-sm text-red-600">{{ form.zip_code.errors|join:", " }}</div>
@@ -98,7 +98,7 @@
       </div>
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">Ort*</label>
-        <input name="{{ form.city.html_name }}" value="{{ form.city.value|default:'' }}" type="text"
+        <input name="{{ form.city.html_name }}" value="{{ form.city.value|default:'' }}" type="text" required placeholder="Ort*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.city.errors %}
           <div class="text-sm text-red-600">{{ form.city.errors|join:", " }}</div>
@@ -109,7 +109,7 @@
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Telefon*</label>
-        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:''|phone_intl }}" type="text"
+        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:''|phone_intl }}" type="text" required placeholder="Telefon*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.phone.errors %}
           <div class="text-sm text-red-600">{{ form.phone.errors|join:", " }}</div>
@@ -117,7 +117,7 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Mobiltelefon</label>
-        <input name="{{ form.mobile_phone.html_name }}" value="{{ form.mobile_phone.value|default:''|phone_intl }}" type="text"
+        <input name="{{ form.mobile_phone.html_name }}" value="{{ form.mobile_phone.value|default:''|phone_intl }}" type="text" placeholder="Mobiltelefon"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.mobile_phone.errors %}
           <div class="text-sm text-red-600">{{ form.mobile_phone.errors|join:", " }}</div>
@@ -125,7 +125,7 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Fax</label>
-        <input name="{{ form.fax.html_name }}" value="{{ form.fax.value|default:'' }}" type="text"
+        <input name="{{ form.fax.html_name }}" value="{{ form.fax.value|default:'' }}" type="text" placeholder="Fax"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.fax.errors %}
           <div class="text-sm text-red-600">{{ form.fax.errors|join:", " }}</div>
@@ -136,7 +136,7 @@
     <div class="grid grid-cols-3 gap-4 mb-8 mt-8">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Handelsregister</label>
-        <input name="{{ form.handelsregister.html_name }}" value="{{ form.handelsregister.value|default:'' }}" type="text"
+        <input name="{{ form.handelsregister.html_name }}" value="{{ form.handelsregister.value|default:'' }}" type="text" placeholder="Handelsregister"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.handelsregister.errors %}
           <div class="text-sm text-red-600">{{ form.handelsregister.errors|join:", " }}</div>
@@ -144,7 +144,7 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Handelsregister-Nummer</label>
-        <input name="{{ form.handelsregister_number.html_name }}" value="{{ form.handelsregister_number.value|default:'' }}" type="text"
+        <input name="{{ form.handelsregister_number.html_name }}" value="{{ form.handelsregister_number.value|default:'' }}" type="text" placeholder="Handelsregister-Nummer"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.handelsregister_number.errors %}
           <div class="text-sm text-red-600">{{ form.handelsregister_number.errors|join:", " }}</div>
@@ -152,7 +152,7 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Ansprechpartner</label>
-        <input name="{{ form.contact_person.html_name }}" value="{{ form.contact_person.value|default:'' }}" type="text"
+        <input name="{{ form.contact_person.html_name }}" value="{{ form.contact_person.value|default:'' }}" type="text" placeholder="Ansprechpartner"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.contact_person.errors %}
           <div class="text-sm text-red-600">{{ form.contact_person.errors|join:", " }}</div>
@@ -165,7 +165,7 @@
     <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-1">
         <label class="text-sm px-4">Kontoinhaber (Vorname und Nachname oder Firma)</label>
-        <input name="{{ form.bank_account_holder.html_name }}" value="{{ form.bank_account_holder.value|default:'' }}" type="text"
+        <input name="{{ form.bank_account_holder.html_name }}" value="{{ form.bank_account_holder.value|default:'' }}" type="text" placeholder="Kontoinhaber (Vorname und Nachname oder Firma)"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_account_holder.errors %}
           <div class="text-sm text-red-600">{{ form.bank_account_holder.errors|join:", " }}</div>
@@ -177,7 +177,7 @@
     <div class="grid grid-cols-4 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
         <label class="text-sm px-4">IBAN / Kontonummer</label>
-        <input name="{{ form.bank_iban.html_name }}" value="{{ form.bank_iban.value|default:'' }}" type="text"
+        <input name="{{ form.bank_iban.html_name }}" value="{{ form.bank_iban.value|default:'' }}" type="text" placeholder="IBAN / Kontonummer"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_iban.errors %}
           <div class="text-sm text-red-600">{{ form.bank_iban.errors|join:", " }}</div>
@@ -185,7 +185,7 @@
       </div>
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">Bank / Kreditinstitut</label>
-        <input name="{{ form.bank_name.html_name }}" value="{{ form.bank_name.value|default:'' }}" type="text"
+        <input name="{{ form.bank_name.html_name }}" value="{{ form.bank_name.value|default:'' }}" type="text" placeholder="Bank / Kreditinstitut"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_name.errors %}
           <div class="text-sm text-red-600">{{ form.bank_name.errors|join:", " }}</div>
@@ -193,7 +193,7 @@
       </div>
       <div class="flex flex-col gap-1 col-span-1">
         <label class="text-sm px-4">BIC / BLZ</label>
-        <input name="{{ form.bank_bic.html_name }}" value="{{ form.bank_bic.value|default:'' }}" type="text"
+        <input name="{{ form.bank_bic.html_name }}" value="{{ form.bank_bic.value|default:'' }}" type="text" placeholder="BIC / BLZ"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_bic.errors %}
           <div class="text-sm text-red-600">{{ form.bank_bic.errors|join:", " }}</div>
