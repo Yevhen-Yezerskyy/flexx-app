@@ -34,10 +34,18 @@
       {% if form.last_name.errors %}<div class="text-sm text-red-600">{{ form.last_name.errors|join:", " }}</div>{% endif %}
     </div>
 
-    <label class="flex items-start gap-3 mt-2">
-      <input name="consent" type="checkbox" {% if form.consent.value %}checked{% endif %} class="mt-1">
-      <span class="text-sm">Ich stimme der Verarbeitung meiner personenbezogenen Daten zu.</span>
-    </label>
+    <div class="flex items-start gap-3 mt-2">
+      <input id="id_consent" name="consent" type="checkbox" {% if form.consent.value %}checked{% endif %} class="mt-1">
+      <div class="text-sm">
+        <label for="id_consent" class="cursor-pointer">Ich stimme der </label>
+        <button type="button"
+                id="consentTextOpen"
+                class="underline hover:text-[var(--accent)] transition">
+          Verarbeitung meiner personenbezogenen Daten
+        </button>
+        <label for="id_consent" class="cursor-pointer"> zu.</label>
+      </div>
+    </div>
     {% if form.consent.errors %}<div class="text-sm text-red-600">{{ form.consent.errors|join:", " }}</div>{% endif %}
 
     {% if form.non_field_errors %}<div class="text-sm text-red-600">{{ form.non_field_errors|join:", " }}</div>{% endif %}
@@ -46,10 +54,93 @@
       Registrieren
     </button>
   </form>
+</div>
 
-  <div class="mt-auto mb-6 flex gap-6 text-sm underline">
-    <a href="/" class="hover:text-[var(--accent)] transition">Zum Login</a>
+<div id="consentModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/50" data-consent-modal-close></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-6 overflow-hidden">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[760px] max-w-[calc(100vw-48px)] max-h-[85vh] overflow-hidden flex flex-col pt-6 pb-6 pl-6 pr-[9px]" data-consent-modal-panel>
+      <div class="shrink-0 bg-white pb-4 border-b border-gray-200 pr-[10px]">
+        <div class="flex items-start">
+          <div class="flex-1">
+            <div class="text-lg font-semibold">Einwilligung zur Verarbeitung personenbezogener Daten</div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    data-consent-modal-close
+                    class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+              Schließen
+            </button>
+            <button type="button"
+                    data-consent-modal-close
+                    aria-label="Schließen"
+                    class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+              &#x2715;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex-1 min-h-0 overflow-y-auto text-sm leading-6 space-y-4 pr-[10px] text-[var(--text)]">
+        <p>Ich willige ein, dass meine personenbezogenen Daten von der FleXXLager GmbH &amp; Co. KG gespeichert, verarbeitet und genutzt werden, soweit dies zur Durchführung der vertraglichen Beziehung oder zur Erfüllung gesetzlicher Verpflichtungen erforderlich ist.</p>
+
+        <p>Die Verarbeitung erfolgt unter Beachtung der geltenden Datenschutzgesetze, insbesondere der Datenschutz-Grundverordnung (DS-GVO).</p>
+
+        <p>Eine Weitergabe meiner personenbezogenen Daten an Dritte erfolgt nur, soweit dies gesetzlich zulässig ist oder ich ausdrücklich eingewilligt habe.</p>
+
+        <p>Ich habe jederzeit das Recht auf Auskunft über die zu meiner Person gespeicherten Daten (Art. 15 DS-GVO), auf Berichtigung (Art. 16 DS-GVO), Löschung (Art. 17 DS-GVO), Einschränkung der Verarbeitung (Art. 18 DS-GVO) sowie auf Datenübertragbarkeit (Art. 20 DS-GVO).</p>
+
+        <p>Ich kann meine Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt hiervon unberührt.</p>
+
+        <p>Zudem steht mir ein Beschwerderecht bei einer zuständigen Datenschutz-Aufsichtsbehörde gemäß Art. 77 DS-GVO zu.</p>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+(() => {
+  const modal = document.getElementById("consentModal");
+  const openBtn = document.getElementById("consentTextOpen");
+  const panel = modal ? modal.querySelector("[data-consent-modal-panel]") : null;
+  if (!modal || !openBtn || !panel) return;
+
+  const openModal = () => {
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  };
+
+  const closeModal = () => {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  };
+
+  openBtn.addEventListener("click", openModal);
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-consent-modal-close]")) {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (!modal.classList.contains("hidden") && !panel.contains(target) && target.closest("#consentModal")) {
+      closeModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+      event.preventDefault();
+      closeModal();
+    }
+  });
+})();
+</script>
 
 {% endblock %}

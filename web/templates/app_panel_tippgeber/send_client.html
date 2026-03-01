@@ -439,15 +439,15 @@ text-[var(--accent)] font-semibold
   </div>
 
   <div class="flex justify-end gap-6">
-    <button type="submit"
-            class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center">
-      Senden
-    </button>
-
     <a href="{% url 'panel_tippgeber_my_clients' %}"
        class="w-48 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
       Abbrechen
     </a>
+
+    <button type="submit"
+            class="w-48 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center">
+      Senden
+    </button>
   </div>
 
 </form>

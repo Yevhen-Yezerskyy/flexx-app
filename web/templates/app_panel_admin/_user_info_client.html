@@ -1,0 +1,119 @@
+{% load phone_filters %}
+<div class="h-full min-h-0 flex flex-col">
+  <div class="shrink-0 bg-white pb-4 border-b border-gray-200">
+    <div class="flex items-start">
+      <div class="flex-1">
+        <div class="text-lg font-semibold">Kunde</div>
+        <div class="text-sm text-gray-600 mt-1">
+          {{ target.first_name }} {{ target.last_name }} ({{ target.email }})
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="button"
+                data-admin-user-info-close
+                class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+          Schließen
+        </button>
+        <button type="button"
+                data-admin-user-info-close
+                aria-label="Schließen"
+                class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+          &#x2715;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-[10px] flex flex-col gap-4">
+    <div class="bg-white border border-gray-300 rounded-md p-4">
+      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
+        <div>E-Mail / Login:</div>
+        <div>
+          <a href="mailto:{{ target.email }}" class="underline hover:text-[var(--accent)] transition">{{ target.email }}</a>
+        </div>
+        <div>Name:</div>
+        <div>{{ target.first_name|default:"—" }} {{ target.last_name|default:"" }}</div>
+        <div>Status:</div>
+        <div>{% if target.is_active %}Aktiv{% else %}Inaktiv{% endif %}</div>
+        <div>Geburtsdatum:</div>
+        <div>{% if target.birth_date %}{{ target.birth_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+        <div>Tippgeber:</div>
+        <div>
+          {% if tippgeber %}
+            {{ tippgeber.first_name }} {{ tippgeber.last_name }}
+            (<a href="mailto:{{ tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ tippgeber.email }}</a>)
+          {% else %}
+            Kein Tippgeber
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-300 rounded-md p-4">
+      <div class="font-semibold mb-3">Adresse</div>
+      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
+        <div>Straße, Hausnummer:</div>
+        <div>{{ target.street|default:"—" }}</div>
+        <div>PLZ:</div>
+        <div>{{ target.zip_code|default:"—" }}</div>
+        <div>Ort:</div>
+        <div>{{ target.city|default:"—" }}</div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-300 rounded-md p-4">
+      <div class="font-semibold mb-3">Kontakt</div>
+      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
+        <div>Telefon:</div>
+        <div>{% if target.phone %}{{ target.phone|phone_intl }}{% else %}—{% endif %}</div>
+        <div>Mobiltelefon:</div>
+        <div>{% if target.mobile_phone %}{{ target.mobile_phone|phone_intl }}{% else %}—{% endif %}</div>
+        <div>Fax:</div>
+        <div>{{ target.fax|default:"—" }}</div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-300 rounded-md p-4">
+      <div class="font-semibold mb-3">Firma</div>
+      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
+        <div>Firma:</div>
+        <div>{{ target.company|default:"—" }}</div>
+        <div>Handelsregister:</div>
+        <div>{{ target.handelsregister|default:"—" }}</div>
+        <div>Handelsregister-Nummer:</div>
+        <div>{{ target.handelsregister_number|default:"—" }}</div>
+        <div>Ansprechpartner:</div>
+        <div>{{ target.contact_person|default:"—" }}</div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-300 rounded-md p-4">
+      <div class="font-semibold mb-3">Depotverbindung</div>
+      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
+        <div>Depotinhaber:</div>
+        <div>{{ target.bank_depo_account_holder|default:"—" }}</div>
+        <div>Depotnummer:</div>
+        <div>{{ target.bank_depo_depotnummer|default:"—" }}</div>
+        <div>Bank / Kreditinstitut:</div>
+        <div>{{ target.bank_depo_name|default:"—" }}</div>
+        <div>BLZ:</div>
+        <div>{{ target.bank_depo_blz|default:"—" }}</div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-300 rounded-md p-4">
+      <div class="font-semibold mb-3">Bankverbindung</div>
+      <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-3 gap-y-1">
+        <div>Kontoinhaber:</div>
+        <div>{{ target.bank_account_holder|default:"—" }}</div>
+        <div>IBAN:</div>
+        <div>{{ target.bank_iban|default:"—" }}</div>
+        <div>Bank / Kreditinstitut:</div>
+        <div>{{ target.bank_name|default:"—" }}</div>
+        <div>BIC:</div>
+        <div>{{ target.bank_bic|default:"—" }}</div>
+      </div>
+    </div>
+  </div>
+</div>

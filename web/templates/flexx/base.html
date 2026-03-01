@@ -18,13 +18,13 @@
 <div class="wrap flex flex-col min-h-screen shadow-lg bg-white">
 
   <header>
-    <div class="h-[5px] bg-[var(--accent)]"></div>
+    <div class="h-[2px] bg-[var(--accent)]"></div>
     <div class="flex items-center justify-center py-8">
       <a href="/" class="block">
         <img src="{% static 'img/logo.svg' %}" class="h-12 w-auto block" alt="FlexxLager">
       </a>
     </div>
-    <div class="h-[5px] bg-[var(--accent)]"></div>
+    <div class="h-[2px] bg-[var(--accent)]"></div>
   </header>
 
   <main class="flex-1 flex flex-col py-7">
@@ -33,7 +33,13 @@
   </main>
 
   <footer>
-    <div class="h-[5px] bg-[var(--accent)]"></div>
+    <div class="h-[2px] bg-[var(--accent)]"></div>
+    <div class="bg-gray-100 px-8 py-3 flex items-center justify-center gap-6 text-sm underline">
+      <a href="/" class="hover:text-[var(--accent)] transition">Zum Login</a>
+      <a href="{% url 'reg_tippgeber' %}" class="hover:text-[var(--accent)] transition">Tippgeber</a>
+      <a href="{% url 'impressum' %}" class="hover:text-[var(--accent)] transition">Impressum</a>
+      <a href="{% url 'datenschutz' %}" class="hover:text-[var(--accent)] transition">Datenschutz</a>
+    </div>
   </footer>
 
 </div>

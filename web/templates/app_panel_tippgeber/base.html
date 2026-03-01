@@ -76,8 +76,8 @@
   <footer>
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
-    <div class="bg-gray-100 px-8 py-3 flex items-center">
-      <div class="text-sm text-[var(--text)]">
+    <div class="bg-gray-100 px-8 py-3 grid grid-cols-[1fr_auto_1fr] items-center">
+      <div class="text-sm text-[var(--text)] justify-self-start">
         {% if user.first_name or user.last_name %}
           {{ user.first_name }} {{ user.last_name }}
         {% else %}
@@ -85,9 +85,12 @@
         {% endif %}
       </div>
 
-      <div class="flex-1"></div>
+      <div class="text-sm text-[var(--text)] flex items-center gap-6 underline justify-self-center">
+        <a href="{% url 'impressum' %}" class="hover:text-[var(--accent)] transition">Impressum</a>
+        <a href="{% url 'datenschutz' %}" class="hover:text-[var(--accent)] transition">Datenschutz</a>
+      </div>
 
-      <div class="text-sm text-[var(--text)]">
+      <div class="text-sm text-[var(--text)] justify-self-end">
         FlexxLager:
         <a href="mailto:service@flexxlager.com"
            class="underline hover:text-[var(--accent)] transition">

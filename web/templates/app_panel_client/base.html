@@ -1,6 +1,6 @@
 {% load static %}
-<!-- FILE: web/templates/app_panel_client/base.html  (обновлено — 2026-02-18)
-     PURPOSE: Client panel canonical layout + menu: "Vertrag erstellen" and "Meine Verträge". -->
+<!-- FILE: web/templates/app_panel_client/base.html
+     PURPOSE: Client panel reduced to one read-only screen without menu. -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -11,8 +11,8 @@
 
   <link rel="icon" type="image/svg+xml" href="{% static 'favicon/icon.svg' %}">
   <link rel="stylesheet" href="{% static 'styles/styles.css' %}">
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="{% static 'js/interest_modal.js' %}"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
 
@@ -22,7 +22,7 @@
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
     <div class="flex items-center gap-6 px-8 py-2">
-      <a href="{% url 'panel_client_contract_create' %}" class="block">
+      <a href="{% url 'panel_client_home' %}" class="block">
         <img src="{% static 'img/logo.svg' %}" class="h-5 w-auto block" alt="FlexxLager">
       </a>
 
@@ -35,35 +35,13 @@
       </div>
 
       <div class="flex-1"></div>
-
-      <nav class="flex items-center gap-6 text-[var(--text)]">
-
-        <a href="{% url 'panel_client_contract_create' %}"
-           class="underline {% block nav_contract_create_class %}hover:text-[var(--accent)]{% endblock %}">
-          Vertrag erstellen
-        </a>
-
-        <a href="{% url 'panel_client_contracts_list' %}"
-           class="underline {% block nav_my_contracts_class %}hover:text-[var(--accent)]{% endblock %}">
-          Meine Verträge
-        </a>
-
-        <a href="{% url 'panel_client_issues_list' %}"
-           class="underline {% block nav_issues_class %}hover:text-[var(--accent)]{% endblock %}">
-          Emissionen
-        </a>
-
-        <div class="h-5 w-px bg-gray-300"></div>
-
-        <form method="post" action="{% url 'logout' %}">
-          {% csrf_token %}
-          <button type="submit"
-                  class="font-semibold underline hover:text-[var(--accent)] transition">
-            Abmelden
-          </button>
-        </form>
-
-      </nav>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="font-semibold underline hover:text-[var(--accent)] transition">
+          Abmelden
+        </button>
+      </form>
     </div>
 
     <div class="h-[2px] bg-[var(--accent)]"></div>
@@ -78,18 +56,21 @@
   <footer>
     <div class="h-[2px] bg-[var(--accent)]"></div>
 
-    <div class="bg-gray-100 px-8 py-3 flex items-center">
-      <div class="text-sm text-[var(--text)]">
-        {% if user.get_full_name %}
-          {{ user.get_full_name }}
+    <div class="bg-gray-100 px-8 py-3 grid grid-cols-[1fr_auto_1fr] items-center">
+      <div class="text-sm text-[var(--text)] justify-self-start">
+        {% if user.first_name or user.last_name %}
+          {{ user.first_name }} {{ user.last_name }}
         {% else %}
           {{ user.email }}
         {% endif %}
       </div>
 
-      <div class="flex-1"></div>
+      <div class="text-sm text-[var(--text)] flex items-center gap-6 underline justify-self-center">
+        <a href="{% url 'impressum' %}" class="hover:text-[var(--accent)] transition">Impressum</a>
+        <a href="{% url 'datenschutz' %}" class="hover:text-[var(--accent)] transition">Datenschutz</a>
+      </div>
 
-      <div class="text-sm text-[var(--text)]">
+      <div class="text-sm text-[var(--text)] justify-self-end">
         FlexxLager:
         <a href="mailto:service@flexxlager.com"
            class="underline hover:text-[var(--accent)] transition">

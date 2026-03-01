@@ -28,7 +28,7 @@ def my_clients(request: HttpRequest) -> HttpResponse:
         contracts = (
             Contract.objects.select_related("client", "issue")
             .filter(client_id__in=client_ids)
-            .order_by("-contract_date", "-id")
+            .order_by("-id")
             .all()
         )
         rows = [{"client": c.client, "contract": c} for c in contracts if c.client]

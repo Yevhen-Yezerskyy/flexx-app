@@ -72,7 +72,7 @@ class BondIssue(models.Model):
         ordering = ["-issue_date", "-id"]
 
     def __str__(self) -> str:
-        return f"{self.issue_date:%d.%m.%Y} - {self.title}"
+        return f"{self.issue_date:%d.%m.%Y}: {self.title}"
 
 
 class BondIssueAttachment(models.Model):
@@ -93,7 +93,7 @@ class BondIssueAttachment(models.Model):
 
 
 class Contract(models.Model):
-    contract_date = models.DateField()  # Datum des Vertrags
+    contract_date = models.DateField(null=True, blank=True)  # Datum des Vertrags
 
     settlement_date = models.DateField(null=True, blank=True)  # Расчетная дата
     bonds_quantity = models.PositiveIntegerField(null=True, blank=True)  # Количество облигаций
@@ -129,7 +129,7 @@ class Contract(models.Model):
 
     class Meta:
         db_table = "contracts"
-        ordering = ["-contract_date", "-id"]
+        ordering = ["-id"]
 
     def __str__(self) -> str:
         return f"Contract#{self.id} issue={self.issue_id} client={self.client_id}"
@@ -176,7 +176,7 @@ class EmailTemplate(models.Model):
 
     subject = models.CharField(max_length=255)
     body_text = models.TextField()
-    placeholder = models.CharField(max_length=128, blank=True)  # format: { placeholder }
+    placeholder = models.JSONField(default=dict, blank=True)  # backward-compat: {"name": "<legacy>"}
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

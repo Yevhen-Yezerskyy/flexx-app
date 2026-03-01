@@ -570,6 +570,28 @@ class ContractPdfCreator:
     def _get_company_signature_image(self) -> Image.Image | None:
         return None
 
+    @staticmethod
+    def _load_signature_from_field(file_field) -> Image.Image | None:
+        if not file_field:
+            return None
+        try:
+            file_field.open("rb")
+            raw = file_field.read()
+        except Exception:
+            return None
+        finally:
+            try:
+                file_field.close()
+            except Exception:
+                pass
+        return _prepare_signature_image(raw)
+
+    def _get_company_footer_city_date_text(self) -> str:
+        return ""
+
+    def _get_company_footer_sign_name_text(self) -> str:
+        return "(FleXXLager GmbH & Co. KG)"
+
     def _draw_signature_image(
         self,
         c: Canvas,
@@ -706,8 +728,8 @@ class ContractPdfCreator:
         right_x1 = p["right_x1"]
         right_x2 = p["right_x2"]
 
-        city_date_text = f"Siegen, {format_date(timezone.localdate(), format='dd.MM.yyyy', locale='de_DE')}"
-        sign_name_text = "(FleXXLager GmbH & Co. KG)"
+        city_date_text = self._get_company_footer_city_date_text()
+        sign_name_text = self._get_company_footer_sign_name_text()
         top_text_y = line_y + 3.0
 
         c.setLineWidth(0.7)
@@ -715,9 +737,11 @@ class ContractPdfCreator:
         c.line(right_x1, line_y, right_x2, line_y)
 
         c.setFont(self.FONT_FAMILY, self.FONT_SIZE_TEXT)
-        c.drawString(left_x1, top_text_y, city_date_text)
-        sign_name_w = c.stringWidth(sign_name_text, self.FONT_FAMILY, self.FONT_SIZE_TEXT)
-        c.drawString(max(right_x2 - sign_name_w, right_x1), top_text_y, sign_name_text)
+        if city_date_text:
+            c.drawString(left_x1, top_text_y, city_date_text)
+        if sign_name_text:
+            sign_name_w = c.stringWidth(sign_name_text, self.FONT_FAMILY, self.FONT_SIZE_TEXT)
+            c.drawString(max(right_x2 - sign_name_w, right_x1), top_text_y, sign_name_text)
 
         company_signature_image = self._get_company_signature_image()
         if company_signature_image is not None:
@@ -940,10 +964,6 @@ class ContractPdfCreator:
         issue_date = format_date(self.issue.issue_date, format="d. MMMM y", locale="de_DE") if self.issue.issue_date else ""
 
         self.content = {
-            "framed_block_1": {
-                "text_1": "**Bitte vollständig ausgefüllt und unterzeichnet zurücksenden an:**\n\n",
-                "text_2": _format_text(issue_contract.get("unternehmen_emittent")),
-            },
             "header_1": _format_text( "**Zeichnungsschein / Wertpapierkaufantrag**" ),
             "text_block_1": _format_text(issue_contract.get("ueberschrift_emission")),
             "header_2": _format_text( "**Käufer / Zeichner:**" ),
@@ -951,8 +971,8 @@ class ContractPdfCreator:
                 "field_1": {"label": "Name", "value": _format_text(self.client.last_name)},
                 "field_2": {"label": "Vorname", "value": _format_text(self.client.first_name)},
                 "field_3": {
-                    "label": "Geburtsdatum (TTMMJJJJ)",
-                    "value": self.client.birth_date.strftime("%d%m%Y") if self.client.birth_date else "",
+                    "label": "Geburtsdatum (TT.MM.JJJJ)",
+                    "value": self.client.birth_date.strftime("%d.%m.%Y") if self.client.birth_date else "",
                 },
                 "field_4": {"label": "Firma", "value": _format_text(self.client.company)},
                 "field_5": {"label": "Straße, Hausnummer", "value": _format_text(self.client.street)},
@@ -981,7 +1001,7 @@ class ContractPdfCreator:
             "text_block_3": _format_text(issue_contract.get("text_zwischen_2")),
             "text_block_4": "Die Inhaber-Teilschuldverschreibungen sollen in nachfolgendes Depot eingebucht werden:",
             "fill_table_2": {
-                "title": "Depot-Informationen des Käufers / Zeichners:",
+                "title": "**Depot-Informationen des Käufers / Zeichners:**",
                 "field_1": {"label": "Depotinhaber (Vorname und Nachname oder Firma)", "value": full_name},
                 "field_2": {"label": "Depotnummer", "value": _format_text(self.client.bank_depo_depotnummer)},
                 "field_3": {"label": "Bank / Kreditinstitut", "value": _format_text(self.client.bank_depo_name)},
@@ -993,7 +1013,7 @@ class ContractPdfCreator:
                 "durch Überweisung auf das nachfolgend benannte Konto erstattet werden:"
             ),
             "fill_table_3": {
-                "title": "Konto-Informationen des Käufers / Zeichners:",
+                "title": "**Konto-Informationen des Käufers / Zeichners:**",
                 "field_1": {"label": "Kontoinhaber (Vorname und Nachname oder Firma)", "value": full_name},
                 "field_2": {"label": "IBAN / Kontonummer", "value": _format_text(self.client.bank_iban)},
                 "field_3": {"label": "Bank / Kreditinstitut", "value": _format_text(self.client.bank_name)},
@@ -1011,20 +1031,10 @@ class ContractPdfCreator:
         c = rl_canvas.Canvas(buffer, pagesize=self.PAGE_SIZE)
         self._cursor_reset()
 
-        block_1 = self.content.get("framed_block_1", {})
-        block_1_text = f"{block_1.get('text_1', '')}\n{block_1.get('text_2', '')}"
-        self.draw_framed_text(
-            c,
-            block_1_text,
-            frame_width=self.content_width * 0.62,
-            left_indent=self.MARGIN_LEFT + 30.0,
-        )
-        self._cursor_gap(self.BLOCK_GAP_XXL + 4)
-
         self.draw_text(c, self.content.get("header_1", ""), font_size=self.FONT_SIZE_HEADER_1)
-        self._cursor_gap(self.BLOCK_GAP_MD - 2)
+        self._cursor_gap((self.BLOCK_GAP_MD - 2) * 2.1)
         self.draw_text(c, self.content.get("text_block_1", ""), font_size=self.FONT_SIZE_HEADER_2)
-        self._cursor_gap(self.BLOCK_GAP_MD)
+        self._cursor_gap(self.BLOCK_GAP_MD * 2.1)
 
         self.draw_text(c, self.content.get("header_2", ""), font_size=self.FONT_SIZE_HEADER_2)
         self._cursor_gap(4)
@@ -1053,7 +1063,7 @@ class ContractPdfCreator:
                 [{"from": "fill_table_1.field_11"}, {"from": "fill_table_1.field_12"}, {"from": "fill_table_1.field_13"}],
             ],
         )
-        self._cursor_gap(4)
+        self._cursor_gap(16)
 
         self.draw_text(c, self.content.get("text_block_2", ""))
         self._cursor_gap(self.BLOCK_GAP_MD)
@@ -1063,10 +1073,10 @@ class ContractPdfCreator:
         self._cursor_gap(self.BLOCK_GAP_MD - 4)
 
         self.draw_text_footnote(c, self.content.get("small_text_1", ""), font_size=self.FONT_SIZE_SMALL)
-        self._cursor_gap(self.BLOCK_GAP_MD)
+        self._cursor_gap(self.BLOCK_GAP_MD * 2.25)
 
         self.draw_text(c, self.content.get("text_block_3", ""))
-        self._cursor_gap(self.BLOCK_GAP_LG)
+        self._cursor_gap(self.BLOCK_GAP_LG * 2.25)
 
         self.draw_text(c, self.content.get("text_block_4", ""))
         self._cursor_gap(self.BLOCK_GAP_MD)
@@ -1103,7 +1113,6 @@ class ContractPdfCreator:
             ],
         )
         self._cursor_gap(self.BLOCK_GAP_LG)
-
         self.draw_text(c, self.content.get("text_block_6", ""))
         self._cursor_gap(self.BLOCK_GAP_XXL)
         self.draw_buyer_signature_block(c, gap_between_lines=40.0)
@@ -1142,35 +1151,13 @@ def build_contract_pdf(contract_id: int) -> ContractPdfBuildResult:
     return creator.build()
 
 
-class SignedContractPdfCreator(ContractPdfCreator):
+class ClientSignedContractPdfCreator(ContractPdfCreator):
     def __init__(self, contract_id: int):
         super().__init__(contract_id)
         self._buyer_signature_image = self._load_signature_from_field(self.contract.signature)
         if self._buyer_signature_image is None:
             raise ValueError("Kunden-Signatur fehlt.")
-
-        flexxlager_signature = FlexxlagerSignature.objects.first()
         self._company_signature_image = None
-        if flexxlager_signature and flexxlager_signature.signature:
-            self._company_signature_image = self._load_signature_from_field(flexxlager_signature.signature)
-        if self._company_signature_image is None:
-            raise ValueError("FleXXLager-Signatur fehlt.")
-
-    @staticmethod
-    def _load_signature_from_field(file_field) -> Image.Image | None:
-        if not file_field:
-            return None
-        try:
-            file_field.open("rb")
-            raw = file_field.read()
-        except Exception:
-            return None
-        finally:
-            try:
-                file_field.close()
-            except Exception:
-                pass
-        return _prepare_signature_image(raw)
 
     def _get_buyer_signature_image(self) -> Image.Image | None:
         return self._buyer_signature_image
@@ -1186,6 +1173,31 @@ class SignedContractPdfCreator(ContractPdfCreator):
         )
 
 
+class FullySignedContractPdfCreator(ClientSignedContractPdfCreator):
+    def __init__(self, contract_id: int):
+        super().__init__(contract_id)
+        flexxlager_signature = FlexxlagerSignature.objects.first()
+        if flexxlager_signature and flexxlager_signature.signature:
+            self._company_signature_image = self._load_signature_from_field(flexxlager_signature.signature)
+        if self._company_signature_image is None:
+            raise ValueError("FleXXLager-Signatur fehlt.")
+
+    def _get_company_footer_city_date_text(self) -> str:
+        return f"Siegen, {format_date(timezone.localdate(), format='dd.MM.yyyy', locale='de_DE')}"
+
+    def build(self) -> ContractPdfBuildResult:
+        result = super().build()
+        return ContractPdfBuildResult(
+            pdf_bytes=result.pdf_bytes,
+            filename=f"FleXXLager-Vertrag-IN{self.contract.id}-paid.pdf",
+        )
+
+
 def build_contract_pdf_signed(contract_id: int) -> ContractPdfBuildResult:
-    creator = SignedContractPdfCreator(contract_id)
+    creator = FullySignedContractPdfCreator(contract_id)
+    return creator.build()
+
+
+def build_contract_pdf_client_signed(contract_id: int) -> ContractPdfBuildResult:
+    creator = ClientSignedContractPdfCreator(contract_id)
     return creator.build()

@@ -1,6 +1,6 @@
 {% extends "app_panel_admin/base.html" %}
-<!-- FILE: web/templates/app_panel_admin/clients_list.html  (обновлено — 2026-02-16)
-     PURPOSE: Admin: Kunden список: в колонке Vertrag сверху показывать существующие Verträge (дата + Emission + PDF/нет), ниже — ссылка “Vertrag erstellen” как раньше. -->
+<!-- FILE: web/templates/app_panel_admin/clients_list.html
+     PURPOSE: Admin: Kunden список с Verträgen и короткими статусами. -->
 {% block panel_where %}Kunden{% endblock %}
 {% block nav_clients_class %}text-[var(--accent)] font-semibold{% endblock %}
 
@@ -22,6 +22,96 @@ function flexxClientDeleteConfirm(formEl) {
   if (inp) inp.value = send ? "1" : "0";
   return true;
 }
+
+(function () {
+  function initAdminAddContractModal() {
+    var modal = document.getElementById("adminAddContractModal");
+    var formEl = document.getElementById("adminAddContractForm");
+    var clientLineEl = document.getElementById("adminAddContractClient");
+    var panel = modal ? modal.querySelector("[data-add-contract-panel]") : null;
+    if (!modal || !formEl || !clientLineEl || !panel) return;
+
+    function syncIssueDetails() {
+      var radios = Array.from(formEl.querySelectorAll('input[name="issue_id"]'));
+      var checked = formEl.querySelector('input[name="issue_id"]:checked');
+      if (!checked && radios.length) {
+        radios[0].checked = true;
+        checked = radios[0];
+      }
+      var selected = checked ? checked.value : "";
+      var details = Array.from(formEl.querySelectorAll("[data-add-contract-issue-detail]"));
+      details.forEach(function (el) {
+        if (el.getAttribute("data-add-contract-issue-detail") === selected) {
+          el.classList.remove("hidden");
+        } else {
+          el.classList.add("hidden");
+        }
+      });
+    }
+
+    function openModal(action, clientLabel) {
+      formEl.action = action || "";
+      clientLineEl.textContent = clientLabel || "";
+      syncIssueDetails();
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+
+      var openEl = target.closest("[data-add-contract-open]");
+      if (openEl) {
+        event.preventDefault();
+        openModal(
+          openEl.getAttribute("data-action"),
+          openEl.getAttribute("data-client-label")
+        );
+        return;
+      }
+
+      var closeEl = target.closest("[data-add-contract-close]");
+      if (closeEl) {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+
+      if (!modal.classList.contains("hidden") && !panel.contains(target) && target.closest("#adminAddContractModal")) {
+        closeModal();
+      }
+    });
+
+    formEl.addEventListener("change", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.matches('input[name="issue_id"]')) {
+        syncIssueDetails();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+        event.preventDefault();
+        closeModal();
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAdminAddContractModal);
+  } else {
+    initAdminAddContractModal();
+  }
+})();
 </script>
 
 <div class="flex items-center mb-10 mt-2">
@@ -34,12 +124,18 @@ function flexxClientDeleteConfirm(formEl) {
   </a>
 </div>
 
+{% if notice_text %}
+  <div class="mb-6 bg-white border border-gray-400 rounded-md px-7 py-4">
+    {{ notice_text }}
+  </div>
+{% endif %}
+
 <div class="bg-white border border-gray-400 rounded-md overflow-hidden">
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">Kunde</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Vertrag</th>
+        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Emission - Vertrag</th>
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">Status</th>
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
@@ -50,59 +146,76 @@ function flexxClientDeleteConfirm(formEl) {
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
             <div class="grid grid-cols-[80px_1fr] gap-1">
-              <div>Kunde:</div>
+              <div>
+                <a href="#"
+                   data-admin-user-info-open
+                   data-user-info-url="{% url 'panel_admin_user_info' r.u.id %}"
+                   class="underline hover:text-[var(--accent)] transition">
+                  Kunde:
+                </a>
+              </div>
               <div class="font-semibold">
                 {{ r.u.first_name }} {{ r.u.last_name }}
                 (<a href="mailto:{{ r.u.email }}" class="underline hover:text-[var(--accent)] transition">{{ r.u.email }}</a>)
               </div>
             </div>
-            {% if r.tippgeber %}
-              <div class="grid grid-cols-[80px_1fr] gap-1 mt-2">
-                <div>Tippgeber:</div>
-                <div>
+            <div class="grid grid-cols-[80px_1fr] gap-1 mt-2">
+              <div>
+                {% if r.tippgeber %}
+                  <a href="#"
+                     data-admin-user-info-open
+                     data-user-info-url="{% url 'panel_admin_user_info' r.tippgeber.id %}"
+                     class="underline hover:text-[var(--accent)] transition">
+                    Tippgeber:
+                  </a>
+                {% else %}
+                  Tippgeber:
+                {% endif %}
+              </div>
+              <div>
+                {% if r.tippgeber %}
                   {{ r.tippgeber.first_name }} {{ r.tippgeber.last_name }}
                   (<a href="mailto:{{ r.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ r.tippgeber.email }}</a>)
-                </div>
+                {% else %}
+                  Kein Tippgeber
+                {% endif %}
               </div>
-            {% endif %}
+            </div>
           </td>
 
           <td class="px-4 py-3">
-            {% if r.contracts %}
-              <div>
-                {% for c in r.contracts %}
-                  <div class="mb-6 last:mb-0">
-                    <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }} — {{ c.issue.title }}</div>
-                    {% if c.contract_pdf %}
-                      <div class="mt-1">
-                        <a class="underline hover:text-[var(--accent)] transition"
-                           href="{{ c.contract_pdf.url }}">
-                          {{ c.pdf_basename }}
-                        </a>
-                      </div>
-                    {% else %}
-                      <div class="mt-1 text-gray-500">Vertrag nicht erstellt</div>
-                    {% endif %}
-                  </div>
-                {% endfor %}
-              </div>
+            <div class="grid grid-cols-[minmax(0,1fr)_90px] gap-x-3 gap-y-2">
+              {% for c in r.contracts %}
+                <div class="min-w-0">{{ c.issue }}</div>
+                <div>
+                  {{ c.status_label }}
+                  {% if c.can_delete %}
+                    <br>
+                    <form method="post"
+                          action="{% url 'panel_admin_clients_delete_contract' c.id %}"
+                          class="inline"
+                          onsubmit="return confirm('Wirklich löschen?');">
+                      {% csrf_token %}
+                      <button type="submit" class="underline hover:text-red-600 transition">
+                        Löschen
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <div class="col-span-2 text-gray-500">Keine Verträge</div>
+              {% endfor %}
 
-              <div class="mt-3">
-                {% if r.contract_ready %}
-                  <a class="underline hover:text-[var(--accent)] transition"
-                     href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
-                {% else %}
-                  <span class="text-gray-500">Nicht ausgefüllt</span>
-                {% endif %}
+              <div class="col-span-2 pt-1">
+                <button type="button"
+                        data-add-contract-open
+                        data-action="{% url 'panel_admin_clients_add_contract' r.u.id %}"
+                        data-client-label="Kunde: {{ r.u.first_name }} {{ r.u.last_name }} ({{ r.u.email }})"
+                        class="underline hover:text-[var(--accent)] transition">
+                  Vertrag / Emission hinzufügen
+                </button>
               </div>
-            {% else %}
-              {% if r.contract_ready %}
-                <a class="underline hover:text-[var(--accent)] transition"
-                   href="{% url 'panel_admin_contract_pick_issue' r.u.id %}">Vertrag erstellen</a>
-              {% else %}
-                <span class="text-gray-500">Nicht ausgefüllt</span>
-              {% endif %}
-            {% endif %}
+            </div>
           </td>
 
           <td class="px-4 py-3">
@@ -147,6 +260,104 @@ function flexxClientDeleteConfirm(formEl) {
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<div id="adminAddContractModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/50" data-add-contract-close></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-6 overflow-hidden">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[920px] max-w-[calc(100vw-48px)] max-h-[90vh] overflow-hidden flex flex-col pt-6 pb-6 pl-6 pr-[9px]" data-add-contract-panel>
+      <div class="shrink-0 bg-white pb-4 border-b border-gray-200 pr-[10px]">
+        <div class="flex items-start">
+          <div class="flex-1">
+            <div class="text-lg font-semibold">Vertrag / Emission hinzufügen</div>
+            <div id="adminAddContractClient" class="text-sm text-gray-600 mt-1"></div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    data-add-contract-close
+                    class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+              Schließen
+            </button>
+            <button type="button"
+                    data-add-contract-close
+                    aria-label="Schließen"
+                    class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+              &#x2715;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <form id="adminAddContractForm" method="post" class="mt-4 flex-1 min-h-0 flex flex-col pr-[10px]">
+        {% csrf_token %}
+
+        <div class="flex-1 min-h-0 overflow-y-auto">
+          {% if issues %}
+            <div class="grid grid-cols-2 gap-6">
+              <div class="border border-gray-200 rounded-md overflow-hidden">
+                {% for it in issues %}
+                  <label class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
+                    <input type="radio"
+                           name="issue_id"
+                           value="{{ it.id }}"
+                           class="mt-1 accent-[var(--accent)]"
+                           {% if forloop.first %}required{% endif %}
+                           {% if selected_issue_id == it.id %}checked{% endif %}>
+                    <div class="text-sm">
+                      <div class="font-semibold">{{ it.issue_date|date:"d.m.Y" }}</div>
+                      <div>{{ it.title }}</div>
+                    </div>
+                  </label>
+                {% endfor %}
+              </div>
+
+              <div class="border border-gray-200 rounded-md p-4">
+                {% for it in issues %}
+                  <div data-add-contract-issue-detail="{{ it.id }}" {% if selected_issue_id != it.id %}class="hidden"{% endif %}>
+                    <div class="grid grid-cols-[160px_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                      <div>Ausgabedatum:</div><div>{{ it.issue_date|date:"d.m.Y" }}</div>
+                      <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
+                      <div>Volumen, €:</div><div>{{ it.issue_volume_display }}</div>
+                      <div>Preis pro Anleihe, €:</div><div>{{ it.bond_price_display }}</div>
+                      <div>Zinssatz:</div><div>{{ it.interest_rate }}%</div>
+                      <div>Mindestmenge:</div><div>{{ it.minimal_bonds_quantity_display }}</div>
+                      <div>Stückzinstabelle</div>
+                      <div>
+                        <a href="#"
+                           data-interest-modal-open
+                           data-issue-id="{{ it.id }}"
+                           class="underline hover:text-[var(--accent)] transition">
+                          Stückzinstabelle
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <div class="text-sm text-gray-600">Keine aktiven Emissionen verfügbar.</div>
+          {% endif %}
+        </div>
+
+        <div class="mt-6 flex items-center justify-end gap-4">
+          <button type="button"
+                  data-add-contract-close
+                  class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
+            Abbrechen
+          </button>
+
+          <button type="submit"
+                  class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center"
+                  {% if not issues %}disabled{% endif %}>
+            Hinzufügen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

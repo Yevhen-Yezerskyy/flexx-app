@@ -7,6 +7,7 @@ from typing import Dict
 
 from django import forms
 
+from app_users.age_validation import apply_birth_date_constraints, validate_adult_birth_date
 from app_users.models import FlexxUser, TippgeberClient
 from flexx.contract_fields import CONTRACT_FIELDS
 from flexx.models import BondIssue
@@ -113,6 +114,7 @@ class AdminClientForm(forms.ModelForm):
     """Admin create/edit Client (FlexxUser role=client) + link to Tippgeber via TippgeberClient."""
 
     tippgeber_id = forms.ChoiceField(required=False)
+    issue_id = forms.ChoiceField(required=False)
 
     class Meta:
         model = FlexxUser
@@ -144,6 +146,7 @@ class AdminClientForm(forms.ModelForm):
         widgets = {"birth_date": _DATE_WIDGET_ADMIN}
 
     def __init__(self, *args, **kwargs):
+        require_issue = bool(kwargs.pop("require_issue", False))
         super().__init__(*args, **kwargs)
 
         if self.is_bound:
@@ -153,9 +156,13 @@ class AdminClientForm(forms.ModelForm):
 
         self.fields["is_active"].label = "Aktiv"
 
-        for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):
+        for f in ("email", "last_name", "first_name"):
             self.fields[f].required = True
 
+        self.fields["street"].required = False
+        self.fields["zip_code"].required = False
+        self.fields["city"].required = False
+        self.fields["phone"].required = False
         for f in (
             "bank_depo_account_holder",
             "bank_depo_depotnummer",
@@ -177,6 +184,7 @@ class AdminClientForm(forms.ModelForm):
         self.fields["handelsregister_number"].required = False
 
         self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+        apply_birth_date_constraints(self.fields["birth_date"], required=False)
 
         tips = FlexxUser.objects.filter(role=FlexxUser.Role.AGENT).order_by("email")
         choices = [("", "—")]
@@ -186,6 +194,15 @@ class AdminClientForm(forms.ModelForm):
         self.fields["tippgeber_id"].choices = choices
         self.fields["tippgeber_id"].label = "Tippgeber"
 
+        issues = BondIssue.objects.filter(active=True).order_by("-issue_date", "-id")
+        issue_choices = [("", "—")]
+        for issue in issues:
+            issue_choices.append((str(issue.id), f"{issue.issue_date:%d.%m.%Y}: {issue.title}"))
+        self.fields["issue_id"].choices = issue_choices
+        self.fields["issue_id"].label = "Emission"
+        self.fields["issue_id"].required = require_issue
+        self.fields["issue_id"].error_messages["required"] = "Bitte wählen Sie eine Emission aus."
+
         if self.instance and self.instance.pk:
             link = TippgeberClient.objects.filter(client=self.instance).select_related("tippgeber").first()
             if link and link.tippgeber_id:
@@ -193,6 +210,11 @@ class AdminClientForm(forms.ModelForm):
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        validate_adult_birth_date(birth_date)
+        return birth_date
 
     def clean(self):
         cleaned = super().clean()
@@ -204,6 +226,19 @@ class AdminClientForm(forms.ModelForm):
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():
                 self.add_error("email", "Diese E-Mail ist bereits vergeben.")
+
+        issue_id_raw = (cleaned.get("issue_id") or "").strip()
+        if issue_id_raw:
+            try:
+                issue_id = int(issue_id_raw)
+            except Exception:
+                self.add_error("issue_id", "Bitte wählen Sie eine Emission aus.")
+            else:
+                issue = BondIssue.objects.filter(id=issue_id, active=True).first()
+                if not issue:
+                    self.add_error("issue_id", "Bitte wählen Sie eine Emission aus.")
+                else:
+                    cleaned["issue"] = issue
 
         return cleaned
 
@@ -257,9 +292,15 @@ class AdminTippgeberForm(forms.ModelForm):
         self.fields["bank_name"].required = False
         self.fields["bank_bic"].required = False
         self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+        apply_birth_date_constraints(self.fields["birth_date"], required=False)
 
         for f in ("email", "last_name", "first_name", "street", "zip_code", "city", "phone"):
             self.fields[f].required = True
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        validate_adult_birth_date(birth_date)
+        return birth_date

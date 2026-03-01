@@ -1,131 +1,21 @@
-{% extends "app_panel_admin/base.html" %}
+{% extends "app_panel_client/base.html" %}
 {% load phone_filters %}
-<!-- FILE: web/templates/app_panel_admin/clients_form.html  (обновлено — 2026-02-15)
-     PURPOSE: Admin: Kunden create/edit: Tippgeber-select, Aktiv-Checkbox сверху, Depot-Bank над Bank клиента, кнопки справа (Speichern/Abbrechen). -->
-{% block panel_where %}Kunden{% endblock %}
-{% block nav_clients_class %}text-[var(--accent)] font-semibold{% endblock %}
+
+{% block panel_where %}Daten des Käufers{% endblock %}
 
 {% block panel_content %}
-
-<script>
-function flexxClientFormNotifyConfirm(formEl) {
-  if (typeof formEl.checkValidity === "function" && !formEl.checkValidity()) {
-    if (typeof formEl.reportValidity === "function") formEl.reportValidity();
-    return false;
-  }
-  if (formEl.dataset.askNotify !== "1") return true;
-  var isActiveInput = formEl.querySelector('input[name="is_active"]');
-  if (!isActiveInput || !isActiveInput.checked) return true;
-  var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
-  var notifyInput = formEl.querySelector('input[name="notify"]');
-  if (notifyInput) notifyInput.value = send ? "1" : "0";
-  return true;
-}
-</script>
-
 <div class="flex items-center mb-10 mt-2">
-  <div class="text-2xl">
-    {% if mode == 'edit' %}Kunde bearbeiten{% else %}Neuen Kunden hinzufügen{% endif %}
-  </div>
+  <div class="text-2xl">Daten des Käufers ausfüllen / bestätigen</div>
   <div class="flex-1"></div>
-
-  <a href="{% url 'panel_admin_clients' %}"
-     class="w-48 rounded-md bg-gray-100 border-2 border-white text-[var(--text)] py-3 hover:brightness-95 transition font-semibold text-center flex items-center justify-center">
-    Zurück
-  </a>
 </div>
 
-<form id="admin-client-form"
-      method="post"
-      class="flex flex-col gap-6"
-      data-ask-notify="{% if ask_notify_on_submit %}1{% else %}0{% endif %}"
-      onsubmit="return flexxClientFormNotifyConfirm(this);">
+<form method="post" class="flex flex-col gap-6">
   {% csrf_token %}
-  <input type="hidden" name="notify" value="0">
-  <input type="hidden" name="notify_confirmed" value="0">
-
-  {% if mode == 'create' %}
-  <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
-    <div class="text-xl mb-2">Emission wählen</div>
-    {% if issue_error %}
-      <div class="text-sm text-red-600">{{ issue_error }}</div>
-    {% endif %}
-    {% if issues %}
-      <div class="grid grid-cols-2 gap-6">
-        <div class="border border-gray-200 rounded-md overflow-hidden">
-          {% for it in issues %}
-            <label class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
-              <input type="radio"
-                     name="issue_id"
-                     value="{{ it.id }}"
-                     class="mt-1 accent-[var(--accent)]"
-                     {% if forloop.first %}required{% endif %}
-                     {% if selected_issue_id == it.id %}checked{% endif %}>
-              <div class="text-sm">
-                <div class="font-semibold">{{ it.issue_date|date:"d.m.Y" }}</div>
-                <div>{{ it.title }}</div>
-              </div>
-            </label>
-          {% endfor %}
-        </div>
-        <div class="border border-gray-200 rounded-md p-4">
-          {% for it in issues %}
-            <div data-issue-detail-id="{{ it.id }}" {% if selected_issue_id != it.id %}class="hidden"{% endif %}>
-              <div class="grid grid-cols-[160px_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-                <div>Ausgabedatum:</div><div>{{ it.issue_date|date:"d.m.Y" }}</div>
-                <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
-                <div>Volumen, €:</div><div>{{ it.issue_volume_display }}</div>
-                <div>Preis pro Anleihe, €:</div><div>{{ it.bond_price_display }}</div>
-                <div>Zinssatz:</div><div>{{ it.interest_rate }}%</div>
-                <div>Mindestmenge:</div><div>{{ it.minimal_bonds_quantity_display }}</div>
-                <div>Stückzinstabelle</div>
-                <div>
-                  <a href="#"
-                     data-interest-modal-open
-                     data-issue-id="{{ it.id }}"
-                     class="underline hover:text-[var(--accent)] transition">
-                    Stückzinstabelle
-                  </a>
-                </div>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    {% else %}
-      <div class="text-sm text-gray-600">Keine aktiven Emissionen verfügbar.</div>
-    {% endif %}
-  </div>
-  {% endif %}
+  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="contract_id" value="{{ contract.id }}">
 
   <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
-    <div class="text-xl mb-2">Angaben zum Kunden</div>
-
-    <div class="grid grid-cols-3 gap-4">
-      <div class="flex flex-col gap-1 col-span-2">
-        <label class="text-sm px-4">Tippgeber</label>
-        <select name="{{ form.tippgeber_id.html_name }}"
-                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none bg-white">
-          {% for val, label in form.fields.tippgeber_id.choices %}
-            <option value="{{ val }}" {% if form.tippgeber_id.value|stringformat:'s' == val|stringformat:'s' %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-        {% if form.tippgeber_id.errors %}
-          <div class="text-sm text-red-600">{{ form.tippgeber_id.errors|join:", " }}</div>
-        {% endif %}
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <div class="flex items-center px-2 mt-7 ml-10">
-          <input name="{{ form.is_active.html_name }}" type="checkbox" value="1"
-                 class="h-4 w-4"
-                 {% if form.is_active.value %}checked{% endif %}>&nbsp;&nbsp;&nbsp;Aktiv
-        </div>
-        {% if form.is_active.errors %}
-          <div class="text-sm text-red-600">{{ form.is_active.errors|join:", " }}</div>
-        {% endif %}
-      </div>
-    </div>
+    <div class="text-xl mb-2">Daten des Käufers</div>
 
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
@@ -159,7 +49,7 @@ function flexxClientFormNotifyConfirm(formEl) {
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-sm px-4">Geburtsdatum</label>
+        <label class="text-sm px-4">Geburtsdatum*</label>
         {{ form.birth_date }}
         {% if form.birth_date.errors %}
           <div class="text-sm text-red-600">{{ form.birth_date.errors|join:", " }}</div>
@@ -181,8 +71,8 @@ function flexxClientFormNotifyConfirm(formEl) {
 
     <div class="grid grid-cols-4 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
-        <label class="text-sm px-4">Straße, Hausnummer</label>
-        <input name="{{ form.street.html_name }}" value="{{ form.street.value|default:'' }}" type="text" placeholder="Straße, Hausnummer"
+        <label class="text-sm px-4">Straße, Hausnummer*</label>
+        <input name="{{ form.street.html_name }}" value="{{ form.street.value|default:'' }}" type="text" required placeholder="Straße, Hausnummer*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.street.errors %}
           <div class="text-sm text-red-600">{{ form.street.errors|join:", " }}</div>
@@ -190,8 +80,8 @@ function flexxClientFormNotifyConfirm(formEl) {
       </div>
 
       <div class="flex flex-col gap-1 col-span-1">
-        <label class="text-sm px-4">PLZ</label>
-        <input name="{{ form.zip_code.html_name }}" value="{{ form.zip_code.value|default:'' }}" type="text" placeholder="PLZ"
+        <label class="text-sm px-4">PLZ*</label>
+        <input name="{{ form.zip_code.html_name }}" value="{{ form.zip_code.value|default:'' }}" type="text" required placeholder="PLZ*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.zip_code.errors %}
           <div class="text-sm text-red-600">{{ form.zip_code.errors|join:", " }}</div>
@@ -199,8 +89,8 @@ function flexxClientFormNotifyConfirm(formEl) {
       </div>
 
       <div class="flex flex-col gap-1 col-span-1">
-        <label class="text-sm px-4">Ort</label>
-        <input name="{{ form.city.html_name }}" value="{{ form.city.value|default:'' }}" type="text" placeholder="Ort"
+        <label class="text-sm px-4">Ort*</label>
+        <input name="{{ form.city.html_name }}" value="{{ form.city.value|default:'' }}" type="text" required placeholder="Ort*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.city.errors %}
           <div class="text-sm text-red-600">{{ form.city.errors|join:", " }}</div>
@@ -210,8 +100,8 @@ function flexxClientFormNotifyConfirm(formEl) {
 
     <div class="grid grid-cols-3 gap-4">
       <div class="flex flex-col gap-1">
-        <label class="text-sm px-4">Telefon</label>
-        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:''|phone_intl }}" type="text" placeholder="Telefon"
+        <label class="text-sm px-4">Telefon*</label>
+        <input name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:''|phone_intl }}" type="text" required placeholder="Telefon*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.phone.errors %}
           <div class="text-sm text-red-600">{{ form.phone.errors|join:", " }}</div>
@@ -270,8 +160,8 @@ function flexxClientFormNotifyConfirm(formEl) {
 
     <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-1">
-        <label class="text-sm px-4">Depotinhaber (Vorname und Nachname oder Firma)</label>
-        <input name="{{ form.bank_depo_account_holder.html_name }}" value="{{ form.bank_depo_account_holder.value|default:'' }}" type="text" placeholder="Depotinhaber (Vorname und Nachname oder Firma)"
+        <label class="text-sm px-4">Depotinhaber (Vorname und Nachname oder Firma)*</label>
+        <input name="{{ form.bank_depo_account_holder.html_name }}" value="{{ form.bank_depo_account_holder.value|default:'' }}" type="text" required placeholder="Depotinhaber (Vorname und Nachname oder Firma)*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_depo_account_holder.errors %}
           <div class="text-sm text-red-600">{{ form.bank_depo_account_holder.errors|join:", " }}</div>
@@ -282,8 +172,8 @@ function flexxClientFormNotifyConfirm(formEl) {
 
     <div class="grid grid-cols-4 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
-        <label class="text-sm px-4">Depotnummer</label>
-        <input name="{{ form.bank_depo_depotnummer.html_name }}" value="{{ form.bank_depo_depotnummer.value|default:'' }}" type="text" placeholder="Depotnummer"
+        <label class="text-sm px-4">Depotnummer*</label>
+        <input name="{{ form.bank_depo_depotnummer.html_name }}" value="{{ form.bank_depo_depotnummer.value|default:'' }}" type="text" required placeholder="Depotnummer*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_depo_depotnummer.errors %}
           <div class="text-sm text-red-600">{{ form.bank_depo_depotnummer.errors|join:", " }}</div>
@@ -291,8 +181,8 @@ function flexxClientFormNotifyConfirm(formEl) {
       </div>
 
       <div class="flex flex-col gap-1 col-span-1">
-        <label class="text-sm px-4">Bank / Kreditinstitut</label>
-        <input name="{{ form.bank_depo_name.html_name }}" value="{{ form.bank_depo_name.value|default:'' }}" type="text" placeholder="Bank / Kreditinstitut"
+        <label class="text-sm px-4">Bank / Kreditinstitut*</label>
+        <input name="{{ form.bank_depo_name.html_name }}" value="{{ form.bank_depo_name.value|default:'' }}" type="text" required placeholder="Bank / Kreditinstitut*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_depo_name.errors %}
           <div class="text-sm text-red-600">{{ form.bank_depo_name.errors|join:", " }}</div>
@@ -300,8 +190,8 @@ function flexxClientFormNotifyConfirm(formEl) {
       </div>
 
       <div class="flex flex-col gap-1 col-span-1">
-        <label class="text-sm px-4">BLZ</label>
-        <input name="{{ form.bank_depo_blz.html_name }}" value="{{ form.bank_depo_blz.value|default:'' }}" type="text" placeholder="BLZ"
+        <label class="text-sm px-4">BLZ*</label>
+        <input name="{{ form.bank_depo_blz.html_name }}" value="{{ form.bank_depo_blz.value|default:'' }}" type="text" required placeholder="BLZ*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_depo_blz.errors %}
           <div class="text-sm text-red-600">{{ form.bank_depo_blz.errors|join:", " }}</div>
@@ -313,8 +203,8 @@ function flexxClientFormNotifyConfirm(formEl) {
 
     <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-1">
-        <label class="text-sm px-4">Kontoinhaber (Vorname und Nachname oder Firma)</label>
-        <input name="{{ form.bank_account_holder.html_name }}" value="{{ form.bank_account_holder.value|default:'' }}" type="text" placeholder="Kontoinhaber (Vorname und Nachname oder Firma)"
+        <label class="text-sm px-4">Kontoinhaber (Vorname und Nachname oder Firma)*</label>
+        <input name="{{ form.bank_account_holder.html_name }}" value="{{ form.bank_account_holder.value|default:'' }}" type="text" required placeholder="Kontoinhaber (Vorname und Nachname oder Firma)*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_account_holder.errors %}
           <div class="text-sm text-red-600">{{ form.bank_account_holder.errors|join:", " }}</div>
@@ -325,8 +215,8 @@ function flexxClientFormNotifyConfirm(formEl) {
 
     <div class="grid grid-cols-4 gap-4">
       <div class="flex flex-col gap-1 col-span-2">
-        <label class="text-sm px-4">IBAN / Kontonummer</label>
-        <input name="{{ form.bank_iban.html_name }}" value="{{ form.bank_iban.value|default:'' }}" type="text" placeholder="IBAN / Kontonummer"
+        <label class="text-sm px-4">IBAN / Kontonummer*</label>
+        <input name="{{ form.bank_iban.html_name }}" value="{{ form.bank_iban.value|default:'' }}" type="text" required placeholder="IBAN / Kontonummer*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_iban.errors %}
           <div class="text-sm text-red-600">{{ form.bank_iban.errors|join:", " }}</div>
@@ -334,8 +224,8 @@ function flexxClientFormNotifyConfirm(formEl) {
       </div>
 
       <div class="flex flex-col gap-1 col-span-1">
-        <label class="text-sm px-4">Bank / Kreditinstitut</label>
-        <input name="{{ form.bank_name.html_name }}" value="{{ form.bank_name.value|default:'' }}" type="text" placeholder="Bank / Kreditinstitut"
+        <label class="text-sm px-4">Bank / Kreditinstitut*</label>
+        <input name="{{ form.bank_name.html_name }}" value="{{ form.bank_name.value|default:'' }}" type="text" required placeholder="Bank / Kreditinstitut*"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.bank_name.errors %}
           <div class="text-sm text-red-600">{{ form.bank_name.errors|join:", " }}</div>
@@ -354,50 +244,15 @@ function flexxClientFormNotifyConfirm(formEl) {
   </div>
 
   <div class="flex justify-end items-center gap-4 mt-4">
-    <a href="{% url 'panel_admin_clients' %}"
+    <a href="{% url 'panel_client_contracts_list' %}"
        class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
       Abbrechen
     </a>
 
     <button type="submit"
             class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold">
-      Speichern
+      Speichern / bestätigen
     </button>
   </div>
-
 </form>
-
-{% if mode == "create" %}
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const formEl = document.getElementById("admin-client-form");
-    if (!formEl) return;
-
-    {% if trigger_notify_confirm %}
-    const notifyInput = formEl.querySelector('input[name="notify"]');
-    const confirmedInput = formEl.querySelector('input[name="notify_confirmed"]');
-    const send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
-    if (notifyInput) notifyInput.value = send ? "1" : "0";
-    if (confirmedInput) confirmedInput.value = "1";
-    formEl.submit();
-    return;
-    {% endif %}
-
-    const radios = Array.from(document.querySelectorAll('input[name="issue_id"]'));
-    const details = Array.from(document.querySelectorAll('[data-issue-detail-id]'));
-    const syncDetails = function () {
-      const selected = document.querySelector('input[name="issue_id"]:checked');
-      const selectedId = selected ? selected.value : "";
-      details.forEach((el) => {
-        el.classList.toggle("hidden", el.getAttribute("data-issue-detail-id") !== selectedId);
-      });
-    };
-    radios.forEach((radio) => {
-      radio.addEventListener("change", syncDetails);
-    });
-    syncDetails();
-  });
-</script>
-{% endif %}
-
 {% endblock %}

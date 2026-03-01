@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from django import forms
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
 from .models import FlexxUser
@@ -59,10 +60,6 @@ class _BaseRegistrationForm(forms.Form):
         return user
 
 
-class ClientRegistrationForm(_BaseRegistrationForm):
-    role_value = FlexxUser.Role.CLIENT
-
-
 class AgentRegistrationForm(_BaseRegistrationForm):
     role_value = FlexxUser.Role.AGENT
 
@@ -78,10 +75,19 @@ class ResetPasswordForm(forms.Form):
     password1 = forms.CharField(label="Passwort", widget=forms.PasswordInput)
     password2 = forms.CharField(label="Passwort bestätigen", widget=forms.PasswordInput)
 
+    def __init__(self, *args, user: FlexxUser | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
     def clean(self):
         cleaned = super().clean()
         p1 = cleaned.get("password1") or ""
         p2 = cleaned.get("password2") or ""
         if p1 != p2:
             self.add_error("password2", "Passwörter stimmen nicht überein.")
+        if p1 and p1 == p2:
+            try:
+                validate_password(p1, user=self.user)
+            except ValidationError as exc:
+                self.add_error("password1", exc)
         return cleaned

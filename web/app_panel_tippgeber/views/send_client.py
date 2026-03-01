@@ -7,6 +7,7 @@ from datetime import date
 
 from babel.numbers import format_decimal
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -215,7 +216,6 @@ def send_client(request: HttpRequest) -> HttpResponse:
             created_contract = Contract.objects.create(
                 client=own_existing_client,
                 issue=selected_issue,
-                contract_date=timezone.localdate(),
             )
             _notify_tippgeber_added_interessent(
                 request=request,
@@ -273,7 +273,6 @@ def send_client(request: HttpRequest) -> HttpResponse:
                 created_contract = Contract.objects.create(
                     client=existing,
                     issue=selected_issue,
-                    contract_date=timezone.localdate(),
                 )
                 contract_created = True
                 _notify_tippgeber_added_interessent(
@@ -303,18 +302,18 @@ def send_client(request: HttpRequest) -> HttpResponse:
             _save_status_state(request, state)
             return redirect("panel_tippgeber_send_client_status")
 
-        new_client: FlexxUser = client_form.save(commit=False)
-        new_client.role = FlexxUser.Role.CLIENT
-        new_client.is_active = False
-        new_client.set_unusable_password()
-        new_client.save()
+        with transaction.atomic():
+            new_client: FlexxUser = client_form.save(commit=False)
+            new_client.role = FlexxUser.Role.CLIENT
+            new_client.is_active = False
+            new_client.set_unusable_password()
+            new_client.save()
 
-        TippgeberClient.objects.create(tippgeber=request.user, client=new_client)
-        created_contract = Contract.objects.create(
-            client=new_client,
-            issue=selected_issue,
-            contract_date=timezone.localdate(),
-        )
+            created_contract = Contract.objects.create(
+                client=new_client,
+                issue=selected_issue,
+            )
+            TippgeberClient.objects.create(tippgeber=request.user, client=new_client)
 
         _notify_tippgeber_added_interessent(
             request=request,
@@ -399,7 +398,7 @@ def send_client_status(request: HttpRequest) -> HttpResponse:
             contract.issue.minimal_bonds_quantity,
             "#,##0",
         )
-        issue_display_title = f"{contract.issue.issue_date:%d.%m.%Y} - {contract.issue.title}"
+        issue_display_title = f"{contract.issue.issue_date:%d.%m.%Y}: {contract.issue.title}"
 
     return render(
         request,

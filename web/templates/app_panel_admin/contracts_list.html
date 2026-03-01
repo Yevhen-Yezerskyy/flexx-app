@@ -7,13 +7,195 @@
 {% block panel_content %}
 
 <script>
-function flexxContractStatusConfirm(formEl) {
-  if (formEl.dataset.askNotify !== "1") return true;
-  var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
-  var inp = formEl.querySelector('input[name="notify"]');
-  if (inp) inp.value = send ? "1" : "0";
-  return true;
-}
+(function () {
+  function initAdminContractStatusModals() {
+    var confirmModal = document.getElementById("adminContractStatusConfirmModal");
+    var confirmPanel = confirmModal ? confirmModal.querySelector("[data-contract-status-confirm-panel]") : null;
+    var confirmTitle = document.getElementById("adminContractStatusConfirmTitle");
+    var confirmLabel = document.getElementById("adminContractStatusConfirmLabel");
+    var confirmContinue = document.getElementById("adminContractStatusConfirmContinue");
+
+    var notifyModal = document.getElementById("adminContractNotifyModal");
+    var notifyPanel = notifyModal ? notifyModal.querySelector("[data-contract-notify-panel]") : null;
+    var notifyTitle = document.getElementById("adminContractNotifyTitle");
+    var notifyLabel = document.getElementById("adminContractNotifyLabel");
+    var notifyForm = document.getElementById("adminContractNotifyForm");
+    var notifyInput = document.getElementById("adminContractNotifyInput");
+    var currentAction = "";
+    var currentNeedsNotify = true;
+
+    if (!confirmModal || !confirmPanel || !confirmTitle || !confirmLabel || !confirmContinue || !notifyModal || !notifyPanel || !notifyTitle || !notifyLabel || !notifyForm || !notifyInput) {
+      return;
+    }
+
+    function submitWithoutNotify() {
+      notifyForm.action = currentAction;
+      notifyInput.value = "0";
+      notifyForm.submit();
+    }
+
+    function openConfirm(action, title, label, needsNotify) {
+      currentAction = action || "";
+      currentNeedsNotify = needsNotify !== false;
+      confirmTitle.textContent = title || "";
+      confirmLabel.textContent = label || "";
+      confirmModal.classList.remove("hidden");
+      confirmModal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeConfirm() {
+      confirmModal.classList.add("hidden");
+      confirmModal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function openNotify(title, label) {
+      notifyTitle.textContent = title || "";
+      notifyLabel.textContent = label || "";
+      notifyForm.action = currentAction;
+      notifyModal.classList.remove("hidden");
+      notifyModal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeNotify() {
+      notifyModal.classList.add("hidden");
+      notifyModal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+
+      var openEl = target.closest("[data-contract-status-open]");
+      if (openEl) {
+        event.preventDefault();
+        openConfirm(
+          openEl.getAttribute("data-action"),
+          openEl.getAttribute("data-title"),
+          openEl.getAttribute("data-label"),
+          openEl.getAttribute("data-notify") !== "0"
+        );
+        return;
+      }
+
+      if (target.closest("[data-contract-status-confirm-close]")) {
+        event.preventDefault();
+        closeConfirm();
+        return;
+      }
+
+      if (target.closest("[data-contract-notify-close]")) {
+        event.preventDefault();
+        closeNotify();
+        return;
+      }
+
+      if (!confirmModal.classList.contains("hidden") && !confirmPanel.contains(target) && target.closest("#adminContractStatusConfirmModal")) {
+        closeConfirm();
+        return;
+      }
+
+      if (!notifyModal.classList.contains("hidden") && !notifyPanel.contains(target) && target.closest("#adminContractNotifyModal")) {
+        closeNotify();
+      }
+    });
+
+    confirmContinue.addEventListener("click", function () {
+      closeConfirm();
+      if (!currentNeedsNotify) {
+        submitWithoutNotify();
+        return;
+      }
+      openNotify(confirmTitle.textContent, confirmLabel.textContent);
+    });
+
+    notifyForm.querySelectorAll("[data-contract-notify-submit]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        notifyInput.value = btn.getAttribute("data-contract-notify-submit") === "1" ? "1" : "0";
+        notifyForm.submit();
+      });
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        if (!notifyModal.classList.contains("hidden")) {
+          event.preventDefault();
+          closeNotify();
+          return;
+        }
+        if (!confirmModal.classList.contains("hidden")) {
+          event.preventDefault();
+          closeConfirm();
+        }
+      }
+    });
+  }
+
+  function initAdminContractDeleteModal() {
+    var modal = document.getElementById("adminContractDeleteModal");
+    var formEl = document.getElementById("adminContractDeleteForm");
+    var labelEl = document.getElementById("adminContractDeleteLabel");
+    var panel = modal ? modal.querySelector("[data-contract-delete-panel]") : null;
+    if (!modal || !formEl || !labelEl || !panel) return;
+
+    function openModal(action, label) {
+      formEl.action = action || "";
+      labelEl.textContent = label || "";
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+
+      var openEl = target.closest("[data-contract-delete-open]");
+      if (openEl) {
+        event.preventDefault();
+        openModal(
+          openEl.getAttribute("data-action"),
+          openEl.getAttribute("data-label")
+        );
+        return;
+      }
+
+      if (target.closest("[data-contract-delete-close]")) {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+
+      if (!modal.classList.contains("hidden") && !panel.contains(target) && target.closest("#adminContractDeleteModal")) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+        event.preventDefault();
+        closeModal();
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAdminContractStatusModals);
+    document.addEventListener("DOMContentLoaded", initAdminContractDeleteModal);
+  } else {
+    initAdminContractStatusModals();
+    initAdminContractDeleteModal();
+  }
+})();
 </script>
 
 <div class="flex items-center mb-10 mt-2">
@@ -30,10 +212,9 @@ function flexxContractStatusConfirm(formEl) {
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[45%] text-[var(--accent)] font-semibold">Daten zum Vertrag</th>
-        <th class="px-4 py-3 w-[45%] text-[var(--accent)] font-semibold">Kunde</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Datei</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold">Zahlung</th>
+        <th class="px-4 py-3 w-[35%] text-[var(--accent)] font-semibold">Kunde</th>
+        <th class="px-4 py-3 w-[30%] text-[var(--accent)] font-semibold">Daten des Vertrags / Antrags</th>
+        <th class="px-4 py-3 w-[35%] text-[var(--accent)] font-semibold">Status / Aktion</th>
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
     </thead>
@@ -42,94 +223,344 @@ function flexxContractStatusConfirm(formEl) {
       {% for c in contracts %}
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
-            <div class="grid grid-cols-[125px_1fr] gap-x-2 gap-y-1">
-              <div>Unterzeichnet am:</div>
-              <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }}</div>
-              <div>Zahlungsfrist bis:</div>
-              <div class="font-semibold">{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
-              <div class="font-semibold col-span-2 mt-2">{{ c.issue.title }}</div>
-              <div>Anzahl:</div>
+            <div class="grid grid-cols-[80px_1fr] gap-1">
+              <div>
+                <a href="#"
+                   data-admin-user-info-open
+                   data-user-info-url="{% url 'panel_admin_user_info' c.client.id %}"
+                   class="underline hover:text-[var(--accent)] transition">
+                  Kunde:
+                </a>
+              </div>
+              <div class="font-semibold">
+                {{ c.client.first_name }} {{ c.client.last_name }}
+                (<a href="mailto:{{ c.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.client.email }}</a>)
+              </div>
+            </div>
+            <div class="grid grid-cols-[80px_1fr] gap-1 mt-2">
+              <div>
+                {% if c.tippgeber %}
+                  <a href="#"
+                     data-admin-user-info-open
+                     data-user-info-url="{% url 'panel_admin_user_info' c.tippgeber.id %}"
+                     class="underline hover:text-[var(--accent)] transition">
+                    Tippgeber:
+                  </a>
+                {% else %}
+                  Tippgeber:
+                {% endif %}
+              </div>
+              <div>
+                {% if c.tippgeber %}
+                  {{ c.tippgeber.first_name }} {{ c.tippgeber.last_name }}
+                  (<a href="mailto:{{ c.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.tippgeber.email }}</a>)
+                {% else %}
+                  Kein Tippgeber
+                {% endif %}
+              </div>
+            </div>
+          </td>
+
+          <td class="px-4 py-3">
+            <div class="font-semibold">{{ c.issue }}</div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] gap-x-2 gap-y-1 mt-2">
+              <div>Vertragsdatum:</div>
+              <div>{% if c.contract_date %}{{ c.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+              <div>Zahlungsdatum:</div>
+              <div>{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+              <div>Anzahl der Anleihen:</div>
               <div>{% if c.bonds_quantity is not None %}{{ c.bonds_quantity_display }}{% else %}—{% endif %}</div>
-              <div>Nominal, €:</div>
+              <div>Nominalbetrag, €:</div>
               <div>{% if c.nominal_amount is not None %}{{ c.nominal_amount_display }}{% else %}—{% endif %}</div>
-              <div>Nominal + %, €:</div>
+              <div>Aufgelaufene Zinsen, €:</div>
+              <div>{% if c.accrued_interest_display %}{{ c.accrued_interest_display }}{% else %}—{% endif %}</div>
+              <div>Gesamtbetrag, €:</div>
               <div>{% if c.nominal_amount_plus_percent is not None %}{{ c.nominal_amount_plus_percent_display }}{% else %}—{% endif %}</div>
             </div>
           </td>
 
           <td class="px-4 py-3">
-            <div>Kunde:</div>
-            <div class="font-semibold">
-              {{ c.client.first_name }} {{ c.client.last_name }}
-              <a href="mailto:{{ c.client.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.client.email }}</a>
-            </div>
-            {% if c.tippgeber %}
-              <div class="mt-2">Tippgeber:</div>
+            {% if c.status_stage == "not_created" %}
+              <div class="font-semibold">Vertrag / Antrag nicht erstellt.</div>
+            {% elif c.status_stage == "created" %}
+              <div class="font-semibold">Vertrag / Antrag erstellt.</div>
               <div>
-                {{ c.tippgeber.first_name }} {{ c.tippgeber.last_name }}
-                <a href="mailto:{{ c.tippgeber.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.tippgeber.email }}</a>
-              </div>
-            {% endif %}
-          </td>
-
-          <td class="px-4 py-3">
-            {% if c.contract_pdf_signed %}
-              <div>
-                <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
-                  {{ c.signed_pdf_basename }}
-                </a>
-              </div>
-            {% elif c.contract_pdf %}
-              <div>
-                <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
-                  {{ c.pdf_basename }}
-                </a>
+                Vertragsdatum: {% if c.contract_date %}{{ c.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}
               </div>
               <div class="mt-2">
-                <a class="underline hover:text-[var(--accent)] transition" href="{% url 'panel_admin_contract_unterschreiben' c.id %}">
-                  Vertrag unterschreiben
-                </a>
+                {% if c.contract_pdf %}
+                  <div>Vertrag / Antrag:</div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
+                    {{ c.pdf_basename }}
+                  </a>
+                {% endif %}
+              </div>
+              <div class="mt-2">
+                <button type="button"
+                        data-contract-status-open
+                        data-action="{% url 'panel_admin_contract_toggle_signed' c.id %}"
+                        data-title="Unterzeichneter Vertrag / Antrag erhalten"
+                        data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                        class="underline hover:text-[var(--accent)] transition text-left">
+                  Setzen: Unterzeichneter Vertrag / Antrag erhalten
+                </button>
+              </div>
+            {% elif c.status_stage == "signed_received" %}
+              <div class="font-semibold">Unterzeichneter Vertrag / Antrag erhalten.</div>
+              <div>
+                Eingangsdatum: {% if c.signed_received_at %}{{ c.signed_received_at|date:"d.m.Y" }}{% else %}—{% endif %}
+              </div>
+              <div class="mt-2">
+                {% if c.contract_pdf_signed %}
+                  <div>Unterzeichneter Vertrag / Antrag:</div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
+                    {{ c.signed_pdf_basename }}
+                  </a>
+                {% else %}
+                  Der unterzeichnete Vertrag / Antrag wurde von dem Kunden per Post oder E-Mail gesendet.
+                  {% if c.contract_pdf %}
+                    <div class="mt-2">Vertrag / Antrag:</div>
+                    <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
+                      {{ c.pdf_basename }}
+                    </a>
+                  {% endif %}
+                {% endif %}
+              </div>
+              <div class="mt-2">
+                <button type="button"
+                        data-contract-status-open
+                        data-action="{% url 'panel_admin_contract_toggle_paid' c.id %}"
+                        data-title="Vertrag / Antrag bezahlt"
+                        data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                        class="underline hover:text-[var(--accent)] transition text-left">
+                  Setzen: Vertrag / Antrag bezahlt
+                </button>
+              </div>
+              <div class="mt-8">
+                <button type="button"
+                        data-contract-status-open
+                        data-action="{% url 'panel_admin_contract_toggle_signed' c.id %}"
+                        data-title="Erhalt aufheben"
+                        data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                        data-notify="0"
+                        class="underline hover:text-[var(--accent)] transition text-left">
+                  Setzen: Erhalt aufheben
+                </button>
+              </div>
+            {% elif c.status_stage == "paid" %}
+              <div class="font-semibold">Vertrag / Antrag bezahlt.</div>
+              <div>
+                Zahlungsdatum: {% if c.paid_at %}{{ c.paid_at|date:"d.m.Y" }}{% else %}—{% endif %}
+              </div>
+              <div class="mt-2">
+                {% if c.contract_pdf_signed_signed %}
+                  <div>Vollständig unterzeichneter Vertrag / Antrag:</div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed_signed.url }}" title="{{ c.signed_signed_pdf_basename }}">
+                    {{ c.signed_signed_pdf_basename }}
+                  </a>
+                {% elif c.contract_pdf_signed %}
+                  <div>Unterzeichneter Vertrag / Antrag:</div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
+                    {{ c.signed_pdf_basename }}
+                  </a>
+                {% elif c.contract_pdf %}
+                  <div>Vertrag / Antrag:</div>
+                  <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
+                    {{ c.pdf_basename }}
+                  </a>
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+              {% if not c.contract_pdf_signed_signed %}
+                <div class="mt-2">
+                  Der Vertrag / Antrag sollte dem Kunden per E-Mail oder per Post gesendet werden.
+                </div>
+              {% endif %}
+              <div class="mt-8">
+                <button type="button"
+                        data-contract-status-open
+                        data-action="{% url 'panel_admin_contract_toggle_paid' c.id %}"
+                        data-title="Zahlung aufheben"
+                        data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                        data-notify="0"
+                        class="underline hover:text-[var(--accent)] transition text-left">
+                  Setzen: Zahlung aufheben
+                </button>
               </div>
             {% else %}
-              <span class="text-gray-500">Vertrag nicht erstellt</span>
+              <span class="text-gray-400">—</span>
             {% endif %}
-          </td>
-
-          <td class="px-4 py-3">
-            <div>{% if c.paid_at %}Bezahlt{% else %}Offen{% endif %}</div>
-            <form method="post"
-                  action="{% url 'panel_admin_contract_toggle_paid' c.id %}"
-                  data-ask-notify="{% if not c.paid_at %}1{% else %}0{% endif %}"
-                  onsubmit="return flexxContractStatusConfirm(this);">
-              {% csrf_token %}
-              <input type="hidden" name="notify" value="0">
-              <button type="submit" class="underline hover:text-[var(--accent)] transition mt-1">
-                {% if c.paid_at %}Als&nbsp;offen{% else %}Als&nbsp;bezahlt{% endif %}
-              </button>
-            </form>
           </td>
 
           <td class="px-4 py-3 whitespace-nowrap">
-            <a class="underline hover:text-[var(--accent)] transition"
-               href="{% url 'panel_admin_contract_edit' c.id %}">Ändern</a><br>
-            <form method="post"
-                  action="{% url 'panel_admin_contract_delete' c.id %}"
-                  onsubmit="return confirm('Wirklich löschen?');">
-              {% csrf_token %}
-              <button type="submit" class="underline hover:text-red-600 transition mt-1">
+            {% if c.can_delete %}
+              <button type="button"
+                      data-contract-delete-open
+                      data-action="{% url 'panel_admin_contract_delete' c.id %}"
+                      data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                      class="underline hover:text-red-600 transition">
                 Löschen
               </button>
-            </form>
+            {% else %}
+              <span class="text-gray-400">—</span>
+            {% endif %}
           </td>
         </tr>
 
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="5">Noch keine Verträge.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="4">Noch keine Verträge.</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<div id="adminContractStatusConfirmModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/50" data-contract-status-confirm-close></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-6 overflow-hidden">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[700px] max-w-[calc(100vw-48px)] flex flex-col pt-6 pb-6 pl-6 pr-[9px]" data-contract-status-confirm-panel>
+      <div class="shrink-0 pr-[10px]">
+        <div class="flex items-start">
+          <div class="flex-1">
+            <div id="adminContractStatusConfirmTitle" class="text-lg font-semibold"></div>
+            <div id="adminContractStatusConfirmLabel" class="text-sm text-gray-600 mt-1"></div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    data-contract-status-confirm-close
+                    class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+              Schließen
+            </button>
+            <button type="button"
+                    data-contract-status-confirm-close
+                    aria-label="Schließen"
+                    class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+              &#x2715;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pr-[10px] text-sm">
+        Wirklich ausführen?
+      </div>
+
+      <div class="mt-8 pr-[10px] flex items-center justify-end gap-4">
+        <button type="button"
+                data-contract-status-confirm-close
+                class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
+          Abbrechen
+        </button>
+        <button type="button"
+                id="adminContractStatusConfirmContinue"
+                class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center flex items-center justify-center">
+          Bestätigen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="adminContractNotifyModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/50" data-contract-notify-close></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-6 overflow-hidden">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[700px] max-w-[calc(100vw-48px)] flex flex-col pt-6 pb-6 pl-6 pr-[9px]" data-contract-notify-panel>
+      <div class="shrink-0 pr-[10px]">
+        <div class="flex items-start">
+          <div class="flex-1">
+            <div id="adminContractNotifyTitle" class="text-lg font-semibold"></div>
+            <div id="adminContractNotifyLabel" class="text-sm text-gray-600 mt-1"></div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    data-contract-notify-close
+                    class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+              Schließen
+            </button>
+            <button type="button"
+                    data-contract-notify-close
+                    aria-label="Schließen"
+                    class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+              &#x2715;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pr-[10px] text-sm">
+        Möchten Sie dem Kunden eine Benachrichtigung senden?
+      </div>
+
+      <form id="adminContractNotifyForm" method="post" class="mt-8 pr-[10px] flex items-center justify-end gap-4">
+        {% csrf_token %}
+        <input type="hidden" id="adminContractNotifyInput" name="notify" value="0">
+        <button type="button"
+                data-contract-notify-submit="0"
+                class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
+          Nein
+        </button>
+        <button type="button"
+                data-contract-notify-submit="1"
+                class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center flex items-center justify-center">
+          Ja
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="adminContractDeleteModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/50" data-contract-delete-close></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-6 overflow-hidden">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[700px] max-w-[calc(100vw-48px)] flex flex-col pt-6 pb-6 pl-6 pr-[9px]" data-contract-delete-panel>
+      <div class="shrink-0 pr-[10px]">
+        <div class="flex items-start">
+          <div class="flex-1">
+            <div class="text-lg font-semibold">Vertrag löschen</div>
+            <div id="adminContractDeleteLabel" class="text-sm text-gray-600 mt-1"></div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    data-contract-delete-close
+                    class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+              Schließen
+            </button>
+            <button type="button"
+                    data-contract-delete-close
+                    aria-label="Schließen"
+                    class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+              &#x2715;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pr-[10px] text-sm">
+        Wirklich löschen?
+      </div>
+
+      <form id="adminContractDeleteForm" method="post" class="mt-8 pr-[10px] flex items-center justify-end gap-4">
+        {% csrf_token %}
+        <button type="button"
+                data-contract-delete-close
+                class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
+          Abbrechen
+        </button>
+        <button type="submit"
+                class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center flex items-center justify-center">
+          Löschen
+        </button>
+      </form>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

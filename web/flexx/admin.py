@@ -43,7 +43,6 @@ class ContractAdmin(admin.ModelAdmin):
         "id",
         "client",
         "issue",
-        "contract_date",
         "settlement_date",
         "bonds_quantity",
         "nominal_amount",
@@ -54,7 +53,7 @@ class ContractAdmin(admin.ModelAdmin):
         "signed_received_at",
         "paid_at",
     )
-    list_filter = ("contract_date", "signed_received_at", "paid_at", "issue")
+    list_filter = ("signed_received_at", "paid_at", "issue")
     search_fields = (
         "client__email",
         "client__first_name",
@@ -62,7 +61,7 @@ class ContractAdmin(admin.ModelAdmin):
         "issue__title",
     )
     autocomplete_fields = ("client", "issue")
-    ordering = ("-contract_date", "-id")
+    ordering = ("-id",)
 
 
 @admin.register(FlexxlagerSignature)
@@ -98,7 +97,7 @@ class EmailTemplateAdmin(admin.ModelAdmin):
     list_display = ("key", "from_role", "to_role", "from_text", "subject")
     list_display_links = ("key",)
     list_filter = ("from_role", "to_role", "is_active")
-    search_fields = ("key", "from_text", "subject", "body_text", "placeholder")
+    search_fields = ("key", "from_text", "subject", "body_text")
     ordering = ("from_role", "key")
     actions = None
 

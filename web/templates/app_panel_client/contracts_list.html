@@ -1,116 +1,186 @@
 {% extends "app_panel_client/base.html" %}
 
-{% block panel_where %}Meine Verträge{% endblock %}
-{% block nav_my_contracts_class %}text-[var(--accent)] font-semibold{% endblock %}
+{% block panel_where %}Meine Verträge / Emissionen{% endblock %}
 
 {% block panel_content %}
 <div class="flex items-center mb-10 mt-2">
-  <div class="text-2xl">Meine Verträge</div>
-  <div class="flex-1"></div>
-  <a href="{% url 'panel_client_contract_create' %}"
-     class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center flex items-center justify-center">
-    Vertrag hinzufügen
-  </a>
+  <div class="text-2xl">Meine Verträge / Emissionen</div>
 </div>
 
 <div class="bg-white border border-gray-400 rounded-md overflow-hidden">
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[35%] text-[var(--accent)] font-semibold">Daten zur Emission</th>
-        <th class="px-4 py-3 w-[35%] text-[var(--accent)] font-semibold">Daten zum Vertrag</th>
-        <th class="px-4 py-3 w-[25%] text-[var(--accent)] font-semibold">Status</th>
-        <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
+        <th class="px-4 py-3 w-[33%] text-[var(--accent)] font-semibold">Emission</th>
+        <th class="px-4 py-3 w-[34%] text-[var(--accent)] font-semibold">Beschreibung der Emission</th>
+        <th class="px-4 py-3 w-[33%] text-[var(--accent)] font-semibold">Vertrag</th>
       </tr>
     </thead>
     <tbody>
       {% for c in contracts %}
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
-            <div class="grid grid-cols-[150px_minmax(0,1fr)] gap-x-2 gap-y-2">
-              <div class="font-semibold col-span-2">{{ c.issue.title }}</div>
+            <div class="grid grid-cols-[150px_minmax(0,1fr)] gap-x-2 gap-y-1">
+              <div class="font-semibold col-span-2">{{ c.issue }}</div>
               <div>Ausgabedatum:</div><div>{{ c.issue.issue_date|date:"d.m.Y" }}</div>
-              <div>Zinssatz:</div><div>{{ c.issue.interest_rate }}%</div>
               <div>Laufzeit:</div><div>{{ c.issue.term_months }} Monate</div>
-              <div>Preis pro Anleihe, €:</div><div>{{ c.issue_bond_price_display }}</div>
               <div>Volumen, €:</div><div>{{ c.issue_volume_display }}</div>
+              <div>Preis pro Anleihe, €:</div><div>{{ c.issue_bond_price_display }}</div>
+              <div>Zinssatz:</div><div>{{ c.issue.interest_rate }}%</div>
+              <div>Mindestmenge:</div><div>{{ c.minimal_bonds_quantity_display }}</div>
             </div>
           </td>
+
           <td class="px-4 py-3">
-            <div class="grid grid-cols-[150px_minmax(0,1fr)] gap-x-2 gap-y-2">
-              <div class="col-span-2">
-                {% if c.contract_pdf %}
-                  <b>Vertrag: <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}"></b>
-                    {{ c.pdf_basename }}
+            {% if c.issue.sorted_attachments %}
+              {% for a in c.issue.sorted_attachments %}
+                <div class="mb-3">
+                  {{ a.description|default:"—" }}<br>
+                  <a class="underline hover:text-[var(--accent)] transition"
+                     href="{{ a.file.url }}"
+                     title="{{ a.filename }}">
+                    {{ a.short_filename }}
                   </a>
-                {% else %}
-                  <span class="text-gray-500">Vertrag nicht erstellt</span>
-                {% endif %}
-              </div>
-              <div>Unterzeichnet am:</div>
-              <div class="font-semibold">{{ c.contract_date|date:"d.m.Y" }}</div>
-              <div>Zahlungsfrist bis:</div>
-              <div class="font-semibold">{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
-              <div>Anzahl:</div>
-              <div>{% if c.bonds_quantity is not None %}{{ c.bonds_quantity_display }}{% else %}—{% endif %}</div>
-              <div>Nominal, €:</div>
-              <div>{% if c.nominal_amount is not None %}{{ c.nominal_amount_display }}{% else %}—{% endif %}</div>
-              <div>Nominal + %, €:</div>
-              <div>{% if c.nominal_amount_plus_percent is not None %}{{ c.nominal_amount_plus_percent_display }}{% else %}—{% endif %}</div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <span class="text-gray-500">Keine Dateien</span>
+            {% endif %}
+            <div>
+                <a href="#"
+                   data-interest-modal-open
+                   data-issue-id="{{ c.issue.id }}"
+                   class="underline hover:text-[var(--accent)] transition">
+                  Stückzinstabelle
+                </a>
             </div>
+
           </td>
+
           <td class="px-4 py-3">
-            <div class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1">
-              <div>Erhalten:</div>
-              <div>
-                {% if c.signed_received_at %}
-                  Ja ({{ c.signed_received_at|date:"d.m.Y" }})
-                {% else %}
-                  Nein
-                {% endif %}
-              </div>
-              <div>Bezahlt:</div>
-              <div>
-                {% if c.paid_at %}
-                  Ja ({{ c.paid_at|date:"d.m.Y" }})
-                {% else %}
-                  Nein
-                {% endif %}
-              </div>
-            </div>
-          </td>
-          <td class="px-4 py-3 whitespace-nowrap">
-            {% if c.is_editable %}
-              <a class="underline hover:text-[var(--accent)] transition"
-                 href="{% url 'panel_client_contract_edit' c.id %}">Ändern</a><br>
-              <form method="post"
-                    action="{% url 'panel_client_contract_delete' c.id %}"
-                    onsubmit="return confirm('Wirklich löschen?');">
+            {% if c.client_stage == "unknown" %}
+              <form method="post" action="{% url 'panel_client_buyer_data' %}">
                 {% csrf_token %}
-                <button type="submit" class="underline hover:text-red-600 transition mt-1">
-                  Löschen
+                <input type="hidden" name="action" value="open">
+                <input type="hidden" name="contract_id" value="{{ c.id }}">
+                <button type="submit"
+                        class="underline hover:text-[var(--accent)] transition text-left">
+                  Vertrag / Antrag auf Erwerb von Anleihen abschließen
                 </button>
               </form>
+            {% elif c.client_stage == "created" %}
+              <div class="flex flex-col gap-4">
+                <div>Vertrag / Antrag wurde erstellt.</div>
+
+                <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-2 gap-y-1">
+                  <div>Vertragsdatum:</div>
+                  <div>{% if c.contract_date %}{{ c.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                  <div>Zahlungsdatum:</div>
+                  <div>{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                  <div>Anzahl der Anleihen:</div>
+                  <div>{% if c.bonds_quantity is not None %}{{ c.bonds_quantity_display }}{% else %}—{% endif %}</div>
+                  <div>Nominalbetrag, €:</div>
+                  <div>{% if c.nominal_amount is not None %}{{ c.nominal_amount_display }}{% else %}—{% endif %}</div>
+                  <div>Aufgelaufene Zinsen, €:</div>
+                  <div>{% if c.accrued_interest_display %}{{ c.accrued_interest_display }}{% else %}—{% endif %}</div>
+                  <div>Gesamtbetrag, €:</div>
+                  <div>{% if c.nominal_amount_plus_percent is not None %}{{ c.nominal_amount_plus_percent_display }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div>
+                  Erstellter Vertrag / Antrag:
+                  {% if c.contract_pdf %}
+                    <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.contract_pdf_basename }}">
+                      {{ c.contract_pdf_basename }}
+                    </a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+
+                <div>
+                  Vertrag elektronisch unterzeichnen:
+                  <form method="post" action="{% url 'panel_client_contract_sign' %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="open">
+                    <input type="hidden" name="contract_id" value="{{ c.id }}">
+                    <button type="submit" class="underline hover:text-[var(--accent)] transition text-left inline">
+                      Jetzt unterzeichnen
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {% elif c.client_stage == "signed" %}
+              <div class="flex flex-col gap-4">
+                <div>Vertrag / Antrag wurde von Ihnen unterzeichnet.</div>
+
+                <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-2 gap-y-1">
+                  <div>Vertragsdatum:</div>
+                  <div>{% if c.contract_date %}{{ c.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                  <div>Zahlungsdatum:</div>
+                  <div>{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                  <div>Anzahl der Anleihen:</div>
+                  <div>{% if c.bonds_quantity is not None %}{{ c.bonds_quantity_display }}{% else %}—{% endif %}</div>
+                  <div>Nominalbetrag, €:</div>
+                  <div>{% if c.nominal_amount is not None %}{{ c.nominal_amount_display }}{% else %}—{% endif %}</div>
+                  <div>Aufgelaufene Zinsen, €:</div>
+                  <div>{% if c.accrued_interest_display %}{{ c.accrued_interest_display }}{% else %}—{% endif %}</div>
+                  <div>Gesamtbetrag, €:</div>
+                  <div>{% if c.nominal_amount_plus_percent is not None %}{{ c.nominal_amount_plus_percent_display }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div>
+                  Von Ihnen unterzeichneter Vertrag / Antrag:
+                  {% if c.contract_pdf_signed %}
+                    <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.contract_pdf_signed_basename }}">
+                      {{ c.contract_pdf_signed_basename }}
+                    </a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+            {% elif c.client_stage == "paid" %}
+              <div class="flex flex-col gap-4">
+                <div>Vertrag / Antrag wurde von Ihnen bezahlt, die Anleihen wurden Ihrem Konto gutgeschrieben.</div>
+
+                <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-2 gap-y-1">
+                  <div>Vertragsdatum:</div>
+                  <div>{% if c.contract_date %}{{ c.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                  <div>Zahlungsdatum:</div>
+                  <div>{% if c.settlement_date %}{{ c.settlement_date|date:"d.m.Y" }}{% else %}—{% endif %}</div>
+                  <div>Anzahl der Anleihen:</div>
+                  <div>{% if c.bonds_quantity is not None %}{{ c.bonds_quantity_display }}{% else %}—{% endif %}</div>
+                  <div>Nominalbetrag, €:</div>
+                  <div>{% if c.nominal_amount is not None %}{{ c.nominal_amount_display }}{% else %}—{% endif %}</div>
+                  <div>Aufgelaufene Zinsen, €:</div>
+                  <div>{% if c.accrued_interest_display %}{{ c.accrued_interest_display }}{% else %}—{% endif %}</div>
+                  <div>Gesamtbetrag, €:</div>
+                  <div>{% if c.nominal_amount_plus_percent is not None %}{{ c.nominal_amount_plus_percent_display }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div>
+                  Unterzeichneter Vertrag / Antrag:
+                  {% if c.contract_pdf_signed_signed %}
+                    <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed_signed.url }}" title="{{ c.contract_pdf_signed_signed_basename }}">
+                      {{ c.contract_pdf_signed_signed_basename }}
+                    </a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
             {% else %}
-              <span class="text-gray-500">Änderung<br> nicht möglich</span>
+              <span class="text-gray-500">—</span>
             {% endif %}
           </td>
         </tr>
       {% empty %}
         <tr>
-          <td class="px-4 py-10 text-gray-500" colspan="5">Noch keine Verträge.</td>
+          <td class="px-4 py-10 text-gray-500" colspan="3">Noch keine Verträge.</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
-</div>
-
-<div class="mt-6 bg-white border border-gray-400 rounded-md px-7 py-5">
-  <div>
-    Laden Sie den Vertrag herunter, drucken Sie ihn aus und senden Sie ihn per Post.
-  </div>
-  <div class="mt-2">
-    Wenn die von Ihnen gewählte Emission für Sie nicht geeignet ist, können Sie diesen Vertrag löschen (sofern der Vertrag noch nicht per Post bei uns eingegangen ist und keine Zahlung erfolgt ist) und einen neuen Vertrag erstellen.
-  </div>
 </div>
 {% endblock %}

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from django import forms
 
+from app_users.age_validation import apply_birth_date_constraints, validate_adult_birth_date
 from app_users.models import FlexxUser
 
 
@@ -60,9 +61,15 @@ class TippgeberProfileForm(forms.ModelForm):
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
         self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+        apply_birth_date_constraints(self.fields["birth_date"], required=True)
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        validate_adult_birth_date(birth_date)
+        return birth_date
 
     def clean(self):
         return super().clean()

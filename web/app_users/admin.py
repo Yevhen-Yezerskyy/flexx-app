@@ -4,11 +4,31 @@
 from __future__ import annotations
 
 from django.contrib import admin
+from django import forms
+
+from .age_validation import apply_birth_date_constraints, validate_adult_birth_date
 from .models import FlexxUser, TippgeberClient
+
+
+class FlexxUserAdminForm(forms.ModelForm):
+    class Meta:
+        model = FlexxUser
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "birth_date" in self.fields:
+            apply_birth_date_constraints(self.fields["birth_date"], required=False)
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        validate_adult_birth_date(birth_date)
+        return birth_date
 
 
 @admin.register(FlexxUser)
 class FlexxUserAdmin(admin.ModelAdmin):
+    form = FlexxUserAdminForm
     list_display = (
         "email",
         "role",

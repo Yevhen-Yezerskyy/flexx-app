@@ -131,6 +131,11 @@ text-[var(--accent)] font-semibold
 
     {% if state.mode == "exists" and not state.client_is_mine %}
       <div class="flex justify-end gap-6 pt-2">
+        <a href="{% url 'panel_tippgeber_my_clients' %}"
+           class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
+          Meine Kunden/Verträge
+        </a>
+
         <form method="post" action="{% url 'panel_tippgeber_send_client' %}">
           {% csrf_token %}
           <input type="hidden" name="action" value="notify_conflict">
@@ -149,11 +154,6 @@ text-[var(--accent)] font-semibold
             Nachricht an FleXXLager Administration senden
           </button>
         </form>
-
-        <a href="{% url 'panel_tippgeber_my_clients' %}"
-           class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
-          Meine Kunden/Verträge
-        </a>
       </div>
     {% else %}
       <div class="flex justify-end gap-6 pt-2">

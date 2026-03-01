@@ -2,30 +2,12 @@ from __future__ import annotations
 
 from django import forms
 
+from app_panel_admin.forms import _DATE_WIDGET_ADMIN, _normalize_date_like
 from app_users.models import FlexxUser
+from app_users.age_validation import apply_birth_date_constraints, validate_adult_birth_date
 
 
-def _normalize_date_like(v) -> str:
-    s = "" if v is None else str(v).strip()
-    if not s:
-        return s
-    if len(s) == 10 and s[2] == "." and s[5] == ".":
-        dd, mm, yyyy = s[0:2], s[3:5], s[6:10]
-        if dd.isdigit() and mm.isdigit() and yyyy.isdigit():
-            return f"{yyyy}-{mm}-{dd}"
-    return s
-
-
-_DATE_WIDGET = forms.DateInput(
-    format="%Y-%m-%d",
-    attrs={
-        "type": "date",
-        "class": "border border-gray-400 rounded-md px-4 py-2 focus:outline-none",
-    },
-)
-
-
-class ClientSelfForm(forms.ModelForm):
+class ClientBuyerDataForm(forms.ModelForm):
     class Meta:
         model = FlexxUser
         fields = [
@@ -52,51 +34,96 @@ class ClientSelfForm(forms.ModelForm):
             "bank_name",
             "bank_bic",
         ]
-        widgets = {"birth_date": _DATE_WIDGET}
+        widgets = {"birth_date": _DATE_WIDGET_ADMIN}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         if self.is_bound:
-            d = self.data.copy()
-            d["birth_date"] = _normalize_date_like(d.get("birth_date"))
-            self.data = d
+            data = self.data.copy()
+            data["birth_date"] = _normalize_date_like(data.get("birth_date"))
+            self.data = data
 
-        for f in (
+        labels = {
+            "email": "E-Mail",
+            "last_name": "Nachname",
+            "first_name": "Vorname",
+            "birth_date": "Geburtsdatum",
+            "company": "Firma",
+            "street": "Straße, Hausnummer",
+            "zip_code": "PLZ",
+            "city": "Ort",
+            "phone": "Telefon",
+            "mobile_phone": "Mobiltelefon",
+            "fax": "Fax",
+            "handelsregister": "Handelsregister",
+            "handelsregister_number": "Handelsregister-Nummer",
+            "contact_person": "Ansprechpartner",
+            "bank_depo_account_holder": "Depotinhaber (Vorname und Nachname oder Firma)",
+            "bank_depo_depotnummer": "Depotnummer",
+            "bank_depo_name": "Bank / Kreditinstitut",
+            "bank_depo_blz": "BLZ",
+            "bank_account_holder": "Kontoinhaber (Vorname und Nachname oder Firma)",
+            "bank_iban": "IBAN / Kontonummer",
+            "bank_name": "Bank / Kreditinstitut",
+            "bank_bic": "BIC / BLZ",
+        }
+        required_fields = {
             "email",
             "last_name",
             "first_name",
+            "birth_date",
             "street",
             "zip_code",
             "city",
             "phone",
-            "birth_date",
-            "bank_account_holder",
-            "bank_iban",
-            "bank_name",
             "bank_depo_account_holder",
             "bank_depo_depotnummer",
             "bank_depo_name",
-        ):
-            self.fields[f].required = True
+            "bank_depo_blz",
+            "bank_account_holder",
+            "bank_iban",
+            "bank_name",
+        }
 
-        self.fields["mobile_phone"].required = False
-        self.fields["fax"].required = False
-        self.fields["company"].required = False
-        self.fields["contact_person"].required = False
-        self.fields["handelsregister"].required = False
-        self.fields["handelsregister_number"].required = False
-        self.fields["bank_depo_blz"].required = False
-        self.fields["bank_bic"].required = False
+        for field_name, label in labels.items():
+            self.fields[field_name].label = label
+            self.fields[field_name].required = field_name in required_fields
+            self.fields[field_name].error_messages["required"] = f"Bitte geben Sie {label} an."
+
+        self.fields["email"].error_messages["invalid"] = "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+
+        for field_name in (
+            "company",
+            "mobile_phone",
+            "fax",
+            "handelsregister",
+            "handelsregister_number",
+            "contact_person",
+            "bank_bic",
+        ):
+            self.fields[field_name].required = False
 
         self.fields["birth_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
+        self.fields["birth_date"].widget.attrs["placeholder"] = "Geburtsdatum*"
+        apply_birth_date_constraints(self.fields["birth_date"], required=True)
+
+        for field_name, label in labels.items():
+            widget = self.fields[field_name].widget
+            if isinstance(widget, forms.TextInput | forms.EmailInput):
+                suffix = "*" if field_name in required_fields else ""
+                widget.attrs["placeholder"] = f"{label}{suffix}"
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
 
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        validate_adult_birth_date(birth_date)
+        return birth_date
+
     def clean(self):
         cleaned = super().clean()
-
         email = (cleaned.get("email") or "").strip().lower()
         if email:
             qs = FlexxUser.objects.filter(email=email)
@@ -104,5 +131,4 @@ class ClientSelfForm(forms.ModelForm):
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():
                 self.add_error("email", "Diese E-Mail ist bereits vergeben.")
-
         return cleaned

@@ -46,7 +46,7 @@ text-[var(--accent)] font-semibold
             </div>
           </td>
           <td class="px-4 py-3">
-            {{ r.contract.issue.issue_date|date:"d.m.Y" }} - {{ r.contract.issue.title }}
+            {{ r.contract.issue.issue_date|date:"d.m.Y" }}: {{ r.contract.issue.title }}
           </td>
           <td class="px-4 py-3">
             {% if r.contract.signed_received_at %}

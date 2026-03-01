@@ -13,7 +13,6 @@ class ContractField(TypedDict):
 
 
 CONTRACT_FIELDS: Final[List[ContractField]] = [
-    {"key": "unternehmen_emittent", "label_de": "Unternehmen / Emittent", "rows": 3},
     {"key": "ueberschrift_emission", "label_de": "Überschrift / Emission", "rows": 2},
     {"key": "text_zwischen_1", "label_de": "Text zwischen 1", "rows": 6},
     {"key": "banking", "label_de": "Bankverbindung des Emittenten", "rows": 6},
