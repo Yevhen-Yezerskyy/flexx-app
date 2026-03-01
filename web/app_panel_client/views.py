@@ -82,7 +82,7 @@ def _contract_status_label(contract: Contract) -> str:
 def _client_contract_stage(contract: Contract) -> str:
     if contract.paid_at:
         return "paid"
-    if contract.contract_pdf_signed:
+    if contract.signed_received_at:
         return "signed"
     if contract.contract_pdf:
         return "created"

@@ -9,7 +9,7 @@
   <div class="flex-1"></div>
 </div>
 
-<form method="post" class="flex flex-col gap-6">
+<form method="post" action="{% url 'panel_client_buyer_data' %}" class="flex flex-col gap-6">
   {% csrf_token %}
   <input type="hidden" name="action" value="save">
   <input type="hidden" name="contract_id" value="{{ contract.id }}">

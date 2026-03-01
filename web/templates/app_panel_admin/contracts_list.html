@@ -363,20 +363,25 @@
                   <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.signed_pdf_basename }}">
                     {{ c.signed_pdf_basename }}
                   </a>
+                  <div class="mt-2">
+                    Der von uns unterzeichnete Vertrag / Antrag sollte dem Kunden per E-Mail oder per Post gesendet werden.
+                  </div>
                 {% elif c.contract_pdf %}
-                  <div>Vertrag / Antrag:</div>
+                  <div>Der unterzeichnete Vertrag / Antrag wurde von dem Kunden per Post oder E-Mail gesendet.</div>
+                  <div class="mt-2">Vertrag / Antrag:</div>
                   <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.pdf_basename }}">
                     {{ c.pdf_basename }}
                   </a>
+                  <div class="mt-2">
+                    Der von uns unterzeichnete Vertrag / Antrag sollte dem Kunden per E-Mail oder per Post gesendet werden.
+                  </div>
                 {% else %}
-                  —
+                  <div>Der unterzeichnete Vertrag / Antrag wurde von dem Kunden per Post oder E-Mail gesendet.</div>
+                  <div class="mt-2">
+                    Der von uns unterzeichnete Vertrag / Antrag sollte dem Kunden per E-Mail oder per Post gesendet werden.
+                  </div>
                 {% endif %}
               </div>
-              {% if not c.contract_pdf_signed_signed %}
-                <div class="mt-2">
-                  Der Vertrag / Antrag sollte dem Kunden per E-Mail oder per Post gesendet werden.
-                </div>
-              {% endif %}
               <div class="mt-8">
                 <button type="button"
                         data-contract-status-open

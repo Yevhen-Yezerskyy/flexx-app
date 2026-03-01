@@ -136,7 +136,14 @@
                       {{ c.contract_pdf_signed_basename }}
                     </a>
                   {% else %}
-                    —
+                    <div>Wir haben den von Ihnen unterzeichneten Vertrag / Antrag per Post oder per E-Mail erhalten.</div>
+                    {% if c.contract_pdf %}
+                      <div class="mt-2">
+                        <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.contract_pdf_basename }}">
+                          {{ c.contract_pdf_basename }}
+                        </a>
+                      </div>
+                    {% endif %}
                   {% endif %}
                 </div>
               </div>
@@ -165,8 +172,19 @@
                     <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed_signed.url }}" title="{{ c.contract_pdf_signed_signed_basename }}">
                       {{ c.contract_pdf_signed_signed_basename }}
                     </a>
+                  {% elif c.contract_pdf_signed %}
+                    <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf_signed.url }}" title="{{ c.contract_pdf_signed_basename }}">
+                      {{ c.contract_pdf_signed_basename }}
+                    </a>
                   {% else %}
-                    —
+                    <div>Wir haben den von Ihnen unterzeichneten Vertrag / Antrag per Post oder per E-Mail erhalten.</div>
+                    {% if c.contract_pdf %}
+                      <div class="mt-2">
+                        <a class="underline hover:text-[var(--accent)] transition" href="{{ c.contract_pdf.url }}" title="{{ c.contract_pdf_basename }}">
+                          {{ c.contract_pdf_basename }}
+                        </a>
+                      </div>
+                    {% endif %}
                   {% endif %}
                 </div>
               </div>
