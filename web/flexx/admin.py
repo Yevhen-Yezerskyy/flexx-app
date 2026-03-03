@@ -5,6 +5,7 @@ from django.contrib import admin
 from .models import (
     BondIssue,
     BondIssueAttachment,
+    BondIssueSystemDocumentSend,
     Contract,
     DatenschutzeinwilligungText,
     EmailTemplate,
@@ -18,15 +19,18 @@ class BondIssueAdmin(admin.ModelAdmin):
         "id",
         "title",
         "issue_date",
+        "isin_wkn",
         "interest_rate",
+        "rate_tippgeber",
         "bond_price",
         "issue_volume",
         "term_months",
         "minimal_bonds_quantity",
+        "documents_sent_other",
         "active",
     )
     list_filter = ("active", "issue_date")
-    search_fields = ("title",)
+    search_fields = ("title", "isin_wkn")
     ordering = ("-issue_date", "-id")
 
 
@@ -35,6 +39,20 @@ class BondIssueAttachmentAdmin(admin.ModelAdmin):
     list_display = ("id", "issue", "description", "filename")
     search_fields = ("issue__title", "description", "file")
     autocomplete_fields = ("issue",)
+
+
+@admin.register(BondIssueSystemDocumentSend)
+class BondIssueSystemDocumentSendAdmin(admin.ModelAdmin):
+    list_display = ("id", "issue", "client", "sent_at")
+    list_filter = ("sent_at", "issue")
+    search_fields = (
+        "issue__title",
+        "client__email",
+        "client__first_name",
+        "client__last_name",
+    )
+    autocomplete_fields = ("issue", "client")
+    ordering = ("-sent_at", "-id")
 
 
 @admin.register(Contract)

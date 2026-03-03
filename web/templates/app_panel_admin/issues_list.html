@@ -33,6 +33,7 @@
         <tr class="border-t border-gray-200 align-top">
           <td class="px-4 py-3">
             <div class="font-semibold">{{ it.title }}</div>
+            {% if it.isin_wkn %}<div class="text-xs text-gray-500">{{ it.isin_wkn }}</div>{% endif %}
             {% if not it.active %}<div class="text-xs text-gray-500">inaktiv</div>{% endif %}
           </td>
 
@@ -41,9 +42,11 @@
                 <div>Ausgabedatum:</div>
                 <div>{{ it.issue_date|date:"d.m.Y" }}</div>
                 <div>Zinssatz:</div>
-                <div>{{ it.interest_rate }}%</div> 
+                <div>{{ it.interest_rate }}%</div>
+                <div>Tippgeber:</div>
+                <div>{{ it.rate_tippgeber_fmt }}%</div>
                 <div>Laufzeit:</div>
-                <div> {{ it.term_months }} Monate</div>
+                <div>{{ it.term_months }} Monate</div>
             </div>
           </td>
 
@@ -51,10 +54,12 @@
             <div class="grid grid-cols-[125px_80px] gap-1">
               <div>Preis pro Anleihe, €:</div>
               <div>{{ it.bond_price_fmt }}</div>
-              <div>Volumen, €:</div> 
+              <div>Volumen, €:</div>
               <div>{{ it.issue_volume_fmt }}</div>
-              <div>Mindestmenge:</div> 
+              <div>Mindestmenge:</div>
               <div>{{ it.minimal_bonds_quantity_fmt }}</div>
+              <div>Dok. Sonstige:</div>
+              <div>{{ it.documents_sent_other }}</div>
 
             </div>
           </td>

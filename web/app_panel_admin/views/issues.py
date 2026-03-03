@@ -56,6 +56,7 @@ def issues_list(request: HttpRequest) -> HttpResponse:
         it.bond_price_fmt = _format_decimal_de(it.bond_price, "#,##0.00")
         it.issue_volume_fmt = _format_decimal_de(it.issue_volume, "#,##0.00")
         it.minimal_bonds_quantity_fmt = _format_decimal_de(it.minimal_bonds_quantity, "#,##0")
+        it.rate_tippgeber_fmt = _format_decimal_de(it.rate_tippgeber, "#,##0.##")
 
     return render(
         request,
@@ -88,11 +89,14 @@ def issues_create(request: HttpRequest) -> HttpResponse:
                 "active": src.active,
                 "title": src.title,
                 "issue_date": src.issue_date,
+                "isin_wkn": src.isin_wkn,
                 "interest_rate": src.interest_rate,
+                "rate_tippgeber": src.rate_tippgeber,
                 "bond_price": src.bond_price,
                 "issue_volume": src.issue_volume,
                 "term_months": src.term_months,
                 "minimal_bonds_quantity": src.minimal_bonds_quantity,
+                "documents_sent_other": src.documents_sent_other,
             }
             for f in CONTRACT_FIELDS:
                 key = f["key"]

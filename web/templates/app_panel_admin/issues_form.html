@@ -19,14 +19,24 @@
 <form method="post" enctype="multipart/form-data" class="flex flex-col gap-6">
   {% csrf_token %}
   <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-4">
-    <div>{{ form.active }}&nbsp;&nbsp;{{ form.active.label }}</div>
+    <div class="text-xl">Emission</div>
 
-    <div class="flex flex-col">
-      <label class="text-sm px-4">{{ form.title.label }}:</label>
-      <input name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}"
-             type="text" placeholder="{{ form.title.label }}"
-             class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
-          {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col">
+        <label class="text-sm px-4">{{ form.title.label }}:</label>
+        <input name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}"
+               type="text" placeholder="{{ form.title.label }}"
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
+            {% if form.title.errors %}<div class="text-sm text-red-600">{{ form.title.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col">
+        <label class="text-sm px-4">{{ form.isin_wkn.label }}:</label>
+        <input name="{{ form.isin_wkn.name }}" value="{{ form.isin_wkn.value|default:'' }}"
+               type="text" placeholder="{{ form.isin_wkn.label }}"
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
+        {% if form.isin_wkn.errors %}<div class="text-sm text-red-600">{{ form.isin_wkn.errors|join:", " }}</div>{% endif %}
+      </div>
     </div>
 
     <div class="grid grid-cols-6 gap-4">
@@ -77,6 +87,35 @@
                type="number" min="1" step="1" placeholder="{{ form.minimal_bonds_quantity.label }}"
                class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
         {% if form.minimal_bonds_quantity.errors %}<div class="text-sm text-red-600">{{ form.minimal_bonds_quantity.errors|join:", " }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border border-gray-400 rounded-md px-7 py-5">
+    <div class="text-xl mb-4">Service</div>
+    <div class="grid grid-cols-[200px_200px_200px] gap-4 justify-start items-start">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">Status:</label>
+        <label class="h-[42px] px-4 rounded-md border border-gray-400 bg-gray-100 flex items-center gap-2">
+          {{ form.active }}
+          <span>{{ form.active.label }}</span>
+        </label>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">{{ form.rate_tippgeber.label }}:</label>
+        <input name="{{ form.rate_tippgeber.name }}" value="{{ form.rate_tippgeber.value|default:'' }}"
+               type="text" placeholder="{{ form.rate_tippgeber.label }}"
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
+        {% if form.rate_tippgeber.errors %}<div class="text-sm text-red-600">{{ form.rate_tippgeber.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm px-4">{{ form.documents_sent_other.label }}:</label>
+        <input name="{{ form.documents_sent_other.name }}" value="{{ form.documents_sent_other.value|default:'' }}"
+               type="number" min="0" step="1" placeholder="{{ form.documents_sent_other.label }}"
+               class="border border-gray-400 rounded-md px-4 py-2 focus:outline-none">
+        {% if form.documents_sent_other.errors %}<div class="text-sm text-red-600">{{ form.documents_sent_other.errors|join:", " }}</div>{% endif %}
       </div>
     </div>
   </div>

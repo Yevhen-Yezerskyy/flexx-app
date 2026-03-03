@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 
 from django.db import models
+from django.utils import timezone
 from app_users.models import FlexxUser
 
 
@@ -51,8 +52,10 @@ def flexxlager_signature_upload_to(instance: "FlexxlagerSignature", filename: st
 class BondIssue(models.Model):
     title = models.CharField(max_length=255)  # Name der Emission
     issue_date = models.DateField()  # Emissionsdatum
+    isin_wkn = models.CharField(max_length=255, blank=True)  # ISIN / WKN
 
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2)  # Zinssatz (%)
+    rate_tippgeber = models.FloatField(default=0)  # Vergütung für Tippgeber (%)
     bond_price = models.DecimalField(max_digits=12, decimal_places=2)  # Preis je Anleihe
     issue_volume = models.DecimalField(max_digits=14, decimal_places=2)  # Emissionsvolumen
 
@@ -60,6 +63,7 @@ class BondIssue(models.Model):
     minimal_bonds_quantity = models.PositiveIntegerField(
         default=1
     )  # Минимальное количество облигаций
+    documents_sent_other = models.PositiveIntegerField(default=0)
 
     contract = models.JSONField(default=dict, blank=True)  # key->text (Textarea)
     active = models.BooleanField(default=True)
@@ -90,6 +94,27 @@ class BondIssueAttachment(models.Model):
     @property
     def filename(self):
         return os.path.basename(self.file.name)
+
+
+class BondIssueSystemDocumentSend(models.Model):
+    issue = models.ForeignKey(
+        BondIssue,
+        on_delete=models.CASCADE,
+        related_name="system_document_sends",
+    )
+    client = models.ForeignKey(
+        FlexxUser,
+        on_delete=models.CASCADE,
+        related_name="bond_issue_system_document_sends",
+    )
+    sent_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "bond_issue_system_document_sends"
+        ordering = ["-sent_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"IssueSend#{self.id} issue={self.issue_id} client={self.client_id}"
 
 
 class Contract(models.Model):

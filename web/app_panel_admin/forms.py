@@ -39,11 +39,14 @@ class BondIssueForm(forms.ModelForm):
             "active",
             "title",
             "issue_date",
+            "isin_wkn",
             "interest_rate",
+            "rate_tippgeber",
             "bond_price",
             "issue_volume",
             "term_months",
             "minimal_bonds_quantity",
+            "documents_sent_other",
         ]
         widgets = {"issue_date": forms.DateInput(attrs={"type": "date"})}
 
@@ -55,6 +58,7 @@ class BondIssueForm(forms.ModelForm):
             d = self.data.copy()
             d["issue_date"] = _normalize_date_like(d.get("issue_date"))
             d["interest_rate"] = _normalize_decimal_like(d.get("interest_rate"))
+            d["rate_tippgeber"] = _normalize_decimal_like(d.get("rate_tippgeber"))
             d["bond_price"] = _normalize_decimal_like(d.get("bond_price"))
             d["issue_volume"] = _normalize_decimal_like(d.get("issue_volume"))
             self.data = d
@@ -62,11 +66,14 @@ class BondIssueForm(forms.ModelForm):
         self.fields["active"].label = "Aktiv"
         self.fields["title"].label = "Name der Emission"
         self.fields["issue_date"].label = "Emissionsdatum"
+        self.fields["isin_wkn"].label = "ISIN / WKN"
         self.fields["interest_rate"].label = "Zinssatz (%)"
+        self.fields["rate_tippgeber"].label = "Tippgeber-Provision (%)"
         self.fields["bond_price"].label = "Preis je Anleihe (€)"
         self.fields["issue_volume"].label = "Volumen (€)"
         self.fields["term_months"].label = "Laufzeit (Monate)"
         self.fields["minimal_bonds_quantity"].label = "Mindestmenge"
+        self.fields["documents_sent_other"].label = "Dokumente Sonstige"
 
         self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
