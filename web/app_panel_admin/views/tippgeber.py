@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
@@ -48,17 +49,48 @@ def tippgeber_edit(request: HttpRequest, user_id: int) -> HttpResponse:
 
     user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.AGENT)
 
+    def _linked_clients_rows() -> list[dict]:
+        links = (
+            TippgeberClient.objects.filter(tippgeber=user, client__isnull=False)
+            .select_related("client")
+            .order_by("client__last_name", "client__first_name", "client__email")
+        )
+        rows: list[dict] = []
+        for link in links:
+            if not link.client_id:
+                continue
+            rows.append({"link_id": link.id, "client": link.client})
+        return rows
+
     if request.method == "POST":
         form = AdminTippgeberForm(request.POST, instance=user)
         if form.is_valid():
-            obj: FlexxUser = form.save(commit=False)
-            obj.role = FlexxUser.Role.AGENT
-            obj.save()
+            unlink_client_ids_raw = request.POST.getlist("unlink_client_ids")
+            unlink_client_ids: list[int] = []
+            for v in unlink_client_ids_raw:
+                try:
+                    unlink_client_ids.append(int(v))
+                except (TypeError, ValueError):
+                    continue
+
+            with transaction.atomic():
+                obj: FlexxUser = form.save(commit=False)
+                obj.role = FlexxUser.Role.AGENT
+                obj.save()
+                if unlink_client_ids:
+                    TippgeberClient.objects.filter(
+                        tippgeber=obj,
+                        client_id__in=unlink_client_ids,
+                    ).delete()
             return redirect("panel_admin_tippgeber_list")
     else:
         form = AdminTippgeberForm(instance=user)
 
-    return render(request, "app_panel_admin/tippgeber_form.html", {"form": form, "user": user})
+    return render(
+        request,
+        "app_panel_admin/tippgeber_form.html",
+        {"form": form, "user": user, "linked_clients": _linked_clients_rows()},
+    )
 
 
 @login_required

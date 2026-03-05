@@ -7,14 +7,6 @@
 {% block panel_content %}
 
 <script>
-function flexxClientActivateConfirm(formEl) {
-  if (formEl.dataset.askNotify !== "1") return true;
-  var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
-  var inp = formEl.querySelector('input[name="notify"]');
-  if (inp) inp.value = send ? "1" : "0";
-  return true;
-}
-
 function flexxClientDeleteConfirm(formEl) {
   if (!confirm("Wirklich löschen?")) return false;
   var send = confirm("Möchten Sie dem Kunden eine Benachrichtigung senden?");
@@ -24,6 +16,98 @@ function flexxClientDeleteConfirm(formEl) {
 }
 
 (function () {
+  function initAdminActivateClientModal() {
+    var modal = document.getElementById("adminActivateClientModal");
+    var panel = modal ? modal.querySelector("[data-activate-client-panel]") : null;
+    var formEl = document.getElementById("adminActivateClientForm");
+    var clientLineEl = document.getElementById("adminActivateClientLabel");
+    var notifyCheckbox = document.getElementById("adminActivateClientNotify");
+    var notifyInput = document.getElementById("adminActivateClientNotifyInput");
+    var issueSection = document.getElementById("adminActivateIssueSection");
+    var submitBtn = formEl.querySelector('button[type="submit"]');
+    if (!modal || !panel || !formEl || !clientLineEl || !notifyCheckbox || !notifyInput || !issueSection || !submitBtn) return;
+
+    function syncIssueDetails() {
+      var radios = Array.from(formEl.querySelectorAll('input[name="issue_id"]'));
+      var checked = formEl.querySelector('input[name="issue_id"]:checked');
+      if (!checked && radios.length) {
+        radios[0].checked = true;
+        checked = radios[0];
+      }
+      var selected = checked ? checked.value : "";
+      var details = Array.from(formEl.querySelectorAll("[data-activate-issue-detail]"));
+      details.forEach(function (el) {
+        el.classList.toggle("hidden", el.getAttribute("data-activate-issue-detail") !== selected);
+      });
+    }
+
+    function openModal(action, clientLabel, needIssue) {
+      var issueRadios = Array.from(formEl.querySelectorAll('input[name="issue_id"]'));
+      formEl.action = action || "";
+      clientLineEl.textContent = clientLabel || "";
+      notifyCheckbox.checked = true;
+      notifyInput.value = "1";
+      issueSection.classList.toggle("hidden", !needIssue);
+      submitBtn.disabled = !!(needIssue && issueRadios.length === 0);
+      syncIssueDetails();
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    formEl.addEventListener("submit", function () {
+      notifyInput.value = notifyCheckbox.checked ? "1" : "0";
+    });
+
+    formEl.addEventListener("change", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.matches('input[name="issue_id"]')) {
+        syncIssueDetails();
+      }
+    });
+
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+
+      var openEl = target.closest("[data-activate-client-open]");
+      if (openEl) {
+        event.preventDefault();
+        openModal(
+          openEl.getAttribute("data-action"),
+          openEl.getAttribute("data-client-label"),
+          openEl.getAttribute("data-require-issue") === "1"
+        );
+        return;
+      }
+
+      var closeEl = target.closest("[data-activate-client-close]");
+      if (closeEl) {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+
+      if (!modal.classList.contains("hidden") && !panel.contains(target) && target.closest("#adminActivateClientModal")) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+        event.preventDefault();
+        closeModal();
+      }
+    });
+  }
+
   function initAdminAddContractModal() {
     var modal = document.getElementById("adminAddContractModal");
     var formEl = document.getElementById("adminAddContractForm");
@@ -107,8 +191,12 @@ function flexxClientDeleteConfirm(formEl) {
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initAdminAddContractModal);
+    document.addEventListener("DOMContentLoaded", function () {
+      initAdminActivateClientModal();
+      initAdminAddContractModal();
+    });
   } else {
+    initAdminActivateClientModal();
     initAdminAddContractModal();
   }
 })();
@@ -221,20 +309,26 @@ function flexxClientDeleteConfirm(formEl) {
           <td class="px-4 py-3">
             {% if r.u.is_active %}
               <div>Aktiv</div>
+              <form method="post" action="{% url 'panel_admin_clients_toggle_active' r.u.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="notify" value="0">
+                <button type="submit"
+                        onclick="return confirm('Sind Sie sicher?');"
+                        class="underline hover:text-[var(--accent)] transition mt-1">
+                  Deaktivieren
+                </button>
+              </form>
             {% else %}
               <div>Inaktiv</div>
-            {% endif %}
-
-            <form method="post"
-                  action="{% url 'panel_admin_clients_toggle_active' r.u.id %}"
-                  data-ask-notify="{% if not r.u.is_active %}1{% else %}0{% endif %}"
-                  onsubmit="return flexxClientActivateConfirm(this);">
-              {% csrf_token %}
-              <input type="hidden" name="notify" value="0">
-              <button type="submit" class="underline hover:text-[var(--accent)] transition mt-1">
-                {% if r.u.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}
+              <button type="button"
+                      data-activate-client-open
+                      data-action="{% url 'panel_admin_clients_toggle_active' r.u.id %}"
+                      data-client-label="Kunde: {{ r.u.first_name }} {{ r.u.last_name }} ({{ r.u.email }})"
+                      data-require-issue="{% if r.contracts %}0{% else %}1{% endif %}"
+                      class="underline hover:text-[var(--accent)] transition mt-1">
+                Aktivieren
               </button>
-            </form>
+            {% endif %}
           </td>
 
           <td class="px-4 py-3 whitespace-nowrap">
@@ -260,6 +354,113 @@ function flexxClientDeleteConfirm(formEl) {
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<div id="adminActivateClientModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/50" data-activate-client-close></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-6 overflow-hidden">
+    <div class="bg-white border border-[var(--text)] rounded-md shadow-lg w-[920px] max-w-[calc(100vw-48px)] max-h-[90vh] overflow-hidden flex flex-col pt-6 pb-6 pl-6 pr-[9px]" data-activate-client-panel>
+      <div class="shrink-0 bg-white pb-4 border-b border-gray-200 pr-[10px]">
+        <div class="flex items-start">
+          <div class="flex-1">
+            <div class="text-lg font-semibold">Kunde aktivieren</div>
+            <div id="adminActivateClientLabel" class="text-sm text-gray-600 mt-1"></div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button"
+                    data-activate-client-close
+                    class="underline hover:text-[var(--accent)] transition whitespace-nowrap">
+              Schließen
+            </button>
+            <button type="button"
+                    data-activate-client-close
+                    aria-label="Schließen"
+                    class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--text)] hover:bg-gray-100 transition">
+              &#x2715;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <form id="adminActivateClientForm" method="post" class="mt-4 flex-1 min-h-0 flex flex-col pr-[10px]">
+        {% csrf_token %}
+        <input id="adminActivateClientNotifyInput" type="hidden" name="notify" value="1">
+
+        <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+          <label class="flex items-start gap-3 border border-gray-300 rounded-md px-4 py-3 hover:bg-gray-50 transition">
+            <input id="adminActivateClientNotify" type="checkbox" class="mt-1 h-4 w-4" checked>
+            <span class="text-sm">Dem Kunden eine Benachrichtigung senden</span>
+          </label>
+
+          <div id="adminActivateIssueSection" class="bg-white border border-gray-300 rounded-md p-4">
+            <div class="text-sm font-semibold mb-3">
+              Der Kunde hat noch keinen Vertrag. Bitte wählen Sie eine Emission.
+            </div>
+            {% if issues %}
+              <div class="grid grid-cols-2 gap-6">
+                <div class="border border-gray-200 rounded-md overflow-hidden">
+                  {% for it in issues %}
+                    <label class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
+                      <input type="radio"
+                             name="issue_id"
+                             value="{{ it.id }}"
+                             class="mt-1 accent-[var(--accent)]"
+                             {% if forloop.first %}checked{% endif %}>
+                      <div class="text-sm">
+                        <div class="font-semibold">{{ it.issue_date|date:"d.m.Y" }}</div>
+                        <div>{{ it.title }}</div>
+                      </div>
+                    </label>
+                  {% endfor %}
+                </div>
+
+                <div class="border border-gray-200 rounded-md p-4">
+                  {% for it in issues %}
+                    <div data-activate-issue-detail="{{ it.id }}" {% if not forloop.first %}class="hidden"{% endif %}>
+                      <div class="grid grid-cols-[160px_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                        <div>Ausgabedatum:</div><div>{{ it.issue_date|date:"d.m.Y" }}</div>
+                        <div>Laufzeit:</div><div>{{ it.term_months }} Monate</div>
+                        <div>Volumen, €:</div><div>{{ it.issue_volume_display }}</div>
+                        <div>Preis pro Anleihe, €:</div><div>{{ it.bond_price_display }}</div>
+                        <div>Zinssatz:</div><div>{{ it.interest_rate }}%</div>
+                        <div>Mindestmenge:</div><div>{{ it.minimal_bonds_quantity_display }}</div>
+                        <div>Stückzinstabelle</div>
+                        <div>
+                          <a href="#"
+                             data-interest-modal-open
+                             data-issue-id="{{ it.id }}"
+                             class="underline hover:text-[var(--accent)] transition">
+                            Stückzinstabelle
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% else %}
+              <div class="text-sm text-gray-600">Keine aktiven Emissionen verfügbar.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mt-6 flex items-center justify-end gap-4">
+          <button type="button"
+                  data-activate-client-close
+                  class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
+            Abbrechen
+          </button>
+
+          <button type="submit"
+                  class="w-56 rounded-md bg-[var(--accent)] text-white py-3 hover:brightness-110 transition font-semibold text-center">
+            Aktivieren
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <div id="adminAddContractModal" class="fixed inset-0 z-[9999] hidden" aria-hidden="true">

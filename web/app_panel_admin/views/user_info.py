@@ -5,7 +5,7 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from app_users.models import FlexxUser, TippgeberClient
-from flexx.models import Contract
+from flexx.models import Contract, TippgeberContract
 
 from .common import admin_only
 
@@ -52,12 +52,19 @@ def _render_tippgeber_user_info(request: HttpRequest, target: FlexxUser) -> Http
         .order_by("client__email")
     )
     clients = [link.client for link in links if link.client_id and link.client]
+    signed_contracts = list(
+        TippgeberContract.objects.select_related("issue")
+        .filter(tippgeber=target)
+        .exclude(signed_contract_pdf="")
+        .order_by("-signed_at", "-id")
+    )
     return render(
         request,
         "app_panel_admin/_user_info_tippgeber.html",
         {
             "target": target,
             "clients": clients,
+            "signed_contracts": signed_contracts,
         },
     )
 

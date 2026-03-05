@@ -20,6 +20,8 @@ from flexx.pdf_tippgeber_contract import build_tippgeber_contract_text_pdf
 from ..forms import TippgeberProfileForm
 from .common import agent_only, get_missing_signed_issue_ids_for_tippgeber
 
+SIGNED_CONTRACTS_SESSION_KEY = "panel_tippgeber_signed_contract_ids"
+
 
 def _decode_image_data_url(data_url: str) -> bytes | None:
     raw = (data_url or "").strip()
@@ -95,7 +97,7 @@ def _fetch_missing_issues(user) -> list[BondIssue]:
     return list(BondIssue.objects.filter(id__in=missing_issue_ids, active=True).order_by("-issue_date", "-id"))
 
 
-def _ensure_missing_contract_rows(user, issues: list[BondIssue]) -> dict[int, TippgeberContract]:
+def _get_existing_contract_rows(user, issues: list[BondIssue]) -> dict[int, TippgeberContract]:
     issue_ids = [issue.id for issue in issues]
     if not issue_ids:
         return {}
@@ -110,13 +112,6 @@ def _ensure_missing_contract_rows(user, issues: list[BondIssue]) -> dict[int, Ti
         if contract.issue_id not in contracts_by_issue:
             contracts_by_issue[contract.issue_id] = contract
 
-    for issue in issues:
-        if issue.id in contracts_by_issue:
-            continue
-        contracts_by_issue[issue.id] = TippgeberContract.objects.create(
-            tippgeber=user,
-            issue=issue,
-        )
     return contracts_by_issue
 
 
@@ -124,20 +119,23 @@ def _sign_missing_contracts_for_tippgeber(
     *,
     user,
     signature_png: bytes,
-) -> str | None:
+) -> tuple[str | None, list[int]]:
     missing_issues = _fetch_missing_issues(user)
     if not missing_issues:
-        return None
-    contract_rows = _ensure_missing_contract_rows(user, missing_issues)
+        return None, []
+    contract_rows = _get_existing_contract_rows(user, missing_issues)
     now_dt = timezone.now()
     attachments: list[tuple[str, bytes, str]] = []
+    saved_contract_ids: list[int] = []
     flexx_sign = FlexxlagerSignature.objects.first()
     company_signature_png = _read_file_field_bytes(flexx_sign.signature) if flexx_sign else None
 
     try:
         with transaction.atomic():
             for issue in missing_issues:
-                contract = contract_rows[issue.id]
+                contract = contract_rows.get(issue.id)
+                if contract is None:
+                    contract = TippgeberContract(tippgeber=user, issue=issue)
                 if contract.signature_file:
                     contract.signature_file.delete(save=False)
                 if contract.signed_contract_pdf:
@@ -159,18 +157,22 @@ def _sign_missing_contracts_for_tippgeber(
                     company_signature_png=company_signature_png,
                     company_signature_line_text="(FleXXLager GmbH & Co. KG)",
                 )
-                safe_issue = _slugify_filename_part(issue.title)
-                pdf_filename = f"FleXXLager-Tippgeber-Vertrag-IN{issue.id}-{safe_issue}.pdf"
+                pdf_filename = _build_servicepartner_filename(issue, tippgeber_id=user.id)
                 contract.signed_contract_pdf.save(
                     pdf_filename,
                     ContentFile(signed_pdf_res.pdf_bytes),
                     save=False,
                 )
                 contract.signed_at = now_dt
-                contract.save(update_fields=["signature_file", "signed_contract_pdf", "signed_at", "updated_at"])
+                if contract.id:
+                    contract.save(update_fields=["signature_file", "signed_contract_pdf", "signed_at", "updated_at"])
+                else:
+                    contract.save()
+                if contract.id:
+                    saved_contract_ids.append(contract.id)
                 attachments.append((os.path.basename(contract.signed_contract_pdf.name), signed_pdf_res.pdf_bytes, "application/pdf"))
     except Exception as exc:
-        return f"Vertraege konnten nicht gespeichert werden: {exc}"
+        return f"Vertraege konnten nicht gespeichert werden: {exc}", []
 
     if attachments:
         try:
@@ -182,7 +184,7 @@ def _sign_missing_contracts_for_tippgeber(
             )
         except Exception:
             pass
-    return None
+    return None, saved_contract_ids
 
 
 @login_required
@@ -254,6 +256,34 @@ def contracts_required_sign(request: HttpRequest) -> HttpResponse:
 
     sign_errors: list[str] = []
     info_message = ""
+    done_mode = request.method == "GET" and request.GET.get("done") == "1"
+
+    if done_mode:
+        signed_ids = request.session.get(SIGNED_CONTRACTS_SESSION_KEY) or []
+        if not isinstance(signed_ids, list):
+            signed_ids = []
+        signed_contracts = list(
+            TippgeberContract.objects.select_related("issue")
+            .filter(id__in=signed_ids, tippgeber=request.user)
+            .order_by("-id")
+        )
+        signed_rows = []
+        for c in signed_contracts:
+            if not c.signed_contract_pdf:
+                continue
+            signed_rows.append({
+                "url": c.signed_contract_pdf.url,
+                "filename": os.path.basename(c.signed_contract_pdf.name),
+            })
+        return render(
+            request,
+            "app_panel_tippgeber/contracts_required_sign.html",
+            {
+                "done_mode": True,
+                "signed_rows": signed_rows,
+            },
+        )
+
     missing_issues = _fetch_missing_issues(request.user)
     if not missing_issues:
         return redirect("/panel/tippgeber/")
@@ -276,19 +306,22 @@ def contracts_required_sign(request: HttpRequest) -> HttpResponse:
             if signature_raw and not signature_png:
                 sign_errors.append("Signaturbild konnte nicht verarbeitet werden.")
             if signature_png and not sign_errors:
-                save_error = _sign_missing_contracts_for_tippgeber(user=request.user, signature_png=signature_png)
+                save_error, saved_contract_ids = _sign_missing_contracts_for_tippgeber(
+                    user=request.user,
+                    signature_png=signature_png,
+                )
                 if save_error:
                     sign_errors.append(save_error)
                 else:
-                    if not get_missing_signed_issue_ids_for_tippgeber(request.user):
-                        return redirect("/panel/tippgeber/")
-                    info_message = "Signatur gespeichert."
-                    missing_issues = _fetch_missing_issues(request.user)
+                    request.session[SIGNED_CONTRACTS_SESSION_KEY] = saved_contract_ids
+                    request.session.modified = True
+                    return redirect("/panel/tippgeber/contracts/required/sign/?done=1")
 
     return render(
         request,
         "app_panel_tippgeber/contracts_required_sign.html",
         {
+            "done_mode": False,
             "missing_issues": missing_issues,
             "missing_issue_rows": missing_issue_rows,
             "sign_errors": sign_errors,

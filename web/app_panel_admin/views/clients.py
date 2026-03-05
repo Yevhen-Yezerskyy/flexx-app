@@ -128,57 +128,22 @@ def clients_create(request: HttpRequest) -> HttpResponse:
     if denied:
         return denied
 
-    issues = _load_active_issues()
-    selected_issue_id = None
-    trigger_notify_confirm = False
-
     if request.method == "POST":
-        issue_id_raw = (request.POST.get("issue_id") or "").strip()
-        if issue_id_raw:
-            try:
-                selected_issue_id = int(issue_id_raw)
-            except Exception:
-                selected_issue_id = None
         form = AdminClientForm(request.POST, require_issue=False)
         if form.is_valid():
-            issue = form.cleaned_data.get("issue")
-            is_active_selected = bool(form.cleaned_data.get("is_active"))
-            notify_confirmed = request.POST.get("notify_confirmed") == "1"
+            with transaction.atomic():
+                obj: FlexxUser = form.save(commit=False)
+                obj.role = FlexxUser.Role.CLIENT
+                obj.is_active = False
+                if not obj.pk:
+                    obj.set_unusable_password()
+                obj.save()
+                _save_tippgeber_link(client=obj, tippgeber_id=form.cleaned_data.get("tippgeber_id"))
 
-            if is_active_selected and not notify_confirmed:
-                trigger_notify_confirm = True
-            else:
-                created_client: FlexxUser | None = None
-                with transaction.atomic():
-                    obj: FlexxUser = form.save(commit=False)
-                    obj.role = FlexxUser.Role.CLIENT
-                    if not obj.pk:
-                        obj.set_unusable_password()
-                    obj.save()
-                    created_client = obj
-
-                    if issue:
-                        Contract.objects.create(
-                            client=obj,
-                            issue=issue,
-                        )
-                    _save_tippgeber_link(client=obj, tippgeber_id=form.cleaned_data.get("tippgeber_id"))
-
-                if created_client and created_client.is_active and request.POST.get("notify") == "1":
-                    set_password_url = ""
-                    if not created_client.has_usable_password():
-                        set_password_url = build_set_password_url(request, created_client)
-                    send_client_activated_email(
-                        to_email=created_client.email,
-                        first_name=created_client.first_name or "",
-                        last_name=created_client.last_name or "",
-                        set_password_url=set_password_url,
-                    )
-                return redirect("panel_admin_clients")
+            return redirect("panel_admin_clients")
     else:
-        form = AdminClientForm(initial={"is_active": True}, require_issue=False)
+        form = AdminClientForm(require_issue=False)
 
-    issue_error = form.errors.get("issue_id")
     return render(
         request,
         "app_panel_admin/clients_form.html",
@@ -186,10 +151,6 @@ def clients_create(request: HttpRequest) -> HttpResponse:
             "form": form,
             "mode": "create",
             "ask_notify_on_submit": False,
-            "issues": issues,
-            "selected_issue_id": selected_issue_id,
-            "issue_error": issue_error[0] if issue_error else "",
-            "trigger_notify_confirm": trigger_notify_confirm,
         },
     )
 
@@ -299,8 +260,25 @@ def clients_toggle_active(request: HttpRequest, user_id: int) -> HttpResponse:
 
     user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
     was_active = bool(user.is_active)
-    if (not was_active) and not _client_has_contracts(user.id):
-        return _redirect_clients_list_with_notice("client_activation_requires_contract")
+    if not was_active:
+        if not _client_has_contracts(user.id):
+            issue_id_raw = (request.POST.get("issue_id") or "").strip()
+            if not issue_id_raw:
+                return _redirect_clients_list_with_notice("issue_required")
+            try:
+                issue_id = int(issue_id_raw)
+            except Exception:
+                return _redirect_clients_list_with_notice("issue_not_found")
+
+            issue = BondIssue.objects.filter(id=issue_id, active=True).first()
+            if not issue:
+                return _redirect_clients_list_with_notice("issue_not_found")
+
+            Contract.objects.create(
+                client=user,
+                issue=issue,
+            )
+
     user.is_active = not was_active
     user.save(update_fields=["is_active"])
 
