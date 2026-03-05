@@ -6,9 +6,12 @@ import re
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as rl_canvas
+from PIL import Image
+from django.utils import timezone
 
-from flexx.models import TippgeberContractText
+from flexx.models import FlexxlagerSignature, TippgeberContractText
 
 
 @dataclass(frozen=True)
@@ -24,11 +27,75 @@ _LETTERED_POINT_RE = re.compile(r"^\s*([A-Za-z]\))\s*")
 _BULLET_POINT_RE = re.compile(r"^\s*([•\-])\s+")
 _RESET_LIST_RE = re.compile(r"^\s*%%%\s*")
 _PAGE_BREAK_RE = re.compile(r"\{\s*BR\s*\}")
+_TIPPGEBER_PLACEHOLDER_RE = re.compile(r"\{\s*Tippgeber\s*\}")
+_ISIN_WKN_PLACEHOLDER_RE = re.compile(r"\{\s*WKN\s*/\s*ISIN\s*\}")
+_SIGNATURE_PLACEHOLDER_RE = re.compile(r"\{\s*Unterschrift\s*\}")
+_SIGNATURE_TABLE_MARKER = "<<FLEXX_SIGNATURE_TABLE>>"
 
 
 def _normalize_text(value: str | None) -> str:
     txt = "" if value is None else str(value)
     return txt.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _build_address_single_line(tippgeber) -> str:
+    street = (getattr(tippgeber, "street", "") or "").strip()
+    zip_code = (getattr(tippgeber, "zip_code", "") or "").strip()
+    city = (getattr(tippgeber, "city", "") or "").strip()
+    zip_city = " ".join(part for part in [zip_code, city] if part)
+    if street and zip_city:
+        return f"{street}, {zip_city}"
+    return street or zip_city
+
+
+def _read_file_field_bytes(file_field) -> bytes | None:
+    if not file_field:
+        return None
+    try:
+        file_field.open("rb")
+        return file_field.read()
+    except Exception:
+        return None
+    finally:
+        try:
+            file_field.close()
+        except Exception:
+            pass
+
+
+def _build_tippgeber_block(tippgeber) -> str:
+    if tippgeber is None:
+        return ""
+    company = (getattr(tippgeber, "company", "") or "").strip()
+    first_name = (getattr(tippgeber, "first_name", "") or "").strip()
+    last_name = (getattr(tippgeber, "last_name", "") or "").strip()
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+    address = _build_address_single_line(tippgeber)
+    indent = "\t"
+
+    if company:
+        lines = [company]
+        if address:
+            lines.append(f"{indent}{address}")
+        if full_name:
+            lines.append(f"{indent}{full_name}")
+        return "\n".join(lines)
+
+    lines = []
+    if full_name:
+        lines.append(full_name)
+    if address:
+        lines.append(f"{indent}{address}")
+    return "\n".join(lines)
+
+
+def _apply_placeholders(text: str, *, issue=None, tippgeber=None) -> str:
+    out = text
+    out = _TIPPGEBER_PLACEHOLDER_RE.sub(_build_tippgeber_block(tippgeber), out)
+    issue_isin_wkn = (getattr(issue, "isin_wkn", "") or "").strip() if issue is not None else ""
+    out = _ISIN_WKN_PLACEHOLDER_RE.sub(issue_isin_wkn, out)
+    out = _SIGNATURE_PLACEHOLDER_RE.sub(_SIGNATURE_TABLE_MARKER, out)
+    return out
 
 
 def _split_center_blocks(text: str) -> list[tuple[bool, str]]:
@@ -206,9 +273,96 @@ def _strip_leading_whitespace_entries(entries: list[tuple[str, str, bool, bool, 
     return out
 
 
-def build_tippgeber_contract_text_pdf() -> TippgeberContractTextPdfBuildResult:
+def _draw_signature_table(
+    c: rl_canvas.Canvas,
+    *,
+    y_top: float,
+    margin_left: float,
+    content_width: float,
+    today_str: str,
+    servicepartner_name: str,
+    servicepartner_city: str,
+    tippgeber_signature_png: bytes | None,
+    company_signature_png: bytes | None,
+) -> float:
+    col_w = content_width / 2.0
+    left_x = margin_left
+    right_x = margin_left + col_w
+    text_pad = 2.0
+
+    y = y_top
+    c.setFont("Helvetica-Bold", 11.0)
+    c.drawString(left_x + text_pad, y, "Anbieterin")
+    c.drawString(right_x + text_pad, y, "Servicepartner")
+
+    y -= 16.0
+    c.setFont("Helvetica-Bold", 11.0)
+    c.drawString(left_x + text_pad, y, "FleXXLager GmbH & Co. KG")
+    c.drawString(right_x + text_pad, y, servicepartner_name or "-")
+
+    y -= 16.0
+    c.setFont("Helvetica", 11.0)
+    c.drawString(left_x + text_pad, y, f"Siegen, {today_str}")
+    c.drawString(right_x + text_pad, y, f"{servicepartner_city or '-'}, {today_str}")
+
+    def _draw_signature_png(raw_png: bytes | None, *, area_x: float) -> None:
+        if not raw_png:
+            return
+        try:
+            with Image.open(BytesIO(raw_png)) as raw_img:
+                img = raw_img.convert("RGBA")
+                img_w = float(img.width)
+                img_h = float(img.height)
+                if img_w <= 0 or img_h <= 0:
+                    return
+                area_w = max(col_w - 16.0, 1.0)
+                area_h = 44.0
+                scale = min(area_w / img_w, area_h / img_h)
+                draw_w = img_w * scale
+                draw_h = img_h * scale
+                draw_x = area_x + text_pad
+                draw_y = y - 72.0
+                c.drawImage(
+                    ImageReader(img),
+                    draw_x,
+                    draw_y,
+                    width=draw_w,
+                    height=draw_h,
+                    mask="auto",
+                )
+        except Exception:
+            return
+
+    _draw_signature_png(company_signature_png, area_x=left_x)
+    _draw_signature_png(tippgeber_signature_png, area_x=right_x)
+
+    y -= 72.0
+    c.setFont("Helvetica", 11.0)
+    c.drawString(left_x + text_pad, y, "________________________________")
+    c.drawString(right_x + text_pad, y, "________________________________")
+
+    y -= 16.0
+    c.drawString(left_x + text_pad, y, "( Unterschrift )")
+    c.drawString(right_x + text_pad, y, "( Unterschrift )")
+    return y - 14.0
+
+
+def build_tippgeber_contract_text_pdf(
+    *,
+    issue=None,
+    tippgeber=None,
+    tippgeber_signature_png: bytes | None = None,
+    tippgeber_signature_line_text: str = "(Tippgeber)",
+    company_signature_png: bytes | None = None,
+    company_signature_line_text: str = "(FleXXLager GmbH & Co. KG)",
+) -> TippgeberContractTextPdfBuildResult:
     raw_text = TippgeberContractText.objects.filter(id=1).values_list("text", flat=True).first() or ""
     text = _normalize_text(raw_text)
+    text = _apply_placeholders(text, issue=issue, tippgeber=tippgeber)
+    if company_signature_png is None:
+        flexx_sign = FlexxlagerSignature.objects.first()
+        if flexx_sign and flexx_sign.signature:
+            company_signature_png = _read_file_field_bytes(flexx_sign.signature)
 
     page_width, page_height = A4
     margin_left = 36.0
@@ -222,6 +376,11 @@ def build_tippgeber_contract_text_pdf() -> TippgeberContractTextPdfBuildResult:
     paragraph_spacing = leading * 0.5
     double_newline_extra_spacing = leading
     tab_step = 36.0
+    today_str = f"{timezone.localdate():%d.%m.%Y}"
+    servicepartner_last = (getattr(tippgeber, "last_name", "") or "").strip()
+    servicepartner_first = (getattr(tippgeber, "first_name", "") or "").strip()
+    servicepartner_name = " ".join(part for part in [servicepartner_last, servicepartner_first] if part).strip()
+    servicepartner_city = (getattr(tippgeber, "city", "") or "").strip()
 
     def next_tab_stop(x: float) -> float:
         return (int(x / tab_step) + 1) * tab_step
@@ -275,6 +434,23 @@ def build_tippgeber_contract_text_pdf() -> TippgeberContractTextPdfBuildResult:
             line_is_raw = any(token_raw for _, _, _, _, token_raw in entries)
             if not centered and not line_is_raw:
                 plain_line = _line_entries_to_plain(entries)
+                if plain_line.strip() == _SIGNATURE_TABLE_MARKER:
+                    required_h = 150.0
+                    if y - required_h < margin_bottom:
+                        canvas.showPage()
+                        y = page_height - margin_top
+                    y = _draw_signature_table(
+                        canvas,
+                        y_top=y,
+                        margin_left=margin_left,
+                        content_width=content_width,
+                        today_str=today_str,
+                        servicepartner_name=servicepartner_name,
+                        servicepartner_city=servicepartner_city,
+                        tippgeber_signature_png=tippgeber_signature_png,
+                        company_signature_png=company_signature_png,
+                    )
+                    return
                 reset_match = _RESET_LIST_RE.match(plain_line)
                 if reset_match:
                     entries = _consume_prefix_chars(entries, reset_match.end())
@@ -303,11 +479,6 @@ def build_tippgeber_contract_text_pdf() -> TippgeberContractTextPdfBuildResult:
                     entries = _consume_prefix_chars(entries, bullet_match.end())
                     entries = _strip_leading_whitespace_entries(entries)
                     list_indent_level = 1
-                else:
-                    # Prevent list nesting from leaking into unrelated paragraphs/blocks.
-                    # Keep current level only for explicitly indented continuation lines.
-                    if plain_line.strip() and not plain_line[:1].isspace():
-                        list_indent_level = 0
 
             line_indent = 0.0 if line_is_raw else ((tab_step * list_indent_level) if (list_indent_level > 0 and not centered) else 0.0
             )

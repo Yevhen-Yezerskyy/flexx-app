@@ -32,6 +32,7 @@ from .forms import (
     LoginForm,
 )
 from .models import TippgeberClient
+from app_panel_tippgeber.views.common import has_all_signed_tippgeber_contracts
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -45,6 +46,8 @@ def _redirect_by_role(user) -> HttpResponse:
     if role == "admin":
         return redirect("/panel/admin/")
     if role == "agent":
+        if not has_all_signed_tippgeber_contracts(user):
+            return redirect("/panel/tippgeber/contracts/required/")
         has_clients = TippgeberClient.objects.filter(
             tippgeber=user,
             client__isnull=False,

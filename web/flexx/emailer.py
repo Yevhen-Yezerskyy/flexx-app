@@ -887,6 +887,45 @@ def send_client_contract_signed_notify_email(
     return _send_text(to_email=NOTIFY_EMAIL, subject=subject, body=body, from_email=from_email)
 
 
+def send_tippgeber_contract_signed_email(
+    *,
+    to_email: str,
+    first_name: str,
+    last_name: str,
+    attachments: Sequence[tuple[str, bytes, str]] | None = None,
+) -> bool:
+    full_name = f"{first_name} {last_name}".strip()
+    status = send_email_from_template(
+        key=send_tippgeber_contract_signed_email.__name__,
+        to_email=to_email,
+        context={"full_name": full_name},
+        attachments=attachments,
+    )
+    if status == EMAIL_TEMPLATE_SENT:
+        return True
+    if status == EMAIL_TEMPLATE_SEND_ERROR:
+        raise EmailSendError(
+            f"Template email send error: key={send_tippgeber_contract_signed_email.__name__} to={to_email}"
+        )
+
+    subject = "Ihre unterschriebenen Tippgeber-Vertraege"
+    body = (
+        f"Sehr geehrte/r {full_name},\n\n"
+        "anbei erhalten Sie Ihre elektronisch unterschriebenen Tippgeber-Vertraege.\n\n"
+        "Mit freundlichen Gruessen\n"
+        "Ihr FleXXLager Team\n"
+    )
+    _, base_email = parseaddr(FROM_EMAIL)
+    from_email = formataddr(("FleXXLager Team", base_email)) if base_email else FROM_EMAIL
+    return _send_text(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        from_email=from_email,
+        attachments=attachments,
+    )
+
+
 def send_client_contract_created_email(
     *,
     to_email: str,
