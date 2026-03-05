@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from django.contrib import admin
+from django import forms
 
 from .models import (
     BondIssue,
     BondIssueAttachment,
     BondIssueSystemDocumentSend,
     Contract,
-    DatenschutzeinwilligungText,
     EmailTemplate,
     FlexxlagerSignature,
+    TippgeberContract,
+    TippgeberContractText,
 )
 
 
@@ -82,6 +84,27 @@ class ContractAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
 
+@admin.register(TippgeberContract)
+class TippgeberContractAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "tippgeber",
+        "issue",
+        "signed_at",
+        "signature_file",
+        "signed_contract_pdf",
+    )
+    list_filter = ("signed_at", "issue")
+    search_fields = (
+        "tippgeber__email",
+        "tippgeber__first_name",
+        "tippgeber__last_name",
+        "issue__title",
+    )
+    autocomplete_fields = ("tippgeber", "issue")
+    ordering = ("-signed_at", "-id")
+
+
 @admin.register(FlexxlagerSignature)
 class FlexxlagerSignatureAdmin(admin.ModelAdmin):
     list_display = ("id", "signature")
@@ -96,13 +119,28 @@ class FlexxlagerSignatureAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(DatenschutzeinwilligungText)
-class DatenschutzeinwilligungTextAdmin(admin.ModelAdmin):
+class TippgeberContractTextAdminForm(forms.ModelForm):
+    class Meta:
+        model = TippgeberContractText
+        fields = ("text",)
+        widgets = {
+            "text": forms.Textarea(
+                attrs={
+                    "rows": 30,
+                    "style": "width: 98%; min-height: 520px; font-family: ui-monospace, Menlo, monospace;",
+                }
+            )
+        }
+
+
+@admin.register(TippgeberContractText)
+class TippgeberContractTextAdmin(admin.ModelAdmin):
+    form = TippgeberContractTextAdminForm
     list_display = ("id",)
     actions = None
 
     def has_add_permission(self, request):
-        if DatenschutzeinwilligungText.objects.exists():
+        if TippgeberContractText.objects.exists():
             return False
         return super().has_add_permission(request)
 

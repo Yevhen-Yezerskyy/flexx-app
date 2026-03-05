@@ -58,7 +58,7 @@ class FlexxUserAdmin(admin.ModelAdmin):
 
 @admin.register(TippgeberClient)
 class TippgeberClientAdmin(admin.ModelAdmin):
-    list_display = ("id", "tippgeber", "client", "created_at")
+    list_display = ("id", "tippgeber", "client", "expected_investment_amount", "created_at")
     search_fields = (
         "tippgeber__email",
         "tippgeber__first_name",

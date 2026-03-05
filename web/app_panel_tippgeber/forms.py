@@ -76,6 +76,8 @@ class TippgeberProfileForm(forms.ModelForm):
 
 
 class ClientCreateForm(forms.ModelForm):
+    expected_investment_amount = forms.CharField(required=True)
+
     class Meta:
         model = FlexxUser
         fields = [
@@ -106,9 +108,21 @@ class ClientCreateForm(forms.ModelForm):
         self.fields["contact_person"].required = False
         self.fields["handelsregister"].required = False
         self.fields["handelsregister_number"].required = False
+        self.fields["expected_investment_amount"].label = "Erwartete Summe des Geschäfts"
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean_expected_investment_amount(self):
+        raw = (self.cleaned_data.get("expected_investment_amount") or "").strip()
+        normalized = raw.replace(" ", "").replace(",", ".")
+        try:
+            value = float(normalized)
+        except Exception:
+            raise forms.ValidationError("Bitte geben Sie eine gültige Summe ein.")
+        if value <= 0:
+            raise forms.ValidationError("Bitte geben Sie eine Summe größer als 0 ein.")
+        return value
 
     def validate_unique(self):
         return

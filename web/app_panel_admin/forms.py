@@ -10,7 +10,7 @@ from django import forms
 from app_users.age_validation import apply_birth_date_constraints, validate_adult_birth_date
 from app_users.models import FlexxUser, TippgeberClient
 from flexx.contract_fields import CONTRACT_FIELDS
-from flexx.models import BondIssue
+from flexx.models import BondIssue, Contract
 
 
 def _normalize_decimal_like(v) -> str:
@@ -74,6 +74,10 @@ class BondIssueForm(forms.ModelForm):
         self.fields["term_months"].label = "Laufzeit (Monate)"
         self.fields["minimal_bonds_quantity"].label = "Mindestmenge"
         self.fields["documents_sent_other"].label = "Dokumente Sonstige"
+        self.fields["rate_tippgeber"].required = False
+        self.fields["documents_sent_other"].required = False
+        if not (self.instance and self.instance.pk):
+            self.fields["rate_tippgeber"].initial = 5
 
         self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d.%m.%Y"]
 
@@ -92,6 +96,10 @@ class BondIssueForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("rate_tippgeber") in (None, ""):
+            cleaned["rate_tippgeber"] = 5
+        if cleaned.get("documents_sent_other") in (None, ""):
+            cleaned["documents_sent_other"] = 0
         out: Dict[str, str] = {}
         for f in CONTRACT_FIELDS:
             key = f["key"]
@@ -153,8 +161,11 @@ class AdminClientForm(forms.ModelForm):
         widgets = {"birth_date": _DATE_WIDGET_ADMIN}
 
     def __init__(self, *args, **kwargs):
-        require_issue = bool(kwargs.pop("require_issue", False))
+        kwargs.pop("require_issue", False)
         super().__init__(*args, **kwargs)
+        self.instance_has_contracts = bool(
+            self.instance and self.instance.pk and Contract.objects.filter(client_id=self.instance.pk).exists()
+        )
 
         if self.is_bound:
             d = self.data.copy()
@@ -208,7 +219,7 @@ class AdminClientForm(forms.ModelForm):
             issue_choices.append((str(issue.id), f"{issue.issue_date:%d.%m.%Y}: {issue.title}"))
         self.fields["issue_id"].choices = issue_choices
         self.fields["issue_id"].label = "Emission"
-        self.fields["issue_id"].required = require_issue
+        self.fields["issue_id"].required = False
         self.fields["issue_id"].error_messages["required"] = "Bitte wählen Sie eine Emission aus."
 
         if self.instance and self.instance.pk:
@@ -247,6 +258,14 @@ class AdminClientForm(forms.ModelForm):
                     self.add_error("issue_id", "Bitte wählen Sie eine Emission aus.")
                 else:
                     cleaned["issue"] = issue
+
+        is_active = bool(cleaned.get("is_active"))
+        if is_active:
+            if self.instance and self.instance.pk:
+                if not self.instance_has_contracts:
+                    self.add_error("is_active", "Aktive Kunden benötigen mindestens einen Vertrag.")
+            elif not cleaned.get("issue"):
+                self.add_error("issue_id", "Für aktive Kunden wählen Sie bitte eine Emission aus.")
 
         return cleaned
 

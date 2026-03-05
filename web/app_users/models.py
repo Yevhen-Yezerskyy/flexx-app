@@ -94,6 +94,7 @@ class TippgeberClient(models.Model):
         on_delete=models.SET_NULL,
         related_name="client_tippgeber_link",
     )
+    expected_investment_amount = models.FloatField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

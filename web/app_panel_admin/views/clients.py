@@ -56,6 +56,10 @@ def _redirect_clients_list_with_notice(code: str) -> HttpResponse:
     return redirect(f"{base}?{urlencode({'notice': code})}")
 
 
+def _client_has_contracts(client_id: int) -> bool:
+    return Contract.objects.filter(client_id=client_id).exists()
+
+
 @login_required
 def clients_list(request: HttpRequest) -> HttpResponse:
     denied = admin_only(request)
@@ -80,7 +84,7 @@ def clients_list(request: HttpRequest) -> HttpResponse:
         c.status_label = _contract_status_label(c)
         contracts_by_client_id.setdefault(c.client_id, []).append(c)
     for client_contracts in contracts_by_client_id.values():
-        can_delete_any = len(client_contracts) > 1
+        can_delete_any = len(client_contracts) > 1 or (client_contracts and not client_contracts[0].client.is_active)
         for contract in client_contracts:
             contract.can_delete = can_delete_any and contract.status_label == "Unbekannt"
 
@@ -100,9 +104,11 @@ def clients_list(request: HttpRequest) -> HttpResponse:
     elif notice_code == "issue_not_found":
         notice_text = "Die ausgewählte Emission ist nicht verfügbar."
     elif notice_code == "contract_delete_last_forbidden":
-        notice_text = "Der letzte Vertrag kann nicht gelöscht werden."
+        notice_text = "Der letzte Vertrag eines aktiven Kunden kann nicht gelöscht werden."
     elif notice_code == "contract_delete_forbidden":
         notice_text = "Nur Verträge mit dem Status Unbekannt können gelöscht werden."
+    elif notice_code == "client_activation_requires_contract":
+        notice_text = "Ein aktiver Kunde benötigt mindestens einen Vertrag."
 
     return render(
         request,
@@ -123,7 +129,7 @@ def clients_create(request: HttpRequest) -> HttpResponse:
         return denied
 
     issues = _load_active_issues()
-    selected_issue_id = issues[0].id if issues else None
+    selected_issue_id = None
     trigger_notify_confirm = False
 
     if request.method == "POST":
@@ -133,9 +139,9 @@ def clients_create(request: HttpRequest) -> HttpResponse:
                 selected_issue_id = int(issue_id_raw)
             except Exception:
                 selected_issue_id = None
-        form = AdminClientForm(request.POST, require_issue=True)
+        form = AdminClientForm(request.POST, require_issue=False)
         if form.is_valid():
-            issue = form.cleaned_data["issue"]
+            issue = form.cleaned_data.get("issue")
             is_active_selected = bool(form.cleaned_data.get("is_active"))
             notify_confirmed = request.POST.get("notify_confirmed") == "1"
 
@@ -151,10 +157,11 @@ def clients_create(request: HttpRequest) -> HttpResponse:
                     obj.save()
                     created_client = obj
 
-                    Contract.objects.create(
-                        client=obj,
-                        issue=issue,
-                    )
+                    if issue:
+                        Contract.objects.create(
+                            client=obj,
+                            issue=issue,
+                        )
                     _save_tippgeber_link(client=obj, tippgeber_id=form.cleaned_data.get("tippgeber_id"))
 
                 if created_client and created_client.is_active and request.POST.get("notify") == "1":
@@ -169,7 +176,7 @@ def clients_create(request: HttpRequest) -> HttpResponse:
                     )
                 return redirect("panel_admin_clients")
     else:
-        form = AdminClientForm(initial={"is_active": True}, require_issue=True)
+        form = AdminClientForm(initial={"is_active": True}, require_issue=False)
 
     issue_error = form.errors.get("issue_id")
     return render(
@@ -200,23 +207,26 @@ def clients_edit(request: HttpRequest, user_id: int) -> HttpResponse:
     if request.method == "POST":
         form = AdminClientForm(request.POST, instance=user, require_issue=False)
         if form.is_valid():
-            obj: FlexxUser = form.save(commit=False)
-            obj.role = FlexxUser.Role.CLIENT
-            obj.save()
+            if bool(form.cleaned_data.get("is_active")) and not _client_has_contracts(user.id):
+                form.add_error("is_active", "Aktive Kunden benötigen mindestens einen Vertrag.")
+            else:
+                obj: FlexxUser = form.save(commit=False)
+                obj.role = FlexxUser.Role.CLIENT
+                obj.save()
 
-            if (not was_active) and obj.is_active and request.POST.get("notify") == "1":
-                set_password_url = ""
-                if not obj.has_usable_password():
-                    set_password_url = build_set_password_url(request, obj)
-                send_client_activated_email(
-                    to_email=obj.email,
-                    first_name=obj.first_name or "",
-                    last_name=obj.last_name or "",
-                    set_password_url=set_password_url,
-                )
+                if (not was_active) and obj.is_active and request.POST.get("notify") == "1":
+                    set_password_url = ""
+                    if not obj.has_usable_password():
+                        set_password_url = build_set_password_url(request, obj)
+                    send_client_activated_email(
+                        to_email=obj.email,
+                        first_name=obj.first_name or "",
+                        last_name=obj.last_name or "",
+                        set_password_url=set_password_url,
+                    )
 
-            _save_tippgeber_link(client=obj, tippgeber_id=form.cleaned_data.get("tippgeber_id"))
-            return redirect("panel_admin_clients")
+                _save_tippgeber_link(client=obj, tippgeber_id=form.cleaned_data.get("tippgeber_id"))
+                return redirect("panel_admin_clients")
     else:
         form = AdminClientForm(instance=user, require_issue=False)
 
@@ -271,7 +281,7 @@ def clients_delete_contract(request: HttpRequest, contract_id: int) -> HttpRespo
         return _redirect_clients_list_with_notice("contract_delete_forbidden")
 
     contracts_count = Contract.objects.filter(client_id=contract.client_id).count()
-    if contracts_count <= 1:
+    if contracts_count <= 1 and contract.client.is_active:
         return _redirect_clients_list_with_notice("contract_delete_last_forbidden")
 
     contract.delete()
@@ -289,6 +299,8 @@ def clients_toggle_active(request: HttpRequest, user_id: int) -> HttpResponse:
 
     user = get_object_or_404(FlexxUser, id=user_id, role=FlexxUser.Role.CLIENT)
     was_active = bool(user.is_active)
+    if (not was_active) and not _client_has_contracts(user.id):
+        return _redirect_clients_list_with_notice("client_activation_requires_contract")
     user.is_active = not was_active
     user.save(update_fields=["is_active"])
 

@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
-from flexx.models import BondIssue
+from flexx.models import BondIssue, Contract
 from flexx.contract_helpers import build_stueckzinsen_rows_for_issue
 from flexx.emailer import (
     send_client_password_set_notify_email,
@@ -167,6 +167,9 @@ def set_password(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:
 
     form = ResetPasswordForm(request.POST or None, user=user)
     if request.method == "POST" and form.is_valid():
+        if getattr(user, "role", "") == "client" and not Contract.objects.filter(client_id=user.id).exists():
+            form.add_error(None, "Ein Kunde ohne Vertrag kann nicht aktiviert werden.")
+            return render(request, "app_users/password_set.html", {"form": form, "invalid": False, "email": user.email})
         user.set_password(form.cleaned_data["password1"])
         user.is_active = True
         user.save(update_fields=["password", "is_active"])

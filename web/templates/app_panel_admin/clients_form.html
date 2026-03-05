@@ -47,6 +47,7 @@ function flexxClientFormNotifyConfirm(formEl) {
   {% if mode == 'create' %}
   <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3">
     <div class="text-xl mb-2">Emission wählen</div>
+    <div class="text-sm text-gray-600">Für aktive Kunden erforderlich.</div>
     {% if issue_error %}
       <div class="text-sm text-red-600">{{ issue_error }}</div>
     {% endif %}
@@ -54,13 +55,12 @@ function flexxClientFormNotifyConfirm(formEl) {
       <div class="grid grid-cols-2 gap-6">
         <div class="border border-gray-200 rounded-md overflow-hidden">
           {% for it in issues %}
-            <label class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
-              <input type="radio"
-                     name="issue_id"
-                     value="{{ it.id }}"
-                     class="mt-1 accent-[var(--accent)]"
-                     {% if forloop.first %}required{% endif %}
-                     {% if selected_issue_id == it.id %}checked{% endif %}>
+                  <label class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
+                    <input type="radio"
+                           name="issue_id"
+                           value="{{ it.id }}"
+                           class="mt-1 accent-[var(--accent)]"
+                           {% if selected_issue_id == it.id %}checked{% endif %}>
               <div class="text-sm">
                 <div class="font-semibold">{{ it.issue_date|date:"d.m.Y" }}</div>
                 <div>{{ it.title }}</div>

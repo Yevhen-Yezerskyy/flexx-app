@@ -12,12 +12,12 @@ text-[var(--accent)] font-semibold
 {% block panel_content %}
 
 <div class="flex items-center mb-10 mt-2">
-  <div class="text-2xl">Informierung über Kunden und Emission</div>
+  <div class="text-2xl">Informierung über Kunden</div>
   <div class="flex-1"></div>
 
   <a href="{% url 'panel_tippgeber_my_clients' %}"
      class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
-    Meine Kunden/Verträge
+    Meine Kunden
   </a>
 </div>
 
@@ -27,77 +27,50 @@ text-[var(--accent)] font-semibold
   </div>
 {% endif %}
 
-{% if state.contract_created and contract %}
+{% if state.mode == "created" or state.mode == "updated" or state.client_is_mine %}
   <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-4 mt-6">
     {% if state.client_is_mine %}
       <div class="text-xl font-semibold text-[var(--text)] mb-1">Das ist Ihr Kunde.</div>
       <div class="text-sm text-[var(--text)] mb-2">Die Kundendaten können nur vom Kunden geändert werden.</div>
     {% elif state.mode == "created" %}
       <div class="text-xl font-semibold text-[var(--text)] mb-2">Kunde registriert</div>
+    {% elif state.mode == "updated" %}
+      <div class="text-xl font-semibold text-[var(--text)] mb-2">Kundendaten aktualisiert</div>
     {% else %}
-      <div class="text-xl font-semibold text-[var(--text)] mb-2">Vertrag für bestehenden Kunden erstellt</div>
+      <div class="text-xl font-semibold text-[var(--text)] mb-2">Kundendaten gespeichert</div>
     {% endif %}
 
     <div class="grid grid-cols-12 gap-2 text-[var(--text)] text-sm">
       <div class="col-span-3">E-Mail</div>
-      <div class="col-span-9">{{ contract.client.email }}</div>
+      <div class="col-span-9">{{ state.client_email }}</div>
 
       <div class="col-span-3">Name</div>
-      <div class="col-span-9">{{ contract.client.last_name }} {{ contract.client.first_name }}</div>
+      <div class="col-span-9">{{ state.client_last_name }} {{ state.client_first_name }}</div>
 
       <div class="col-span-3">Firma</div>
-      <div class="col-span-9">{{ contract.client.company|default:"" }}</div>
+      <div class="col-span-9">{{ state.client_company|default:"" }}</div>
 
       <div class="col-span-3">Adresse</div>
       <div class="col-span-9">
-        {{ contract.client.street|default:"" }}{% if contract.client.zip_code or contract.client.city %}, {% endif %}
-        {{ contract.client.zip_code|default:"" }} {{ contract.client.city|default:"" }}
+        {{ state.client_street|default:"" }}{% if state.client_zip_code or state.client_city %}, {% endif %}
+        {{ state.client_zip_code|default:"" }} {{ state.client_city|default:"" }}
       </div>
 
       <div class="col-span-3">Telefon</div>
-      <div class="col-span-9">{{ contract.client.phone|default:""|phone_intl }}</div>
+      <div class="col-span-9">{{ state.client_phone|default:""|phone_intl }}</div>
 
       <div class="col-span-3">Mobiltelefon</div>
-      <div class="col-span-9">{{ contract.client.mobile_phone|default:""|phone_intl }}</div>
-    </div>
-  </div>
+      <div class="col-span-9">{{ state.client_mobile_phone|default:""|phone_intl }}</div>
 
-  <div class="bg-white border border-gray-400 rounded-md px-7 py-5 flex flex-col gap-3 mt-6">
-    <div class="text-xl font-semibold text-[var(--text)] mb-2">Emission</div>
-
-    <div class="grid grid-cols-2 gap-6">
-      <div class="border border-gray-200 rounded-md p-4">
-        <div class="font-semibold">{{ issue_display_title }}</div>
-      </div>
-
-      <div class="border border-gray-200 rounded-md p-4">
-        <div class="grid grid-cols-[160px_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-          <div>Ausgabedatum:</div><div>{{ contract.issue.issue_date|date:"d.m.Y" }}</div>
-          <div>Laufzeit:</div><div>{{ contract.issue.term_months }} Monate</div>
-          <div>Volumen, €:</div><div>{{ issue_volume_display }}</div>
-          <div>Preis pro Anleihe, €:</div><div>{{ issue_bond_price_display }}</div>
-          <div>Zinssatz:</div><div>{{ contract.issue.interest_rate }}%</div>
-          <div>Mindestmenge:</div><div>{{ issue_minimal_bonds_quantity_display }}</div>
-          {% if contract.issue_id %}
-            <div>Stückzinstabelle</div>
-            <div>
-              <a href="#"
-                 data-interest-modal-open
-                 data-issue-id="{{ contract.issue_id }}"
-                 class="underline hover:text-[var(--accent)] transition">
-                Stückzinstabelle
-              </a>
-            </div>
-          {% endif %}
-        </div>
-      </div>
+      <div class="col-span-3">Erwartete Summe des Geschäfts</div>
+      <div class="col-span-9">{{ state.expected_investment_amount_display }}</div>
     </div>
   </div>
 
   <div class="flex justify-end gap-6 mt-6">
     <a href="{% url 'panel_tippgeber_my_clients' %}"
        class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
-      Meine Kunden/Verträge
+      Meine Kunden
     </a>
   </div>
 {% else %}
@@ -126,6 +99,9 @@ text-[var(--accent)] font-semibold
 
         <div class="col-span-3">Mobiltelefon</div>
         <div class="col-span-9">{{ state.client_mobile_phone|default:""|phone_intl }}</div>
+
+        <div class="col-span-3">Erwartete Summe des Geschäfts</div>
+        <div class="col-span-9">{{ state.expected_investment_amount_display|default:"" }}</div>
       </div>
     </div>
 
@@ -133,7 +109,7 @@ text-[var(--accent)] font-semibold
       <div class="flex justify-end gap-6 pt-2">
         <a href="{% url 'panel_tippgeber_my_clients' %}"
            class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
-          Meine Kunden/Verträge
+          Meine Kunden
         </a>
 
         <form method="post" action="{% url 'panel_tippgeber_send_client' %}">
@@ -159,7 +135,7 @@ text-[var(--accent)] font-semibold
       <div class="flex justify-end gap-6 pt-2">
         <a href="{% url 'panel_tippgeber_my_clients' %}"
            class="w-56 rounded-md bg-gray-100 text-[var(--text)] py-3 hover:bg-gray-200 transition font-semibold text-center flex items-center justify-center">
-          Meine Kunden/Verträge
+          Meine Kunden
         </a>
       </div>
     {% endif %}

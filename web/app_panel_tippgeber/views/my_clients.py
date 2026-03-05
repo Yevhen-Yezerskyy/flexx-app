@@ -1,15 +1,22 @@
-# FILE: web/app_panel_tippgeber/views/my_clients.py  (обновлено — 2026-02-27)
-# PURPOSE: "Meine Kunden/Verträge": список договоров текущего Tippgeber (одна строка = один Vertrag).
+# FILE: web/app_panel_tippgeber/views/my_clients.py  (обновлено — 2026-03-04)
+# PURPOSE: "Meine Kunden": список клиентов текущего Tippgeber.
 
 from __future__ import annotations
 
+from babel.numbers import format_decimal
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from app_users.models import TippgeberClient
-from flexx.models import Contract
 from .common import agent_only
+
+
+def _format_decimal_de(value, fmt: str) -> str:
+    try:
+        return format_decimal(value, format=fmt, locale="de_DE")
+    except Exception:
+        return str(value or "")
 
 
 @login_required
@@ -18,19 +25,21 @@ def my_clients(request: HttpRequest) -> HttpResponse:
     if denied:
         return denied
 
-    client_ids = list(
+    links = list(
         TippgeberClient.objects.filter(tippgeber=request.user, client__isnull=False)
-        .values_list("client_id", flat=True)
+        .select_related("client")
+        .order_by("-id")
     )
-
     rows = []
-    if client_ids:
-        contracts = (
-            Contract.objects.select_related("client", "issue")
-            .filter(client_id__in=client_ids)
-            .order_by("-id")
-            .all()
+    for link in links:
+        if not link.client:
+            continue
+        rows.append(
+            {
+                "client": link.client,
+                "link": link,
+                "expected_investment_amount_display": _format_decimal_de(link.expected_investment_amount, "#,##0.00"),
+            }
         )
-        rows = [{"client": c.client, "contract": c} for c in contracts if c.client]
 
     return render(request, "app_panel_tippgeber/my_clients.html", {"rows": rows})

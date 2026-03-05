@@ -574,13 +574,11 @@ def send_tippgeber_added_interessent_email(
     client_email: str,
     client_first_name: str,
     client_last_name: str,
-    issue_date: date,
-    issue_title: str,
+    expected_investment_amount: str,
 ) -> bool:
-    issue_date_text = issue_date.strftime("%d.%m.%Y")
     tipgeber_client = (
         f"Kunde: {client_last_name} {client_first_name} {client_email}\n"
-        f"Emission: {issue_date_text}: {issue_title}\n"
+        f"Erwartete Summe des Geschäfts: {expected_investment_amount}\n"
         f"Tippgeber: {tippgeber_last_name} {tippgeber_first_name} {tippgeber_email}"
     )
     status = send_email_from_template(
