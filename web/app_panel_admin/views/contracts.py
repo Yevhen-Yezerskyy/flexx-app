@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import urlencode
 
 from babel.numbers import format_decimal
@@ -58,18 +59,19 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
         .order_by("-id")
     )
     client_ids = [c.client_id for c in contracts if c.client_id]
-    links = (
+    links = list(
         TippgeberClient.objects.filter(client_id__in=client_ids)
         .select_related("tippgeber")
         .all()
     )
-    tip_by_client_id = {l.client_id: l.tippgeber for l in links if l.client_id}
+    links_by_client_id = {l.client_id: l for l in links if l.client_id}
     contract_count_by_client_id: dict[int, int] = {}
     for c in contracts:
         contract_count_by_client_id[c.client_id] = contract_count_by_client_id.get(c.client_id, 0) + 1
 
     for c in contracts:
-        c.tippgeber = tip_by_client_id.get(c.client_id)
+        link = links_by_client_id.get(c.client_id)
+        c.tippgeber = link.tippgeber if link and link.tippgeber_id else None
         if c.paid_at:
             c.status_stage = "paid"
         elif c.signed_received_at:
@@ -110,6 +112,24 @@ def contracts_list(request: HttpRequest) -> HttpResponse:
             _shorten_middle(c.signed_signed_pdf_basename)
             if c.signed_signed_pdf_basename else ""
         )
+        c.tip_rate_display = ""
+        c.tip_provision_display = ""
+        c.tip_vat_display = ""
+        c.tip_total_display = ""
+        c.tip_paid_status = ""
+        c.tip_can_show_finance = bool(c.tippgeber and c.nominal_amount is not None)
+        if c.tip_can_show_finance:
+            amount = Decimal(str(c.nominal_amount))
+            rate = Decimal(str(c.issue.rate_tippgeber or 0))
+            provision = (amount * rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            vat = (provision * Decimal("0.19")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total = (provision + vat).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            c.tip_rate_display = _format_decimal_de(c.issue.rate_tippgeber or 0, "#,##0.##")
+            c.tip_provision_display = _format_decimal_de(provision, "#,##0.00")
+            c.tip_vat_display = _format_decimal_de(vat, "#,##0.00")
+            c.tip_total_display = _format_decimal_de(total, "#,##0.00")
+            c.tip_paid_status = "Bezahlt" if c.tippgeber_paid_at else "Nicht bezahlt"
 
     notice_code = (request.GET.get("notice") or "").strip()
     notice_text = ""
@@ -205,6 +225,20 @@ def contract_toggle_paid(request: HttpRequest, contract_id: int) -> HttpResponse
             )
         except Exception:
             return _redirect_contracts_list_with_notice("mail_failed_status_changed")
+    return redirect("panel_admin_contracts_list")
+
+
+@login_required
+def contract_toggle_tippgeber_paid(request: HttpRequest, contract_id: int) -> HttpResponse:
+    denied = admin_only(request)
+    if denied:
+        return denied
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    c = get_object_or_404(Contract, id=contract_id)
+    c.tippgeber_paid_at = None if c.tippgeber_paid_at else timezone.localdate()
+    c.save(update_fields=["tippgeber_paid_at", "updated_at"])
     return redirect("panel_admin_contracts_list")
 
 

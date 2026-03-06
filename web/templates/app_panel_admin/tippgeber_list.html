@@ -33,8 +33,8 @@ function flexxTippgeberDeleteConfirm(formEl) {
   <table class="w-full text-sm">
     <thead class="bg-gray-100">
       <tr class="text-left">
-        <th class="px-4 py-3 w-[50%] text-[var(--accent)] font-semibold">Tippgeber</th>
-        <th class="px-4 py-3 w-[50%] text-[var(--accent)] font-semibold">Kunden</th>
+        <th class="px-4 py-3 w-[35%] text-[var(--accent)] font-semibold">Tippgeber</th>
+        <th class="px-4 py-3 w-[65%] text-[var(--accent)] font-semibold">Kunden</th>
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">Status</th>
         <th class="px-4 py-3 text-[var(--accent)] font-semibold">&nbsp;</th>
       </tr>
@@ -55,7 +55,8 @@ function flexxTippgeberDeleteConfirm(formEl) {
               </div>
               <div class="font-semibold">
                 {{ r.u.first_name }} {{ r.u.last_name }}
-                (<a href="mailto:{{ r.u.email }}" class="underline hover:text-[var(--accent)] transition">{{ r.u.email }}</a>)
+                <br>
+                <a href="mailto:{{ r.u.email }}" class="underline hover:text-[var(--accent)] transition font-normal">{{ r.u.email }}</a>
               </div>
             </div>
           </td>
@@ -68,15 +69,24 @@ function flexxTippgeberDeleteConfirm(formEl) {
                     <div>
                       <a href="#"
                          data-admin-user-info-open
-                         data-user-info-url="{% url 'panel_admin_user_info' c.id %}"
+                         data-user-info-url="{% url 'panel_admin_user_info' c.u.id %}"
                          class="underline hover:text-[var(--accent)] transition">
                         Kunde {{ forloop.counter }}:
                       </a>
                     </div>
                     <div>
-                      {{ c.first_name }} {{ c.last_name }}
-                      (<a href="mailto:{{ c.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.email }}</a>)
+                      {{ c.u.first_name }} {{ c.u.last_name }}
+                      (<a href="mailto:{{ c.u.email }}" class="underline hover:text-[var(--accent)] transition">{{ c.u.email }}</a>)
                     </div>
+                    {% if c.contract_summaries %}
+                      <div class="col-span-2 text-sm text-gray-700 mt-1 flex flex-col gap-1">
+                        {% for s in c.contract_summaries %}
+                          <div>
+                            {{ s.issue_date_display }} - € {{ s.amount_display }}, Kunde {{ s.client_paid_text }}, Prov. € {{ s.provision_display }} (inkl. MwSt.), {{ s.tippgeber_paid_text }}.
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
                   </div>
                 {% endfor %}
               </div>

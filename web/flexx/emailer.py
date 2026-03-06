@@ -6,9 +6,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import date
 from email.utils import formataddr, parseaddr
+import html
 import imaplib
 import logging
 import os
+from pathlib import Path
 import re
 import time
 
@@ -39,6 +41,7 @@ class EmailSendError(RuntimeError):
 EMAIL_TEMPLATE_NOT_FOUND = "NOT_FOUND"
 EMAIL_TEMPLATE_SEND_ERROR = "SEND_ERROR"
 EMAIL_TEMPLATE_SENT = "SENT"
+_MAIL_TEMPLATE_CACHE: str | None = None
 
 
 def _conn():
@@ -51,6 +54,49 @@ def _conn():
         use_ssl=SMTP_USE_SSL,
         fail_silently=False,
     )
+
+
+def _load_mail_wrapper_template() -> str | None:
+    global _MAIL_TEMPLATE_CACHE
+    if _MAIL_TEMPLATE_CACHE is not None:
+        return _MAIL_TEMPLATE_CACHE
+
+    template_path = Path(__file__).resolve().parent.parent / "templates" / "mail.html"
+    try:
+        _MAIL_TEMPLATE_CACHE = template_path.read_text(encoding="utf-8")
+    except Exception:
+        _MAIL_TEMPLATE_CACHE = ""
+    return _MAIL_TEMPLATE_CACHE or None
+
+
+def _link_style() -> str:
+    return "color:#384810;text-decoration:underline;"
+
+
+def _linkify_escaped_text(text: str) -> str:
+    url_re = re.compile(r"(https?://[^\s<]+)")
+    email_re = re.compile(r"\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
+
+    def _url_replace(match: re.Match[str]) -> str:
+        url = match.group(1)
+        return f'<a href="{url}" style="{_link_style()}">{url}</a>'
+
+    def _email_replace(match: re.Match[str]) -> str:
+        email = match.group(1)
+        return f'<a href="mailto:{email}" style="{_link_style()}">{email}</a>'
+
+    text = url_re.sub(_url_replace, text)
+    text = email_re.sub(_email_replace, text)
+    return text
+
+
+def _render_mail_html(body: str) -> str:
+    wrapper = _load_mail_wrapper_template()
+    escaped_body = html.escape(body or "")
+    escaped_body = _linkify_escaped_text(escaped_body).replace("\n", "<br>")
+    if not wrapper:
+        return f"<html><body>{escaped_body}</body></html>"
+    return wrapper.replace("{ content }", escaped_body)
 
 
 def _append_to_sent(raw_message: bytes) -> None:
@@ -91,6 +137,7 @@ def _send_text(
             to=[to_email],
             connection=_conn(),
         )
+        msg.attach_alternative(_render_mail_html(body), "text/html")
         for filename, content, mimetype in attachments or ():
             msg.attach(filename, content, mimetype)
         raw_message = msg.message().as_bytes()

@@ -70,8 +70,10 @@ def clients_list(request: HttpRequest) -> HttpResponse:
     issues = _load_active_issues()
     selected_issue_id = issues[0].id if issues else None
 
-    links = TippgeberClient.objects.filter(client__in=clients).select_related("client", "tippgeber").all()
-    tip_by_client_id = {l.client_id: l.tippgeber for l in links if l.client_id}
+    links = list(
+        TippgeberClient.objects.filter(client__in=clients).select_related("client", "tippgeber").all()
+    )
+    links_by_client_id = {l.client_id: l for l in links if l.client_id}
 
     contracts = (
         Contract.objects.filter(client__in=clients)
@@ -91,7 +93,12 @@ def clients_list(request: HttpRequest) -> HttpResponse:
     rows = [
         {
             "u": c,
-            "tippgeber": tip_by_client_id.get(c.id),
+            "tippgeber": (links_by_client_id.get(c.id).tippgeber if links_by_client_id.get(c.id) else None),
+            "expected_investment_amount_display": (
+                _format_decimal_de(links_by_client_id[c.id].expected_investment_amount, "#,##0.00")
+                if c.id in links_by_client_id
+                else ""
+            ),
             "contracts": contracts_by_client_id.get(c.id, []),
         }
         for c in clients

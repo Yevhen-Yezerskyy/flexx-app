@@ -16,6 +16,7 @@ from .views.contracts import (
     contract_delete,
     contract_toggle_paid,
     contract_toggle_signed_received,
+    contract_toggle_tippgeber_paid,
     contracts_list,
 )
 from .views.issues import issues_list, issues_create, issues_edit, issues_delete
@@ -37,6 +38,7 @@ urlpatterns = [
     path("contracts/", contracts_list, name="panel_admin_contracts_list"),
     path("contracts/<int:contract_id>/toggle-signed/", contract_toggle_signed_received, name="panel_admin_contract_toggle_signed"),
     path("contracts/<int:contract_id>/toggle-paid/", contract_toggle_paid, name="panel_admin_contract_toggle_paid"),
+    path("contracts/<int:contract_id>/toggle-tippgeber-paid/", contract_toggle_tippgeber_paid, name="panel_admin_contract_toggle_tippgeber_paid"),
     path("contracts/<int:contract_id>/delete/", contract_delete, name="panel_admin_contract_delete"),
 
     path("tippgeber/", tippgeber_list, name="panel_admin_tippgeber_list"),

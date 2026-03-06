@@ -39,6 +39,10 @@
             Kein Tippgeber
           {% endif %}
         </div>
+        {% if tippgeber %}
+          <div>Erwartet:</div>
+          <div>€ {{ expected_investment_amount_display|default:"0,00" }}</div>
+        {% endif %}
       </div>
     </div>
 

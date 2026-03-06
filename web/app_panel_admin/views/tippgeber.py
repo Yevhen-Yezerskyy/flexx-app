@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_UP
+
+from babel.numbers import format_decimal
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
@@ -11,8 +14,26 @@ from django.shortcuts import get_object_or_404, redirect, render
 from app_panel_admin.forms import AdminTippgeberForm
 from app_users.models import FlexxUser, TippgeberClient
 from flexx.emailer import send_tippgeber_activated_email, send_tippgeber_deleted_email
+from flexx.models import Contract
 
 from .common import admin_only, build_set_password_url
+
+
+def _format_decimal_de(value, fmt: str) -> str:
+    try:
+        return format_decimal(value, format=fmt, locale="de_DE")
+    except Exception:
+        return str(value or "")
+
+
+def _contract_status_label(contract: Contract) -> str:
+    if contract.paid_at:
+        return "Bezahlt"
+    if contract.signed_received_at:
+        return "Signiert"
+    if contract.contract_pdf:
+        return "Erstellt"
+    return "Unbekannt"
 
 
 @login_required
@@ -34,9 +55,48 @@ def tippgeber_list(request: HttpRequest) -> HttpResponse:
             continue
         clients_by_tip_id.setdefault(l.tippgeber_id, []).append(l.client)
 
+    all_clients: list[FlexxUser] = []
+    for grouped in clients_by_tip_id.values():
+        all_clients.extend(grouped)
+    client_ids = [c.id for c in all_clients]
+    contracts = list(
+        Contract.objects.select_related("issue", "client")
+        .filter(client_id__in=client_ids)
+        .order_by("-id")
+    )
+    contracts_by_client_id: dict[int, list[Contract]] = {}
+    for contract in contracts:
+        contracts_by_client_id.setdefault(contract.client_id, []).append(contract)
+
     rows = []
     for t in tips:
-        rows.append({"u": t, "clients": clients_by_tip_id.get(t.id, [])})
+        clients = []
+        for client in clients_by_tip_id.get(t.id, []):
+            contract_summaries: list[dict[str, str]] = []
+            for contract in contracts_by_client_id.get(client.id, []):
+                issue_date_display = contract.issue.issue_date.strftime("%d.%m.%Y") if contract.issue.issue_date else "—"
+                sum_amount = contract.nominal_amount_plus_percent
+                amount_display = _format_decimal_de(sum_amount, "#,##0.00") if sum_amount is not None else "—"
+                provision_base_amount = contract.nominal_amount
+                provision_display = "—"
+                if provision_base_amount is not None:
+                    provision = (
+                        Decimal(str(provision_base_amount)) * Decimal(str(contract.issue.rate_tippgeber or 0)) / Decimal("100")
+                    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    provision_vat = (provision * Decimal("0.19")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    provision_total = (provision + provision_vat).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    provision_display = _format_decimal_de(provision_total, "#,##0.00")
+                contract_summaries.append(
+                    {
+                        "issue_date_display": issue_date_display,
+                        "amount_display": amount_display,
+                        "client_paid_text": "bezahlt" if _contract_status_label(contract) == "Bezahlt" else "nicht bezahlt",
+                        "provision_display": provision_display,
+                        "tippgeber_paid_text": "bezahlt" if contract.tippgeber_paid_at else "nicht bezahlt",
+                    }
+                )
+            clients.append({"u": client, "contract_summaries": contract_summaries})
+        rows.append({"u": t, "clients": clients})
 
     return render(request, "app_panel_admin/tippgeber_list.html", {"rows": rows})
 

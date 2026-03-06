@@ -259,6 +259,42 @@
                 {% endif %}
               </div>
             </div>
+            {% if c.tip_can_show_finance %}
+              <div class="grid grid-cols-[80px_1fr] gap-1 mt-2">
+                <div>Provision:</div>
+                <div>{{ c.tip_rate_display }}%; € {{ c.tip_provision_display }} (MwSt. € {{ c.tip_vat_display }} incl)</div>
+              </div>
+              {% if c.status_stage == "paid" %}
+                <div class="grid grid-cols-[80px_1fr] gap-1 mt-2">
+                  <div>Status:</div>
+                  <div>
+                    {{ c.tip_paid_status }}
+                    <br>
+                    {% if c.tippgeber_paid_at %}
+                      <button type="button"
+                              data-contract-status-open
+                              data-action="{% url 'panel_admin_contract_toggle_tippgeber_paid' c.id %}"
+                              data-title="Tippgeber-Provision nicht bezahlt"
+                              data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                              data-notify="0"
+                              class="underline hover:text-[var(--accent)] transition text-left">
+                        Setzen: nicht bezahlt
+                      </button>
+                    {% else %}
+                      <button type="button"
+                              data-contract-status-open
+                              data-action="{% url 'panel_admin_contract_toggle_tippgeber_paid' c.id %}"
+                              data-title="Tippgeber-Provision bezahlt"
+                              data-label="Vertrag {{ c.issue }} für {{ c.client.first_name }} {{ c.client.last_name }} ({{ c.client.email }})"
+                              data-notify="0"
+                              class="underline hover:text-[var(--accent)] transition text-left">
+                        Setzen: bezahlt
+                      </button>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endif %}
+            {% endif %}
           </td>
 
           <td class="px-4 py-3">

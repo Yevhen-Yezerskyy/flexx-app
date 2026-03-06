@@ -183,6 +183,7 @@ class Contract(models.Model):
 
     signed_received_at = models.DateField(null=True, blank=True)
     paid_at = models.DateField(null=True, blank=True)
+    tippgeber_paid_at = models.DateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
